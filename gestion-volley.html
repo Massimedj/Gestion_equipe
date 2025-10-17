@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assistant pour la gestion de l'équipe</title>
+    <!-- Utilisation de Tailwind CSS pour un design simple et efficace -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Ajout d'une police plus moderne -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Styles personnalisés */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Fond gris très clair */
+        }
+        .court-container::before, .court-container::after {
+            content: '';
+            position: absolute;
+            width: 8px; /* Poteaux épais */
+            height: 12px;
+            background-color: #374151;
+            top: 10px; /* Aligné avec le haut du terrain */
+            transform: translateY(-50%); /* Centré sur la ligne du filet */
+            z-index: 10;
+        }
+        .court-container::before {
+            left: -4px;
+        }
+        .court-container::after {
+            right: -4px;
+        }
+        .court {
+            width: 100%;
+            max-width: 400px;
+            aspect-ratio: 1 / 1;
+            height: auto;
+            background-color: #fde68a; /* Couleur sable */
+            border: 2px solid #374151;
+            position: relative;
+            margin: 0 auto;
+            margin-top: 10px; /* Espace pour le filet */
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr; /* 3 joueurs en ligne */
+            grid-template-rows: 1fr 1fr; /* 2 lignes */
+        }
+        .net {
+            position: absolute;
+            top: 0; /* Positionné en haut du terrain */
+            left: 0;
+            width: 100%;
+            height: 4px; /* Filet plus visible */
+            background-color: #1f2937;
+            transform: translateY(-50%); /* Centré sur la bordure supérieure */
+        }
+        .position {
+            border: 1px dashed #6b7280;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 8px;
+            text-align: center;
+        }
+        .position-label {
+            font-weight: bold;
+            font-size: 0.9em;
+            color: #4b5563;
+        }
+        .player-select {
+            margin-top: 5px;
+            width: 100%;
+            border-radius: 4px;
+            border: 1px solid #d1d5db;
+            font-size: 0.9em;
+        }
+        .tab-button, .set-button {
+            transition: all 0.3s ease;
+        }
+        .tab-button.active, .set-button.active {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        /* Style pour les modals */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
+        .jersey-badge {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            background-color: #4b5563;
+        }
+        .captain-checkbox:checked {
+            background-color: #f59e0b;
+            border-color: #f59e0b;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">🏐 Assistant pour la gestion de l'équipe 🏐</h1>
+            <p class="text-lg text-gray-600 mt-2">Votre outil tout-en-un pour le coaching</p>
+        </header>
+
+        <main>
+             <!-- Section Gestion des Équipes -->
+            <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+                <h2 class="text-2xl font-bold mb-4 border-b pb-2">Gestion des Équipes</h2>
+                <div class="flex flex-wrap items-center gap-4">
+                    <select id="teamSelector" class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none w-full sm:w-auto">
+                        <!-- Les équipes seront listées ici -->
+                    </select>
+                    <div class="flex gap-2 w-full sm:w-auto">
+                        <button onclick="openAddTeamModal()" class="flex-1 bg-indigo-500 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-600 transition">Nouvelle</button>
+                        <div id="teamActions" class="flex-1 flex gap-2 hidden">
+                            <button onclick="openEditTeamModal()" class="w-full bg-yellow-500 text-white font-semibold py-3 px-4 rounded-lg hover:bg-yellow-600 transition">Modifier</button>
+                            <button onclick="deleteCurrentTeam()" class="w-full bg-red-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-red-700 transition">Supprimer</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="team-content" class="hidden">
+                <!-- Barre de navigation principale -->
+                <div class="mb-8 border-b border-gray-200">
+                    <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                        <button id="main-tab-roster" onclick="showMainTab('roster')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
+                            Effectif
+                        </button>
+                        <button id="main-tab-matches" onclick="showMainTab('matches')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
+                            Matchs
+                        </button>
+                        <button id="main-tab-stats" onclick="showMainTab('stats')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
+                            Statistiques
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Contenu de l'onglet Effectif -->
+                <div id="main-view-roster">
+                    <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+                        <h2 class="text-2xl font-bold mb-4 border-b pb-2">Effectif de l'équipe</h2>
+                        <button onclick="openAddPlayerModal()" class="w-full bg-blue-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-600 transition duration-300 shadow mb-6">Ajouter un joueur</button>
+
+                        <div id="playerList" class="mt-6 space-y-2">
+                            <!-- La liste des joueurs sera injectée ici par JavaScript -->
+                        </div>
+                        <button id="deleteAllPlayersBtn" onclick="deleteAllPlayers()" class="w-full mt-4 bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition hidden">Supprimer l'effectif</button>
+                    </div>
+                </div>
+                
+                <!-- Contenu de l'onglet Matchs -->
+                <div id="main-view-matches" class="hidden">
+                    <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+                        <h2 class="text-2xl font-bold mb-4 border-b pb-2">Gestion des Matchs</h2>
+                        <button onclick="openAddMatchModal()" class="w-full bg-green-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-green-600 transition duration-300 shadow mb-6">Ajouter une rencontre</button>
+                        
+                        <h3 class="text-xl font-semibold mb-3 border-t pt-6">Sélectionner un match</h3>
+                        <select id="matchSelector" class="w-full p-3 border border-gray-300 rounded-lg mb-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                            <!-- Les options de match seront injectées ici -->
+                        </select>
+                        <p id="match-hint" class="text-sm text-gray-500 -mt-1 mb-2">Sélectionnez un match pour le gérer.</p>
+                        <div id="matchActions" class="hidden flex gap-2 mb-4">
+                            <button onclick="openEditMatchModal()" class="flex-1 bg-yellow-500 text-white text-sm font-semibold py-2 px-4 rounded-lg hover:bg-yellow-600 transition">Modifier</button>
+                            <button onclick="deleteSelectedMatch()" class="flex-1 bg-red-500 text-white text-sm font-semibold py-2 px-4 rounded-lg hover:bg-red-600 transition">Supprimer</button>
+                        </div>
+                    </div>
+                    
+                    <div id="selectedMatchContent" class="hidden space-y-8">
+                        <!-- Feuille de Match -->
+                        <div id="attendanceTracker" class="bg-white p-6 rounded-2xl shadow-lg">
+                             <h3 class="text-xl font-semibold mb-3">Feuille de Match</h3>
+                             <div id="attendanceList" class="space-y-2">
+                                <!-- La liste de présence sera injectée ici -->
+                             </div>
+                        </div>
+
+                        <!-- Vue Terrain -->
+                        <div id="view-terrain" class="bg-white p-6 rounded-2xl shadow-lg">
+                            <h3 class="text-xl font-semibold mb-4 text-center">Composition par set</h3>
+                             <div id="set-selector" class="flex justify-center gap-1 mb-4 rounded-lg bg-gray-200 p-1">
+                                <!-- Les boutons de set seront injectés ici -->
+                             </div>
+                            <div class="court-container relative">
+                               <div class="court">
+                                   <div class="net"></div>
+                                   <div id="pos-4" class="position"><span class="position-label">P4</span></div>
+                                   <div id="pos-3" class="position"><span class="position-label">P3</span></div>
+                                   <div id="pos-2" class="position"><span class="position-label">P2</span></div>
+                                   <div id="pos-5" class="position"><span class="position-label">P5</span></div>
+                                   <div id="pos-6" class="position"><span class="position-label">P6</span></div>
+                                   <div id="pos-1" class="position"><span class="position-label">P1</span></div>
+                               </div>
+                            </div>
+                        </div>
+
+                        <!-- Score du Match -->
+                        <div id="scoreTracker" class="bg-white p-6 rounded-2xl shadow-lg">
+                            <h3 class="text-xl font-semibold mb-3">Score du Match</h3>
+                            <div class="space-y-4">
+                                <div class="p-3 bg-gray-100 rounded-lg">
+                                     <div class="grid grid-cols-3 items-center gap-2 text-center mb-2">
+                                        <label id="myTeamNameLabel" class="font-semibold"></label>
+                                        <div></div>
+                                        <label id="opponentNameLabel" class="font-semibold"></label>
+                                    </div>
+                                    <div class="grid grid-cols-3 items-center gap-2 text-center">
+                                        <input type="number" id="scoreMyTeam" class="w-full p-2 border border-gray-300 rounded-lg text-center font-bold text-lg bg-gray-200" disabled>
+                                        <span class="font-bold text-lg">-</span>
+                                        <input type="number" id="scoreOpponent" class="w-full p-2 border border-gray-300 rounded-lg text-center font-bold text-lg bg-gray-200" disabled>
+                                    </div>
+                                </div>
+                                <div id="setScoresContainer" class="space-y-2">
+                                    <!-- Set scores will be injected here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenu de l'onglet Statistiques -->
+                 <div id="main-view-stats" class="hidden">
+                    <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+                        <h3 class="text-2xl font-bold mb-4 border-b pb-2">Résultats de l'équipe</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left table-auto text-sm">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="p-2 font-semibold text-center">Pts</th>
+                                        <th class="p-2 font-semibold text-center">Joués</th>
+                                        <th class="p-2 font-semibold text-center">Gagnés</th>
+                                        <th class="p-2 font-semibold text-center">Perdus</th>
+                                        <th class="p-2 font-semibold text-center">3-0</th>
+                                        <th class="p-2 font-semibold text-center">3-1</th>
+                                        <th class="p-2 font-semibold text-center">3-2</th>
+                                        <th class="p-2 font-semibold text-center">2-3</th>
+                                        <th class="p-2 font-semibold text-center">1-3</th>
+                                        <th class="p-2 font-semibold text-center">0-3</th>
+                                        <th class="p-2 font-semibold text-center">Set P.</th>
+                                        <th class="p-2 font-semibold text-center">Set C.</th>
+                                        <th class="p-2 font-semibold text-center">Pts P.</th>
+                                        <th class="p-2 font-semibold text-center">Pts C.</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr id="teamStatsRow" class="font-mono text-center">
+                                        <!-- Team stats will be injected here -->
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-lg">
+                        <h3 class="text-2xl font-bold mb-4 border-b pb-2">Statistiques des Joueurs</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left table-auto">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="p-3 font-semibold">Joueur</th>
+                                        <th class="p-3 font-semibold text-center">Présences</th>
+                                        <th class="p-3 font-semibold text-center">Matchs Joués</th>
+                                        <th class="p-3 font-semibold text-center">Sets Joués</th>
+                                        <th class="p-3 font-semibold text-center">Sets Gagnés</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="statsTableBody">
+                                    <!-- Les statistiques seront injectées ici -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        <footer class="text-center text-gray-500 text-sm py-8">
+            <p>© 2025 EasyPlay. Tous droits réservés. Fait par Massi ⵣ. Pour toute question, contactez-moi à contact.easyplayapp@gmail.com.</p>
+        </footer>
+    </div>
+
+    <!-- Modals -->
+    <div id="addPlayerModal" class="modal-backdrop hidden">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0">
+            <h2 class="text-2xl font-bold mb-4">Ajouter un joueur</h2>
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="flex flex-col md:col-span-2">
+                        <label for="newPlayerName" class="font-semibold mb-1">Nom du joueur</label>
+                        <input type="text" id="newPlayerName" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Prénom Nom...">
+                    </div>
+                     <div class="flex flex-col">
+                        <label for="newLicenseNumber" class="font-semibold mb-1">N° de Licence</label>
+                        <input type="text" id="newLicenseNumber" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Ex: 1234567">
+                    </div>
+                    <div class="flex flex-col">
+                        <label for="newJerseyNumber" class="font-semibold mb-1">N° de Maillot</label>
+                        <input type="number" id="newJerseyNumber" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Ex: 10">
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="font-semibold mb-1">Genre</label>
+                        <div class="flex gap-4 p-3 bg-gray-50 rounded-lg border border-gray-300 h-[50px] items-center">
+                            <label><input type="radio" name="gender" value="H" checked> Garçon</label>
+                            <label><input type="radio" name="gender" value="F"> Fille</label>
+                        </div>
+                    </div>
+                     <div class="flex flex-col">
+                        <label for="newPlayerMainPosition" class="font-semibold mb-1">Poste 1 (principal)</label>
+                        <select id="newPlayerMainPosition" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"></select>
+                    </div>
+                    <div class="flex flex-col md:col-span-2">
+                        <label for="newPlayerSecondaryPosition" class="font-semibold mb-1">Poste 2 (secondaire)</label>
+                        <select id="newPlayerSecondaryPosition" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"></select>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-4 mt-6">
+                <button onclick="closeModal('addPlayerModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-400">Annuler</button>
+                <button onclick="addPlayer()" class="bg-blue-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-600">Ajouter</button>
+            </div>
+        </div>
+    </div>
+    <div id="addMatchModal" class="modal-backdrop hidden">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0">
+            <h2 class="text-2xl font-bold mb-4">Ajouter une rencontre</h2>
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <input type="date" id="matchDate" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <input type="text" id="opponentName" placeholder="Nom de l'adversaire" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+                <div class="flex flex-col">
+                    <label class="font-semibold mb-1">Lieu du match</label>
+                    <div class="flex gap-4 p-3 bg-gray-50 rounded-lg border border-gray-300 items-center">
+                        <label><input type="radio" name="matchLocation" value="domicile" checked> Domicile</label>
+                        <label><input type="radio" name="matchLocation" value="exterieur"> Extérieur</label>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-4 mt-6">
+                <button onclick="closeModal('addMatchModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-400">Annuler</button>
+                <button onclick="createMatch()" class="bg-green-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-green-600">Créer</button>
+            </div>
+        </div>
+    </div>
+    <div id="addTeamModal" class="modal-backdrop hidden">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0">
+            <h2 class="text-2xl font-bold mb-4">Ajouter une nouvelle équipe</h2>
+            <div class="flex flex-col">
+                <label for="newTeamName" class="font-semibold mb-1">Nom de l'équipe</label>
+                <input type="text" id="newTeamName" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Ex: Régional senior Masculin 2025/2026">
+            </div>
+            <div class="flex justify-end gap-4 mt-6">
+                <button onclick="closeModal('addTeamModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-400">Annuler</button>
+                <button onclick="addTeam()" class="bg-blue-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-600">Créer</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="editTeamModal" class="modal-backdrop hidden">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0">
+            <h2 class="text-2xl font-bold mb-4">Modifier le nom de l'équipe</h2>
+            <div class="flex flex-col">
+                <label for="editTeamName" class="font-semibold mb-1">Nom de l'équipe</label>
+                <input type="text" id="editTeamName" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Ex: Régional senior Masculin 2025/2026">
+            </div>
+            <div class="flex justify-end gap-4 mt-6">
+                <button onclick="closeModal('editTeamModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-400">Annuler</button>
+                <button onclick="saveTeamChanges()" class="bg-blue-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-600">Sauvegarder</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editPlayerModal" class="modal-backdrop hidden">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0">
+            <h2 class="text-2xl font-bold mb-4">Modifier le joueur</h2>
+            <input type="hidden" id="editPlayerId">
+            <div class="space-y-4">
+                <input type="text" id="editPlayerName" class="w-full p-3 border border-gray-300 rounded-lg">
+                <div class="grid grid-cols-2 gap-4">
+                     <div class="flex flex-col">
+                        <label for="editLicenseNumber" class="font-semibold mb-1">N° de Licence</label>
+                        <input type="text" id="editLicenseNumber" class="w-full p-3 border border-gray-300 rounded-lg">
+                    </div>
+                    <div class="flex flex-col">
+                        <label for="editJerseyNumber" class="font-semibold mb-1">N° de Maillot</label>
+                        <input type="number" id="editJerseyNumber" class="w-full p-3 border border-gray-300 rounded-lg">
+                    </div>
+                </div>
+                 <div>
+                    <div class="flex gap-4 p-3 bg-gray-50 rounded-lg">
+                        <label><input type="radio" name="editGender" value="H"> Garçon</label>
+                        <label><input type="radio" name="editGender" value="F"> Fille</label>
+                    </div>
+                </div>
+                 <div class="flex flex-col">
+                    <label for="editPlayerMainPosition" class="font-semibold mb-1">Poste 1 (principal)</label>
+                    <select id="editPlayerMainPosition" class="w-full p-3 border border-gray-300 rounded-lg"></select>
+                </div>
+                <div class="flex flex-col">
+                    <label for="editPlayerSecondaryPosition" class="font-semibold mb-1">Poste 2 (secondaire)</label>
+                    <select id="editPlayerSecondaryPosition" class="w-full p-3 border border-gray-300 rounded-lg"></select>
+                </div>
+                <div class="flex justify-end gap-4">
+                    <button onclick="closeModal('editPlayerModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-400">Annuler</button>
+                    <button onclick="savePlayerChanges()" class="bg-blue-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-600">Sauvegarder</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="editMatchModal" class="modal-backdrop hidden">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0">
+            <h2 class="text-2xl font-bold mb-4">Modifier le match</h2>
+            <input type="hidden" id="editMatchId">
+            <div class="space-y-4">
+                 <input type="date" id="editMatchDate" class="w-full p-3 border border-gray-300 rounded-lg">
+                 <input type="text" id="editOpponentName" class="w-full p-3 border border-gray-300 rounded-lg">
+                 <div class="flex flex-col">
+                    <label class="font-semibold mb-1">Lieu du match</label>
+                    <div class="flex gap-4 p-3 bg-gray-50 rounded-lg border border-gray-300 items-center">
+                        <label><input type="radio" name="editMatchLocation" value="domicile"> Domicile</label>
+                        <label><input type="radio" name="editMatchLocation" value="exterieur"> Extérieur</label>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-4">
+                    <button onclick="closeModal('editMatchModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-400">Annuler</button>
+                    <button onclick="saveMatchChanges()" class="bg-blue-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-600">Sauvegarder</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        const POSITIONS = ['Passeur', 'Central', 'R\u00e9ceptionneur-Attaquant', 'Pointu', 'Lib\u00e9ro'];
+        const SETS = ['set1', 'set2', 'set3', 'set4', 'set5'];
+
+        // --- STRUCTURE DES DONNÉES ---
+        // appData: {
+        //   teams: [{id, name, players:[], matches:[{..., captainId: number, score:{...}}], courtPositions:{}}],
+        //   currentTeamId: id
+        // }
+        
+        let appData = { teams: [], currentTeamId: null };
+        let currentSet = 'set1';
+
+        // --- GESTION DES ONGLETS & VUES ---
+        function showMainTab(tabName) {
+            document.getElementById('main-view-roster').classList.add('hidden');
+            document.getElementById('main-view-matches').classList.add('hidden');
+            document.getElementById('main-view-stats').classList.add('hidden');
+            
+            const tabs = ['roster', 'matches', 'stats'];
+            tabs.forEach(t => {
+                const tabButton = document.getElementById(`main-tab-${t}`);
+                tabButton.classList.remove('border-indigo-500', 'text-indigo-600');
+                tabButton.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+            });
+
+            document.getElementById(`main-view-${tabName}`).classList.remove('hidden');
+            const activeButton = document.getElementById(`main-tab-${tabName}`);
+            activeButton.classList.add('border-indigo-500', 'text-indigo-600');
+            activeButton.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+
+            if (tabName === 'stats') {
+                renderStats();
+            }
+        }
+        
+        function selectSet(setName) {
+            currentSet = setName;
+            renderSetSelector();
+            renderCourt();
+        }
+
+        // --- GESTION DES MODALS ---
+        function openAddPlayerModal() {
+            document.getElementById('addPlayerModal').classList.remove('hidden');
+        }
+
+        function openAddMatchModal() {
+            document.getElementById('addMatchModal').classList.remove('hidden');
+        }
+
+        function openAddTeamModal() {
+            document.getElementById('newTeamName').value = '';
+            document.getElementById('addTeamModal').classList.remove('hidden');
+        }
+
+        function openEditTeamModal() {
+            const currentTeam = getCurrentTeam();
+            if (!currentTeam) return;
+            document.getElementById('editTeamName').value = currentTeam.name;
+            document.getElementById('editTeamModal').classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        // --- LOGIQUE DE L'APPLICATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            renderTeamSelector();
+            populatePositionSelects();
+            renderAllForCurrentTeam();
+            
+            document.getElementById('teamSelector').addEventListener('change', (e) => {
+                const teamSelected = !!e.target.value;
+                document.getElementById('teamActions').classList.toggle('hidden', !teamSelected);
+                switchTeam(parseInt(e.target.value));
+            });
+
+            document.getElementById('matchSelector').addEventListener('change', (e) => {
+                const matchSelected = !!e.target.value;
+                document.getElementById('matchActions').classList.toggle('hidden', !matchSelected);
+                document.getElementById('match-hint').classList.toggle('hidden', matchSelected);
+                document.getElementById('selectedMatchContent').classList.toggle('hidden', !matchSelected);
+                selectSet('set1'); 
+                renderAttendanceForSelectedMatch();
+            });
+        });
+
+        function renderAllForCurrentTeam() {
+            const teamExists = !!getCurrentTeam();
+            document.getElementById('team-content').classList.toggle('hidden', !teamExists);
+            document.getElementById('teamActions').classList.toggle('hidden', !teamExists);
+
+            if (teamExists) {
+                renderPlayerList();
+                renderMatchSelector();
+                renderSetSelector();
+                renderAttendanceForSelectedMatch();
+                showMainTab('roster');
+            }
+        }
+        
+        function populatePositionSelects() {
+            const selects = [
+                document.getElementById('addPlayerModal').querySelector('#newPlayerMainPosition'),
+                document.getElementById('addPlayerModal').querySelector('#newPlayerSecondaryPosition'),
+                document.getElementById('editPlayerModal').querySelector('#editPlayerMainPosition'),
+                document.getElementById('editPlayerModal').querySelector('#editPlayerSecondaryPosition'),
+            ];
+            
+            selects.forEach(select => {
+                select.innerHTML = '';
+                if (select.id.includes('Secondary')) {
+                    select.innerHTML += `<option value="">Aucun</option>`;
+                }
+                POSITIONS.forEach(pos => {
+                    select.innerHTML += `<option value="${pos}">${pos}</option>`;
+                });
+            });
+        }
+
+        function saveData() {
+            localStorage.setItem('volleyAppData', JSON.stringify(appData));
+        }
+
+        function loadData() {
+            const savedData = localStorage.getItem('volleyAppData');
+            if (savedData) {
+                appData = JSON.parse(savedData);
+            } else {
+                const oldPlayers = localStorage.getItem('volleyPlayers');
+                if (oldPlayers) {
+                    const defaultTeam = {
+                        id: Date.now(),
+                        name: "Mon Équipe",
+                        players: JSON.parse(localStorage.getItem('volleyPlayers')) || [],
+                        matches: JSON.parse(localStorage.getItem('volleyMatches')) || [],
+                        courtPositions: JSON.parse(localStorage.getItem('volleyPositions')) || {}
+                    };
+                    appData.teams.push(defaultTeam);
+                    appData.currentTeamId = defaultTeam.id;
+                    saveData();
+                    localStorage.removeItem('volleyPlayers');
+                    localStorage.removeItem('volleyMatches');
+                    localStorage.removeItem('volleyPositions');
+                }
+            }
+        }
+
+        // --- GESTION D'ÉQUIPE ---
+        function getCurrentTeam() {
+            return appData.teams.find(t => t.id === appData.currentTeamId);
+        }
+
+        function addTeam() {
+            const teamName = document.getElementById('newTeamName').value.trim();
+            if(teamName) {
+                const newTeam = {
+                    id: Date.now(),
+                    name: teamName,
+                    players: [],
+                    matches: [],
+                    courtPositions: {}
+                };
+                appData.teams.push(newTeam);
+                switchTeam(newTeam.id);
+                closeModal('addTeamModal');
+            }
+        }
+
+        function saveTeamChanges() {
+            const currentTeam = getCurrentTeam();
+            if (!currentTeam) return;
+            const newName = document.getElementById('editTeamName').value.trim();
+            if (newName) {
+                currentTeam.name = newName;
+                saveData();
+                renderTeamSelector();
+                closeModal('editTeamModal');
+            }
+        }
+
+        function deleteCurrentTeam() {
+            const currentTeam = getCurrentTeam();
+            if (!currentTeam) return;
+            if (confirm(`Êtes-vous sûr de vouloir supprimer l'équipe "${currentTeam.name}" ? Cette action est irréversible et supprimera tous les joueurs et matchs associés.`)) {
+                appData.teams = appData.teams.filter(t => t.id !== currentTeam.id);
+                appData.currentTeamId = appData.teams.length > 0 ? appData.teams[0].id : null;
+                saveData();
+                renderTeamSelector();
+                renderAllForCurrentTeam();
+            }
+        }
+
+        function switchTeam(teamId) {
+            appData.currentTeamId = teamId;
+            saveData();
+            renderTeamSelector();
+            renderAllForCurrentTeam();
+        }
+
+        function renderTeamSelector() {
+            const selector = document.getElementById('teamSelector');
+            selector.innerHTML = '';
+            if (appData.teams.length === 0) {
+                selector.innerHTML = '<option value="">Créez une équipe pour commencer</option>';
+            }
+            appData.teams.forEach(team => {
+                const option = document.createElement('option');
+                option.value = team.id;
+                option.textContent = team.name;
+                selector.appendChild(option);
+            });
+            selector.value = appData.currentTeamId;
+        }
+
+
+        // --- GESTION DES JOUEURS ---
+        function addPlayer() {
+            const currentTeam = getCurrentTeam();
+            if (!currentTeam) return;
+            const modal = document.getElementById('addPlayerModal');
+            const name = modal.querySelector('#newPlayerName').value.trim();
+            const licenseNumber = modal.querySelector('#newLicenseNumber').value.trim();
+            const jerseyNumber = modal.querySelector('#newJerseyNumber').value.trim();
+            const gender = modal.querySelector('input[name="gender"]:checked').value;
+            const mainPosition = modal.querySelector('#newPlayerMainPosition').value;
+            const secondaryPosition = modal.querySelector('#newPlayerSecondaryPosition').value;
+
+            if (name) {
+                if (currentTeam.players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+                    alert('Ce joueur existe déjà.'); return;
+                }
+                if (jerseyNumber && currentTeam.players.some(p => p.jerseyNumber === jerseyNumber)) {
+                    alert('Ce numéro de maillot est déjà pris.'); return;
+                }
+                currentTeam.players.push({ id: Date.now(), name, licenseNumber, jerseyNumber, gender, mainPosition, secondaryPosition });
+                
+                modal.querySelector('#newPlayerName').value = '';
+                modal.querySelector('#newLicenseNumber').value = '';
+                modal.querySelector('#newJerseyNumber').value = '';
+                modal.querySelector('#newPlayerMainPosition').value = POSITIONS[0];
+                modal.querySelector('#newPlayerSecondaryPosition').value = '';
+
+                saveData();
+                renderPlayerList();
+                closeModal('addPlayerModal');
+            }
+        }
+        
+        function openEditPlayerModal(playerId) {
+            const player = getCurrentTeam().players.find(p => p.id === playerId);
+            if (!player) return;
+            document.getElementById('editPlayerId').value = player.id;
+            document.getElementById('editPlayerName').value = player.name;
+            document.getElementById('editLicenseNumber').value = player.licenseNumber || '';
+            document.getElementById('editJerseyNumber').value = player.jerseyNumber || '';
+            document.querySelector(`input[name="editGender"][value="${player.gender}"]`).checked = true;
+            document.getElementById('editPlayerMainPosition').value = player.mainPosition || '';
+            document.getElementById('editPlayerSecondaryPosition').value = player.secondaryPosition || '';
+            document.getElementById('editPlayerModal').classList.remove('hidden');
+        }
+
+        function savePlayerChanges() {
+            const currentTeam = getCurrentTeam();
+            const playerId = parseInt(document.getElementById('editPlayerId').value);
+            const newJerseyNumber = document.getElementById('editJerseyNumber').value.trim();
+            const player = currentTeam.players.find(p => p.id === playerId);
+            if (!player) return;
+            
+            if (newJerseyNumber && currentTeam.players.some(p => p.id !== playerId && p.jerseyNumber === newJerseyNumber)) {
+                alert('Ce numéro de maillot est déjà pris par un autre joueur.');
+                return;
+            }
+
+            player.name = document.getElementById('editPlayerName').value.trim();
+            player.licenseNumber = document.getElementById('editLicenseNumber').value.trim();
+            player.jerseyNumber = newJerseyNumber;
+            player.gender = document.querySelector('input[name="editGender"]:checked').value;
+            player.mainPosition = document.getElementById('editPlayerMainPosition').value;
+            player.secondaryPosition = document.getElementById('editPlayerSecondaryPosition').value;
+            
+            saveData();
+            renderPlayerList();
+            renderAttendanceForSelectedMatch();
+            closeModal('editPlayerModal');
+        }
+
+
+        function deletePlayer(playerId) {
+             const currentTeam = getCurrentTeam();
+            if (confirm('Voulez-vous vraiment supprimer ce joueur ? Il sera retiré de tous les matchs.')) {
+                currentTeam.players = currentTeam.players.filter(p => p.id !== playerId);
+                currentTeam.matches.forEach(match => {
+                    match.present = match.present.filter(id => id !== playerId);
+                    recalculatePlayedStatus(match.id);
+                });
+                saveData();
+                renderPlayerList();
+                renderAttendanceForSelectedMatch();
+                renderStats();
+            }
+        }
+        
+        function deleteAllPlayers() {
+            const currentTeam = getCurrentTeam();
+            if (currentTeam.players.length > 0 && confirm("Êtes-vous sûr de vouloir supprimer TOUS les joueurs ? Cette action est irréversible et les retirera de tous les matchs.")) {
+                currentTeam.players = [];
+                currentTeam.matches.forEach(match => {
+                    match.present = [];
+                    match.played = [];
+                });
+                currentTeam.courtPositions = {};
+                saveData();
+                renderPlayerList();
+                renderAttendanceForSelectedMatch();
+                renderStats();
+                renderCourt();
+            }
+        }
+
+        function renderPlayerList() {
+            const currentTeam = getCurrentTeam();
+            const playerListDiv = document.getElementById('playerList');
+            document.getElementById('deleteAllPlayersBtn').classList.toggle('hidden', currentTeam.players.length === 0);
+            playerListDiv.innerHTML = currentTeam.players.length ? '' : '<p class="text-gray-500">Aucun joueur dans l\'effectif.</p>';
+            const sortedPlayers = [...currentTeam.players].sort((a, b) => a.name.localeCompare(b.name));
+
+            sortedPlayers.forEach(player => {
+                const playerDiv = document.createElement('div');
+                const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
+                playerDiv.className = `flex justify-between items-center ${genderClass} p-2 rounded-lg`;
+                let positionsText = `P1: ${player.mainPosition || 'N/A'}`;
+                if (player.secondaryPosition) {
+                    positionsText += `, P2: ${player.secondaryPosition}`;
+                }
+                playerDiv.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <span class="jersey-badge">${player.jerseyNumber || '-'}</span>
+                        <div>
+                            <span class="font-bold text-lg">${player.name}</span>
+                            <p class="text-sm text-gray-600">Licence: ${player.licenseNumber || 'N/A'}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                         <div class="text-right">
+                            <p class="text-sm font-medium text-gray-700">${positionsText}</p>
+                         </div>
+                        <button onclick="openEditPlayerModal(${player.id})" class="bg-yellow-500 text-white text-sm font-semibold py-1 px-3 rounded-lg hover:bg-yellow-600">Modifier</button>
+                        <button onclick="deletePlayer(${player.id})" class="bg-red-500 text-white text-sm font-semibold py-1 px-3 rounded-lg hover:bg-red-600">X</button>
+                    </div>
+                `;
+                playerListDiv.appendChild(playerDiv);
+            });
+        }
+
+
+        // --- GESTION DES MATCHS ---
+        function createMatch() {
+            const currentTeam = getCurrentTeam();
+            const date = document.getElementById('addMatchModal').querySelector('#matchDate').value;
+            const opponent = document.getElementById('addMatchModal').querySelector('#opponentName').value.trim();
+            const location = document.getElementById('addMatchModal').querySelector('input[name="matchLocation"]:checked').value;
+            if (date && opponent) {
+                const newMatch = { 
+                    id: Date.now(), date, opponent, location, present: [], played: [], captainId: null,
+                    score: {
+                        myTeam: '', opponent: '',
+                        sets: Array(5).fill(null).map(() => ({ myTeam: '', opponent: '' }))
+                    }
+                };
+                currentTeam.matches.push(newMatch);
+                saveData();
+                renderMatchSelector();
+                document.getElementById('matchSelector').value = newMatch.id;
+                document.getElementById('matchSelector').dispatchEvent(new Event('change'));
+                closeModal('addMatchModal');
+            } else {
+                alert('Veuillez sélectionner une date et un adversaire.');
+            }
+        }
+        
+        function openEditMatchModal() {
+            const matchId = parseInt(document.getElementById('matchSelector').value);
+            const match = getCurrentTeam().matches.find(m => m.id === matchId);
+            if (!match) return;
+            const modal = document.getElementById('editMatchModal');
+            modal.querySelector('#editMatchId').value = match.id;
+            modal.querySelector('#editMatchDate').value = match.date;
+            modal.querySelector('#editOpponentName').value = match.opponent;
+            modal.querySelector(`input[name="editMatchLocation"][value="${match.location || 'domicile'}"]`).checked = true;
+            modal.classList.remove('hidden');
+        }
+        
+        function saveMatchChanges() {
+            const matchId = parseInt(document.getElementById('editMatchModal').querySelector('#editMatchId').value);
+            const match = getCurrentTeam().matches.find(m => m.id === matchId);
+            if (!match) return;
+            match.date = document.getElementById('editMatchModal').querySelector('#editMatchDate').value;
+            match.opponent = document.getElementById('editMatchModal').querySelector('#editOpponentName').value.trim();
+            match.location = document.getElementById('editMatchModal').querySelector('input[name="editMatchLocation"]:checked').value;
+            saveData();
+            renderMatchSelector();
+            document.getElementById('matchSelector').value = matchId;
+            closeModal('editMatchModal');
+        }
+        
+        function deleteSelectedMatch() {
+            const currentTeam = getCurrentTeam();
+            const matchId = parseInt(document.getElementById('matchSelector').value);
+            if (!matchId) return;
+            if (confirm('Voulez-vous vraiment supprimer ce match ?')) {
+                currentTeam.matches = currentTeam.matches.filter(m => m.id !== matchId);
+                delete currentTeam.courtPositions[matchId];
+                saveData();
+                renderMatchSelector();
+                document.getElementById('matchSelector').value = '';
+                document.getElementById('matchSelector').dispatchEvent(new Event('change'));
+            }
+        }
+
+        function renderMatchSelector() {
+            const currentTeam = getCurrentTeam();
+            const selector = document.getElementById('matchSelector');
+            const currentVal = selector.value;
+            selector.innerHTML = '<option value="">-- Sélectionnez un match --</option>';
+            if(currentTeam && currentTeam.matches) {
+                const sortedMatches = [...currentTeam.matches].sort((a, b) => new Date(b.date) - new Date(a.date));
+                sortedMatches.forEach(match => {
+                    const option = document.createElement('option');
+                    option.value = match.id;
+                    const locationText = match.location === 'domicile' ? '(Dom.)' : '(Ext.)';
+                    let scoreText = '';
+                    if (match.score && match.score.myTeam !== '' && match.score.opponent !== '') {
+                        scoreText = ` [${match.score.myTeam} - ${match.score.opponent}]`;
+                    }
+                    option.textContent = `Match du ${new Date(match.date).toLocaleDateString('fr-FR')} vs ${match.opponent} ${locationText}${scoreText}`;
+                    selector.appendChild(option);
+                });
+            }
+            selector.value = currentVal;
+        }
+
+        function renderAttendanceForSelectedMatch() {
+            const currentTeam = getCurrentTeam();
+            const selector = document.getElementById('matchSelector');
+            const matchId = parseInt(selector.value);
+            const selectedMatchContentDiv = document.getElementById('selectedMatchContent');
+            const attendanceList = document.getElementById('attendanceList');
+
+            if (!matchId || !currentTeam) {
+                selectedMatchContentDiv.classList.add('hidden');
+                return;
+            }
+
+            const match = currentTeam.matches.find(m => m.id === matchId);
+            if (!match) {
+                 selectedMatchContentDiv.classList.add('hidden');
+                 return;
+            }
+
+            // Render Attendance
+            attendanceList.innerHTML = '';
+            
+            const matchSetCounts = {};
+            currentTeam.players.forEach(player => { matchSetCounts[player.id] = 0; });
+
+            if (currentTeam.courtPositions[matchId]) {
+                Object.values(currentTeam.courtPositions[matchId]).forEach(setLineup => {
+                    Object.values(setLineup).forEach(playerId => {
+                        if (matchSetCounts.hasOwnProperty(playerId)) {
+                            matchSetCounts[playerId]++;
+                        }
+                    });
+                });
+            }
+
+            const sortedPlayers = [...currentTeam.players].sort((a, b) => a.name.localeCompare(b.name));
+            sortedPlayers.forEach(player => {
+                const isPresent = match.present.includes(player.id);
+                const isCaptain = match.captainId === player.id;
+                const setCount = matchSetCounts[player.id] || 0;
+                const playerRow = document.createElement('div');
+                const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
+                playerRow.className = `flex justify-between items-center py-2 px-3 ${genderClass} rounded-lg`;
+                playerRow.innerHTML = `
+                    <span class="font-medium"><b class="w-8 inline-block">#${player.jerseyNumber || '-'}</b> ${player.name}</span>
+                    <div class="flex items-center gap-4">
+                        <span class="font-semibold text-gray-700 w-24 text-right">${setCount} set(s)</span>
+                        <label class="flex items-center gap-1 cursor-pointer" title="Capitaine">
+                            <input type="checkbox" onchange="updateCaptain(this, ${matchId}, ${player.id})" ${isPresent ? '' : 'disabled'} ${isCaptain ? 'checked' : ''} class="captain-checkbox w-5 h-5 rounded-full text-yellow-500 focus:ring-0 focus:ring-offset-0">
+                            C
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" onchange="updatePresence(${matchId}, ${player.id}, this.checked)" ${isPresent ? 'checked' : ''} class="w-5 h-5 rounded text-blue-500">
+                            Présent
+                        </label>
+                    </div>`;
+                attendanceList.appendChild(playerRow);
+            });
+
+            // Render other components
+            renderCourt();
+            renderScoreTracker(match);
+        }
+        
+        function updateCaptain(checkboxElem, matchId, playerId) {
+            const currentTeam = getCurrentTeam();
+            const match = currentTeam.matches.find(m => m.id === matchId);
+            if (!match) return;
+
+            document.querySelectorAll('.captain-checkbox').forEach(box => {
+                if (box !== checkboxElem) {
+                    box.checked = false;
+                }
+            });
+
+            if (checkboxElem.checked) {
+                match.captainId = playerId;
+            } else {
+                match.captainId = null;
+            }
+
+            saveData();
+        }
+
+
+        function renderScoreTracker(match) {
+            const currentTeam = getCurrentTeam();
+            document.getElementById('myTeamNameLabel').textContent = currentTeam.name;
+            document.getElementById('opponentNameLabel').textContent = match.opponent;
+
+
+            if (!match.score) {
+                match.score = { myTeam: '', opponent: '', sets: Array(5).fill(null).map(() => ({ myTeam: '', opponent: '' })) };
+            }
+
+            const setScoresContainer = document.getElementById('setScoresContainer');
+            setScoresContainer.innerHTML = '';
+            match.score.sets.forEach((set, index) => {
+                const setRow = document.createElement('div');
+                setRow.className = 'flex items-center gap-4';
+                setRow.innerHTML = `
+                    <label class="font-semibold w-1/3">Set ${index + 1}</label>
+                    <div class="flex items-center gap-2 w-2/3">
+                        <input type="number" data-set-index="${index}" data-team="myTeam" class="set-score-input w-full p-2 border border-gray-300 rounded-lg text-center" value="${set.myTeam || ''}">
+                        <span>-</span>
+                        <input type="number" data-set-index="${index}" data-team="opponent" class="set-score-input w-full p-2 border border-gray-300 rounded-lg text-center" value="${set.opponent || ''}">
+                    </div>
+                `;
+                setScoresContainer.appendChild(setRow);
+            });
+            
+            updateFinalScore(match);
+
+            document.querySelectorAll('.set-score-input').forEach(input => {
+                input.oninput = updateScore;
+            });
+        }
+        
+        function updateFinalScore(match) {
+            let myTeamSetsWon = 0;
+            let opponentSetsWon = 0;
+
+            if (match.score && match.score.sets) {
+                match.score.sets.forEach(set => {
+                    const myTeamScore = parseInt(set.myTeam, 10);
+                    const opponentScore = parseInt(set.opponent, 10);
+
+                    if (!isNaN(myTeamScore) && !isNaN(opponentScore)) {
+                        if (myTeamScore > opponentScore) {
+                            myTeamSetsWon++;
+                        } else if (opponentScore > myTeamScore) {
+                            opponentSetsWon++;
+                        }
+                    }
+                });
+            }
+            
+            document.getElementById('scoreMyTeam').value = myTeamSetsWon;
+            document.getElementById('scoreOpponent').value = opponentSetsWon;
+            match.score.myTeam = myTeamSetsWon;
+            match.score.opponent = opponentSetsWon;
+        }
+
+        function updateScore() {
+            const currentTeam = getCurrentTeam();
+            const matchId = parseInt(document.getElementById('matchSelector').value);
+            if (!matchId || !currentTeam) return;
+
+            const match = currentTeam.matches.find(m => m.id === matchId);
+            if (!match) return;
+
+            document.querySelectorAll('.set-score-input').forEach(input => {
+                const setIndex = parseInt(input.dataset.setIndex);
+                const team = input.dataset.team;
+                match.score.sets[setIndex][team] = input.value;
+            });
+            
+            updateFinalScore(match);
+            saveData();
+            renderMatchSelector();
+        }
+
+        function updatePresence(matchId, playerId, isChecked) {
+            const currentTeam = getCurrentTeam();
+            const match = currentTeam.matches.find(m => m.id === matchId);
+            if (!match) return;
+            if (isChecked) {
+                if (!match.present.includes(playerId)) match.present.push(playerId);
+            } else {
+                match.present = match.present.filter(id => id !== playerId);
+                if (match.captainId === playerId) {
+                    match.captainId = null;
+                }
+                if (currentTeam.courtPositions[matchId]) {
+                    SETS.forEach(set => {
+                        if (currentTeam.courtPositions[matchId][set]) {
+                            for (const pos in currentTeam.courtPositions[matchId][set]) {
+                                if (currentTeam.courtPositions[matchId][set][pos] === playerId) {
+                                    delete currentTeam.courtPositions[matchId][set][pos];
+                                }
+                            }
+                        }
+                    });
+                }
+                recalculatePlayedStatus(matchId);
+            }
+            saveData();
+            renderAttendanceForSelectedMatch();
+        }
+
+        function renderSetSelector() {
+            const selectorDiv = document.getElementById('set-selector');
+            selectorDiv.innerHTML = '';
+            SETS.forEach((setName, index) => {
+                const button = document.createElement('button');
+                button.textContent = `Set ${index + 1}`;
+                button.className = `set-button flex-1 py-2 px-4 text-sm font-semibold rounded-md ${currentSet === setName ? 'active' : 'bg-white'}`;
+                button.onclick = () => selectSet(setName);
+                selectorDiv.appendChild(button);
+            });
+        }
+
+        function setCourtPositionColor(selectElement, playerId) {
+            const currentTeam = getCurrentTeam();
+            selectElement.classList.remove('bg-pink-100', 'bg-blue-100', 'bg-white');
+
+            if (playerId && currentTeam) {
+                const player = currentTeam.players.find(p => p.id === parseInt(playerId));
+                if (player) {
+                    selectElement.classList.add(player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100');
+                    return;
+                }
+            }
+            
+            selectElement.classList.add('bg-white');
+        }
+        
+        function renderCourt() {
+            const currentTeam = getCurrentTeam();
+            const matchId = parseInt(document.getElementById('matchSelector').value);
+            
+            for (let i = 1; i <= 6; i++) {
+                const posDiv = document.getElementById(`pos-${i}`);
+                const oldSelect = posDiv.querySelector('select');
+                if (oldSelect) posDiv.removeChild(oldSelect);
+                if (!matchId || !currentTeam) continue;
+
+                const match = currentTeam.matches.find(m => m.id === matchId);
+                if (!match) continue;
+
+                const presentPlayers = currentTeam.players.filter(p => match.present.includes(p.id));
+                const select = document.createElement('select');
+                select.className = 'player-select';
+                select.dataset.position = `pos-${i}`;
+                select.innerHTML = '<option value="">-- Choisir --</option>';
+                presentPlayers.forEach(player => {
+                    select.innerHTML += `<option value="${player.id}">${player.jerseyNumber || '#'} - ${player.name}</option>`;
+                });
+                
+                const matchSetPositions = currentTeam.courtPositions[matchId] ? (currentTeam.courtPositions[matchId][currentSet] || {}) : {};
+                const selectedPlayerId = matchSetPositions[`pos-${i}`];
+                if (selectedPlayerId) {
+                    select.value = selectedPlayerId;
+                }
+                
+                select.addEventListener('change', updatePosition);
+                posDiv.appendChild(select);
+                setCourtPositionColor(select, select.value);
+            }
+        }
+
+        function updatePosition(event) {
+            const currentTeam = getCurrentTeam();
+            const matchId = parseInt(document.getElementById('matchSelector').value);
+            if (!matchId) return;
+            const selectElement = event.target;
+            const position = selectElement.dataset.position;
+            const playerId = selectElement.value ? parseInt(selectElement.value) : null;
+            
+            if (!currentTeam.courtPositions[matchId]) currentTeam.courtPositions[matchId] = {};
+            if (!currentTeam.courtPositions[matchId][currentSet]) currentTeam.courtPositions[matchId][currentSet] = {};
+
+            if (playerId) {
+                 currentTeam.courtPositions[matchId][currentSet][position] = playerId;
+            } else {
+                delete currentTeam.courtPositions[matchId][currentSet][position];
+            }
+            
+            setCourtPositionColor(selectElement, playerId);
+            recalculatePlayedStatus(matchId);
+            renderAttendanceForSelectedMatch();
+            saveData();
+        }
+        
+        function recalculatePlayedStatus(matchId) {
+            const currentTeam = getCurrentTeam();
+            const match = currentTeam.matches.find(m => m.id === matchId);
+            if (!match) return;
+
+            const playedIds = new Set();
+            if (currentTeam.courtPositions[matchId]) {
+                Object.values(currentTeam.courtPositions[matchId]).forEach(setLineup => {
+                    Object.values(setLineup).forEach(playerId => playedIds.add(playerId));
+                });
+            }
+            match.played = Array.from(playedIds);
+        }
+
+        function renderStats() {
+            renderPlayerStats();
+            renderTeamStats();
+        }
+
+        function renderPlayerStats() {
+            const currentTeam = getCurrentTeam();
+            const statsBody = document.getElementById('statsTableBody');
+            statsBody.innerHTML = '';
+            if (!currentTeam) return;
+
+            const sortedPlayers = [...currentTeam.players].sort((a, b) => a.name.localeCompare(b.name));
+            sortedPlayers.forEach(player => {
+                let presenceCount = 0;
+                let playedCount = 0;
+                let setCount = 0;
+                let setsWonCount = 0;
+
+                currentTeam.matches.forEach(match => {
+                    if (match.present.includes(player.id)) presenceCount++;
+                    if (match.played.includes(player.id)) playedCount++;
+
+                    if (currentTeam.courtPositions[match.id]) {
+                        SETS.forEach((setName, index) => {
+                            const setLineup = currentTeam.courtPositions[match.id][setName];
+                            if (setLineup && Object.values(setLineup).includes(player.id)) {
+                                setCount++;
+                                const setScore = match.score && match.score.sets ? match.score.sets[index] : null;
+                                if (setScore && setScore.myTeam !== '' && setScore.opponent !== '' && parseInt(setScore.myTeam) > parseInt(setScore.opponent)) {
+                                    setsWonCount++;
+                                }
+                            }
+                        });
+                    }
+                });
+
+                const row = document.createElement('tr');
+                row.className = 'border-b';
+                row.innerHTML = `
+                    <td class="p-3">${player.name}</td>
+                    <td class="p-3 text-center">${presenceCount}</td>
+                    <td class="p-3 text-center">${playedCount}</td>
+                    <td class="p-3 text-center">${setCount}</td>
+                    <td class="p-3 text-center">${setsWonCount}</td>`;
+                statsBody.appendChild(row);
+            });
+        }
+
+        function renderTeamStats() {
+            const currentTeam = getCurrentTeam();
+            const statsRow = document.getElementById('teamStatsRow');
+            statsRow.innerHTML = '';
+            if (!currentTeam || currentTeam.matches.length === 0) {
+                 statsRow.innerHTML = `<td colspan="14" class="p-4 text-center text-gray-500">Aucun match joué pour le moment.</td>`;
+                 return;
+            }
+
+            let stats = {
+                points: 0, joues: 0, gagnes: 0, perdus: 0,
+                g30: 0, g31: 0, g32: 0, p23: 0, p13: 0, p03: 0,
+                setsPour: 0, setsContre: 0, ptsPour: 0, ptsContre: 0
+            };
+
+            currentTeam.matches.forEach(match => {
+                const mySets = match.score ? parseInt(match.score.myTeam) : NaN;
+                const oppSets = match.score ? parseInt(match.score.opponent) : NaN;
+
+                if (isNaN(mySets) || isNaN(oppSets)) return; // Skip matches without a final score
+
+                stats.joues++;
+                stats.setsPour += mySets;
+                stats.setsContre += oppSets;
+                
+                if (match.score.sets) {
+                    match.score.sets.forEach(set => {
+                        stats.ptsPour += parseInt(set.myTeam) || 0;
+                        stats.ptsContre += parseInt(set.opponent) || 0;
+                    });
+                }
+
+                if (mySets > oppSets) {
+                    stats.gagnes++;
+                    if (mySets === 3 && oppSets === 0) { stats.points += 3; stats.g30++; }
+                    else if (mySets === 3 && oppSets === 1) { stats.points += 3; stats.g31++; }
+                    else if (mySets === 3 && oppSets === 2) { stats.points += 2; stats.g32++; }
+                } else {
+                    stats.perdus++;
+                    if (mySets === 2 && oppSets === 3) { stats.points += 1; stats.p23++; }
+                    else if (mySets === 1 && oppSets === 3) { stats.points += 0; stats.p13++; }
+                    else if (mySets === 0 && oppSets === 3) { stats.points += 0; stats.p03++; }
+                }
+            });
+
+            statsRow.innerHTML = `
+                <td class="p-2 font-bold">${stats.points}</td>
+                <td class="p-2">${stats.joues}</td>
+                <td class="p-2">${stats.gagnes}</td>
+                <td class="p-2">${stats.perdus}</td>
+                <td class="p-2">${stats.g30}</td>
+                <td class="p-2">${stats.g31}</td>
+                <td class="p-2">${stats.g32}</td>
+                <td class="p-2">${stats.p23}</td>
+                <td class="p-2">${stats.p13}</td>
+                <td class="p-2">${stats.p03}</td>
+                <td class="p-2">${stats.setsPour}</td>
+                <td class="p-2">${stats.setsContre}</td>
+                <td class="p-2">${stats.ptsPour}</td>
+                <td class="p-2">${stats.ptsContre}</td>
+            `;
+        }
+
+    </script>
+</body>
+</html>
+
