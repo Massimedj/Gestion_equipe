@@ -75,7 +75,7 @@
             width: 100%;
             border-radius: 4px;
             border: 1px solid #d1d5db;
-            font-size: 0.9em;
+            font-size: 0.8em;
         }
         .tab-button, .set-button {
             transition: all 0.3s ease;
@@ -132,10 +132,10 @@
                         <!-- Les équipes seront listées ici -->
                     </select>
                     <div class="flex gap-2 w-full sm:w-auto">
-                        <button onclick="openAddTeamModal()" class="flex-1 bg-indigo-500 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-600 transition">Nouvelle</button>
+                        <button onclick="openAddTeamModal()" class="flex-1 bg-indigo-500 text-white font-semibold py-2 px-3 rounded-lg hover:bg-indigo-600 transition">Nouvelle</button>
                         <div id="teamActions" class="flex-1 flex gap-2 hidden">
-                            <button onclick="openEditTeamModal()" class="w-full bg-yellow-500 text-white font-semibold py-3 px-4 rounded-lg hover:bg-yellow-600 transition">Modifier</button>
-                            <button onclick="deleteCurrentTeam()" class="w-full bg-red-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-red-700 transition">Supprimer</button>
+                            <button onclick="openEditTeamModal()" class="w-full bg-yellow-500 text-white font-semibold py-2 px-3 rounded-lg hover:bg-yellow-600 transition">Modifier</button>
+                            <button onclick="deleteCurrentTeam()" class="w-full bg-red-600 text-white font-semibold py-2 px-3 rounded-lg hover:bg-red-700 transition">Supprimer</button>
                         </div>
                     </div>
                 </div>
@@ -144,7 +144,7 @@
             <div id="team-content" class="hidden">
                 <!-- Barre de navigation principale -->
                 <div class="mb-8 border-b border-gray-200">
-                    <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                    <nav class="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto" aria-label="Tabs">
                         <button id="main-tab-roster" onclick="showMainTab('roster')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
                             Effectif
                         </button>
@@ -784,25 +784,27 @@
             sortedPlayers.forEach(player => {
                 const playerDiv = document.createElement('div');
                 const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
-                playerDiv.className = `flex justify-between items-center ${genderClass} p-2 rounded-lg`;
+                playerDiv.className = `flex flex-col sm:flex-row sm:justify-between sm:items-center ${genderClass} p-3 rounded-lg`;
                 let positionsText = `P1: ${player.mainPosition || 'N/A'}`;
                 if (player.secondaryPosition) {
                     positionsText += `, P2: ${player.secondaryPosition}`;
                 }
                 playerDiv.innerHTML = `
-                    <div class="flex items-center gap-4">
-                        <span class="jersey-badge">${player.jerseyNumber || '-'}</span>
-                        <div>
-                            <span class="font-bold text-lg">${player.name}</span>
+                    <div class="flex items-center gap-4 w-full">
+                        <span class="jersey-badge flex-shrink-0">${player.jerseyNumber || '-'}</span>
+                        <div class="min-w-0">
+                            <p class="font-bold text-lg">${player.name}</p>
                             <p class="text-sm text-gray-600">Licence: ${player.licenseNumber || 'N/A'}</p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                         <div class="text-right">
+                    <div class="flex flex-col sm:flex-row items-end sm:items-center gap-2 mt-2 sm:mt-0 w-full sm:w-auto">
+                         <div class="text-left sm:text-right w-full sm:w-auto">
                             <p class="text-sm font-medium text-gray-700">${positionsText}</p>
                          </div>
-                        <button onclick="openEditPlayerModal(${player.id})" class="bg-yellow-500 text-white text-sm font-semibold py-1 px-3 rounded-lg hover:bg-yellow-600">Modifier</button>
-                        <button onclick="deletePlayer(${player.id})" class="bg-red-500 text-white text-sm font-semibold py-1 px-3 rounded-lg hover:bg-red-600">X</button>
+                        <div class="flex gap-2 self-end sm:self-center flex-shrink-0">
+                            <button onclick="openEditPlayerModal(${player.id})" class="bg-yellow-500 text-white text-xs font-semibold py-1 px-2 rounded-lg hover:bg-yellow-600">Modifier</button>
+                            <button onclick="deletePlayer(${player.id})" class="bg-red-500 text-white text-xs font-semibold py-1 px-2 rounded-lg hover:bg-red-600">X</button>
+                        </div>
                     </div>
                 `;
                 playerListDiv.appendChild(playerDiv);
@@ -937,18 +939,21 @@
                 const setCount = matchSetCounts[player.id] || 0;
                 const playerRow = document.createElement('div');
                 const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
-                playerRow.className = `flex justify-between items-center py-2 px-3 ${genderClass} rounded-lg`;
+                playerRow.className = `flex flex-wrap justify-between items-center py-2 px-3 ${genderClass} rounded-lg gap-2`;
                 playerRow.innerHTML = `
-                    <span class="font-medium"><b class="w-8 inline-block">#${player.jerseyNumber || '-'}</b> ${player.name}</span>
-                    <div class="flex items-center gap-4">
-                        <span class="font-semibold text-gray-700 w-24 text-right">${setCount} set(s)</span>
+                    <div class="flex items-center min-w-0">
+                        <b class="w-8 inline-block flex-shrink-0">#${player.jerseyNumber || '-'}</b> 
+                        <span class="font-medium">${player.name}</span>
+                    </div>
+                    <div class="flex items-center gap-2 sm:gap-4 flex-shrink-0 w-full sm:w-auto justify-end">
+                        <span class="font-semibold text-gray-700 text-sm">${setCount} set(s)</span>
                         <label class="flex items-center gap-1 cursor-pointer" title="Capitaine">
                             <input type="checkbox" onchange="updateCaptain(this, ${matchId}, ${player.id})" ${isPresent ? '' : 'disabled'} ${isCaptain ? 'checked' : ''} class="captain-checkbox w-5 h-5 rounded-full text-yellow-500 focus:ring-0 focus:ring-offset-0">
-                            C
+                            <span class="text-sm">C</span>
                         </label>
-                        <label class="flex items-center gap-2 cursor-pointer">
+                        <label class="flex items-center gap-1 sm:gap-2 cursor-pointer">
                             <input type="checkbox" onchange="updatePresence(${matchId}, ${player.id}, this.checked)" ${isPresent ? 'checked' : ''} class="w-5 h-5 rounded text-blue-500">
-                            Présent
+                            <span class="text-sm">Présent</span>
                         </label>
                     </div>`;
                 attendanceList.appendChild(playerRow);
@@ -1297,4 +1302,5 @@
     </script>
 </body>
 </html>
+
 
