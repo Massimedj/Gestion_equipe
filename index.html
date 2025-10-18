@@ -116,6 +116,43 @@
             height: 28px;
             line-height: 28px;
         }
+        /* Styles pour la nouvelle vue Suivi en Direct */
+        #live-court-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Grille 2x3 */
+            gap: 0.75rem;
+        }
+        .live-player-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            padding: 0.75rem;
+            text-align: center;
+            background-color: #f9fafb;
+        }
+        .fault-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        .fault-grid-btn {
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.25rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #374151;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+        .fault-grid-btn:hover {
+            background-color: #f3f4f6;
+        }
+        .fault-count {
+            font-weight: 700;
+            margin-left: 0.25rem;
+        }
     </style>
 </head>
 <body class="text-gray-800">
@@ -238,14 +275,19 @@
                 </div>
 
                 <div id="main-view-live" class="hidden">
-                    <div class="bg-white p-6 rounded-2xl shadow-lg">
-                        <h2 class="text-2xl font-bold mb-4 border-b pb-2">Suivi des Fautes en Direct</h2>
+                    <div class="bg-white p-4 md:p-6 rounded-2xl shadow-lg">
+                        <h2 class="text-2xl font-bold mb-4 border-b pb-2">Suivi en Direct</h2>
                         <p id="live-match-hint" class="text-gray-600 mb-4">Veuillez d'abord sélectionner un match dans l'onglet "Matchs".</p>
+                        
                         <div id="live-content" class="hidden">
-                            <div id="set-selector-live" class="flex justify-center gap-1 mb-6 rounded-lg bg-gray-200 p-1">
+                            <div id="set-selector-live" class="flex justify-center gap-1 mb-4 rounded-lg bg-gray-200 p-1">
                                 </div>
-                            <div id="fault-tracker-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            
+                            <div id="live-court-layout" class="mt-4">
                                 </div>
+                            <div class="mt-4 text-center">
+                                <button id="undo-last-fault" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition text-sm">Annuler la dernière faute</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -458,18 +500,24 @@
         </div>
     </div>
 
+    <div id="substitutionModal" class="modal-backdrop hidden">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm mx-4 sm:mx-0">
+            <h2 id="substitutionModalTitle" class="text-xl font-bold mb-4">Remplacer un joueur</h2>
+            <div id="substitutesList" class="space-y-2 max-h-60 overflow-y-auto">
+                </div>
+            <div class="flex justify-end gap-4 mt-6">
+                <button onclick="closeModal('substitutionModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-400">Annuler</button>
+            </div>
+        </div>
+    </div>
+
 
     <script>
         const POSITIONS = ['Passeur', 'Central', 'R\u00e9ceptionneur-Attaquant', 'Pointu', 'Lib\u00e9ro'];
         const SETS = ['set1', 'set2', 'set3', 'set4', 'set5'];
 
         // --- STRUCTURE DES DONNÉES ---
-        // appData: {
-        //   teams: [{id, name, players:[], matches:[{..., captainId: number, score:{...}, substitutions:{set1:[playerId,...]}, faults:{set1:{playerId:{service:0,...}}}}]
-        //   currentTeamId: id
-        // }
-        
-        let appData = { teams: [], currentTeamId: null };
+        let appData = { teams: [], currentTeamId: null, lastFaultAction: null };
         let currentSet = 'set1';
 
         // --- GESTION DES ONGLETS & VUES ---
@@ -502,6 +550,7 @@
         
         function selectSet(setName) {
             currentSet = setName;
+            appData.lastFaultAction = null; // Réinitialiser l'annulation en changeant de set
             renderSetSelector();
             renderCourt();
             renderSubstitutions();
@@ -599,6 +648,7 @@
             if (savedData) {
                 appData = JSON.parse(savedData);
             } else {
+                // Migration depuis un ancien format si nécessaire
                 const oldPlayers = localStorage.getItem('volleyPlayers');
                 if (oldPlayers) {
                     const defaultTeam = {
@@ -615,6 +665,10 @@
                     localStorage.removeItem('volleyMatches');
                     localStorage.removeItem('volleyPositions');
                 }
+            }
+             // S'assurer que la structure est correcte
+            if (!appData.lastFaultAction) {
+                appData.lastFaultAction = null;
             }
         }
 
@@ -950,8 +1004,8 @@
                     });
                 }
                 if (setSubs) {
-                    setSubs.forEach(playerId => {
-                        if (matchSetCounts.hasOwnProperty(playerId)) matchSetCounts[playerId]++;
+                    setSubs.forEach(sub => {
+                        if (matchSetCounts.hasOwnProperty(sub.in)) matchSetCounts[sub.in]++;
                     });
                 }
             });
@@ -1204,17 +1258,32 @@
             saveData();
         }
         
-        // --- START CORRECTION ---
         function renderSubstitutions() {
-            // Cette fonction était manquante, ce qui causait une erreur bloquant l'affichage.
-            // TODO: Vous pouvez implémenter ici la logique d'affichage des remplacements pour le set en cours.
             const subsList = document.getElementById('substitutionsList');
-            if (subsList) {
-                // Pour l'instant, on affiche un message temporaire pour confirmer que ça fonctionne.
-                subsList.innerHTML = '<p class="text-gray-500 text-sm">Aucun remplacement enregistré pour ce set.</p>';
+            const currentTeam = getCurrentTeam();
+            const matchId = parseInt(document.getElementById('matchSelector').value);
+
+            if (!subsList || !currentTeam || !matchId) {
+                if(subsList) subsList.innerHTML = '';
+                return;
             }
+
+            const match = currentTeam.matches.find(m => m.id === matchId);
+            if (!match || !match.substitutions || !match.substitutions[currentSet]) {
+                subsList.innerHTML = '<p class="text-gray-500 text-sm">Aucun remplacement pour ce set.</p>';
+                return;
+            }
+
+            subsList.innerHTML = '';
+            match.substitutions[currentSet].forEach(sub => {
+                const playerOut = currentTeam.players.find(p => p.id === sub.out)?.name || 'Inconnu';
+                const playerIn = currentTeam.players.find(p => p.id === sub.in)?.name || 'Inconnu';
+                const subDiv = document.createElement('div');
+                subDiv.className = 'text-sm p-2 bg-gray-100 rounded';
+                subDiv.textContent = `Entrée de ${playerIn} à la place de ${playerOut}`;
+                subsList.appendChild(subDiv);
+            });
         }
-        // --- END CORRECTION ---
 
         function recalculatePlayedStatus(matchId) {
             const currentTeam = getCurrentTeam();
@@ -1229,7 +1298,7 @@
             }
             if (match.substitutions) {
                  Object.values(match.substitutions).forEach(setSubs => {
-                    setSubs.forEach(playerId => playedIds.add(playerId));
+                    setSubs.forEach(sub => playedIds.add(sub.in));
                 });
             }
             match.played = Array.from(playedIds);
@@ -1260,9 +1329,11 @@
 
                     SETS.forEach((setName, index) => {
                         const setLineup = currentTeam.courtPositions[match.id] ? currentTeam.courtPositions[match.id][setName] : null;
-                        const setSubs = match.substitutions ? match.substitutions[setName] : null;
                         
-                        const playedInSet = (setLineup && Object.values(setLineup).includes(player.id)) || (setSubs && setSubs.includes(player.id));
+                        let playedInSet = setLineup && Object.values(setLineup).includes(player.id);
+                        if (!playedInSet && match.substitutions && match.substitutions[setName]) {
+                            playedInSet = match.substitutions[setName].some(sub => sub.in === player.id);
+                        }
 
                         if (playedInSet) {
                             setCount++;
@@ -1358,13 +1429,15 @@
             `;
         }
 
-        // --- LIVE TRACKING ---
+        // --- LIVE TRACKING (Refonte) ---
         function renderLiveTrackingView() {
             const currentTeam = getCurrentTeam();
             const matchId = parseInt(document.getElementById('matchSelector').value);
             const liveContent = document.getElementById('live-content');
             const liveHint = document.getElementById('live-match-hint');
-            const faultGrid = document.getElementById('fault-tracker-grid');
+            const courtLayout = document.getElementById('live-court-layout');
+
+            document.getElementById('undo-last-fault').onclick = undoLastFault;
 
             if (!matchId || !currentTeam) {
                 liveContent.classList.add('hidden');
@@ -1378,55 +1451,56 @@
             const match = currentTeam.matches.find(m => m.id === matchId);
             if (!match) return;
 
-            renderSetSelector(); // Ensure live set selector is also updated
+            renderSetSelector();
             
-            faultGrid.innerHTML = '';
+            courtLayout.innerHTML = '';
             const setLineup = (currentTeam.courtPositions[matchId] && currentTeam.courtPositions[matchId][currentSet]) || {};
             const lineupPlayerIds = Object.values(setLineup);
 
             if (lineupPlayerIds.length === 0) {
-                faultGrid.innerHTML = `<p class="text-gray-500 col-span-1 sm:col-span-2 md:col-span-3">Définissez le 6 de départ dans l'onglet "Matchs" pour commencer le suivi.</p>`;
+                courtLayout.innerHTML = `<p class="text-gray-500 col-span-2 text-center">Définissez le 6 de départ dans l'onglet "Matchs" pour commencer le suivi.</p>`;
                 return;
             }
 
             lineupPlayerIds.forEach(playerId => {
                 const player = currentTeam.players.find(p => p.id === playerId);
-                if (!player) return;
-
-                const faults = (match.faults && match.faults[currentSet] && match.faults[currentSet][playerId]) 
-                             || { service: 0, attack: 0, reception: 0, net: 0 };
-
-                const card = document.createElement('div');
-                card.className = 'bg-gray-50 rounded-lg p-3 space-y-2';
-                card.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <span class="jersey-badge text-sm">#${player.jerseyNumber || '-'}</span>
-                        <h4 class="font-bold">${player.name}</h4>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2 text-sm">
-                        ${createFaultCounter(matchId, playerId, 'service', 'S', faults.service)}
-                        ${createFaultCounter(matchId, playerId, 'attack', 'A', faults.attack)}
-                        ${createFaultCounter(matchId, playerId, 'reception', 'R', faults.reception)}
-                        ${createFaultCounter(matchId, playerId, 'net', 'F', faults.net)}
-                    </div>
-                `;
-                faultGrid.appendChild(card);
+                if (player) {
+                    const card = createPlayerCardLive(match, player);
+                    courtLayout.appendChild(card);
+                }
             });
         }
 
-        function createFaultCounter(matchId, playerId, faultType, label, count) {
-            return `
-                <div class="flex items-center justify-between bg-white p-1 rounded">
-                    <span class="font-semibold">${label}</span>
-                    <div class="flex items-center gap-1">
-                        <button onclick="updateFault(${matchId}, ${playerId}, '${faultType}', -1)" class="fault-btn bg-red-200 text-red-800 rounded-full font-bold">-</button>
-                        <span id="fault-${playerId}-${faultType}" class="w-6 text-center font-mono">${count}</span>
-                        <button onclick="updateFault(${matchId}, ${playerId}, '${faultType}', 1)" class="fault-btn bg-green-200 text-green-800 rounded-full font-bold">+</button>
-                    </div>
+        function createPlayerCardLive(match, player) {
+            const card = document.createElement('div');
+            const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
+            card.className = `live-player-card ${genderClass}`;
+
+            const faults = (match.faults && match.faults[currentSet] && match.faults[currentSet][player.id]) 
+                         || { service: 0, attack: 0, reception: 0, net: 0 };
+
+            card.innerHTML = `
+                <div class="font-bold cursor-pointer hover:text-blue-600" onclick="openSubstitutionModal(${player.id})">
+                    #${player.jerseyNumber || '-'} ${player.name}
+                </div>
+                <div class="fault-grid">
+                    <button class="fault-grid-btn" onclick="updateFault(${match.id}, ${player.id}, 'service', 1)">
+                        Service: <span class="fault-count" id="livefault-${player.id}-service">${faults.service}</span>
+                    </button>
+                    <button class="fault-grid-btn" onclick="updateFault(${match.id}, ${player.id}, 'attack', 1)">
+                        Attaque: <span class="fault-count" id="livefault-${player.id}-attack">${faults.attack}</span>
+                    </button>
+                    <button class="fault-grid-btn" onclick="updateFault(${match.id}, ${player.id}, 'reception', 1)">
+                        Récep: <span class="fault-count" id="livefault-${player.id}-reception">${faults.reception}</span>
+                    </button>
+                    <button class="fault-grid-btn" onclick="updateFault(${match.id}, ${player.id}, 'net', 1)">
+                        Filet: <span class="fault-count" id="livefault-${player.id}-net">${faults.net}</span>
+                    </button>
                 </div>
             `;
+            return card;
         }
-        
+
         function updateFault(matchId, playerId, faultType, change) {
             const currentTeam = getCurrentTeam();
             const match = currentTeam.matches.find(m => m.id === matchId);
@@ -1437,16 +1511,113 @@
             if (!match.faults[currentSet][playerId]) match.faults[currentSet][playerId] = { service: 0, attack: 0, reception: 0, net: 0 };
 
             let currentCount = match.faults[currentSet][playerId][faultType];
+            
+            if (change > 0) {
+                 appData.lastFaultAction = { matchId, playerId, faultType, set: currentSet };
+            } else {
+                 appData.lastFaultAction = null;
+            }
+
             currentCount += change;
             
             if (currentCount >= 0) {
                 match.faults[currentSet][playerId][faultType] = currentCount;
-                document.getElementById(`fault-${playerId}-${faultType}`).textContent = currentCount;
+                const faultCountSpan = document.getElementById(`livefault-${playerId}-${faultType}`);
+                if (faultCountSpan) {
+                    faultCountSpan.textContent = currentCount;
+                }
                 saveData();
+            }
+        }
+        
+        function undoLastFault() {
+            if (!appData.lastFaultAction) {
+                alert("Il n'y a pas de dernière faute à annuler.");
+                return;
+            }
+            const { matchId, playerId, faultType, set } = appData.lastFaultAction;
+            
+            if (set !== currentSet) {
+                 alert(`La dernière faute a été enregistrée sur le set ${set.replace('set','')}. Veuillez sélectionner ce set pour l'annuler.`);
+                 return;
+            }
+
+            const currentTeam = getCurrentTeam();
+            const match = currentTeam.matches.find(m => m.id === matchId);
+            if (match && match.faults[set] && match.faults[set][playerId] && match.faults[set][playerId][faultType] > 0) {
+                match.faults[set][playerId][faultType]--;
+                appData.lastFaultAction = null; 
+                saveData();
+                renderLiveTrackingView();
+            } else {
+                alert("Impossible d'annuler cette faute.");
+            }
+        }
+
+        function openSubstitutionModal(playerIdToReplace) {
+            const currentTeam = getCurrentTeam();
+            const matchId = parseInt(document.getElementById('matchSelector').value);
+            const match = currentTeam.matches.find(m => m.id === matchId);
+            const playerToReplace = currentTeam.players.find(p => p.id === playerIdToReplace);
+
+            document.getElementById('substitutionModalTitle').textContent = `Remplacer ${playerToReplace.name}`;
+            
+            const substitutesListDiv = document.getElementById('substitutesList');
+            substitutesListDiv.innerHTML = '';
+
+            const onCourtPlayerIds = Object.values(currentTeam.courtPositions[matchId][currentSet]);
+            const availableSubstitutes = currentTeam.players.filter(p => match.present.includes(p.id) && !onCourtPlayerIds.includes(p.id));
+
+            if (availableSubstitutes.length === 0) {
+                substitutesListDiv.innerHTML = `<p class="text-gray-500">Aucun remplaçant disponible sur le banc.</p>`;
+            } else {
+                availableSubstitutes.forEach(sub => {
+                    const subButton = document.createElement('button');
+                    subButton.className = 'w-full text-left p-3 bg-gray-100 rounded-lg hover:bg-blue-100 transition';
+                    subButton.innerHTML = `<span class="font-bold">#${sub.jerseyNumber || '-'}</span> ${sub.name}`;
+                    subButton.onclick = () => executeSubstitution(playerIdToReplace, sub.id);
+                    substitutesListDiv.appendChild(subButton);
+                });
+            }
+
+            document.getElementById('substitutionModal').classList.remove('hidden');
+        }
+
+        function executeSubstitution(playerOutId, playerInId) {
+            const currentTeam = getCurrentTeam();
+            const matchId = parseInt(document.getElementById('matchSelector').value);
+            const match = currentTeam.matches.find(m => m.id === matchId);
+            
+            const setLineup = currentTeam.courtPositions[matchId][currentSet];
+            
+            // Trouver le poste du joueur sortant pour le mettre à jour
+            let positionToUpdate = null;
+            for (const pos in setLineup) {
+                if (setLineup[pos] === playerOutId) {
+                    positionToUpdate = pos;
+                    break;
+                }
+            }
+
+            if (positionToUpdate) {
+                // Mettre à jour la composition du terrain
+                currentTeam.courtPositions[matchId][currentSet][positionToUpdate] = playerInId;
+                
+                // Enregistrer le remplacement
+                if (!match.substitutions) match.substitutions = {};
+                if (!match.substitutions[currentSet]) match.substitutions[currentSet] = [];
+                match.substitutions[currentSet].push({ out: playerOutId, in: playerInId });
+
+                recalculatePlayedStatus(matchId);
+                saveData();
+                closeModal('substitutionModal');
+                renderLiveTrackingView();
+                renderAttendanceForSelectedMatch();
+            } else {
+                alert("Erreur : Le joueur à remplacer n'a pas été trouvé sur le terrain.");
             }
         }
         
     </script>
 </body>
 </html>
-
