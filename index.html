@@ -5,9 +5,7 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Assistant pour la gestion de l'équipe</title>
-    <!-- Utilisation de Tailwind CSS pour un design simple et efficace -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Ajout d'une police plus moderne -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -129,13 +127,11 @@
         </header>
 
         <main>
-             <!-- Section Gestion des Équipes -->
-            <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+             <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
                 <h2 class="text-2xl font-bold mb-4 border-b pb-2">Gestion des Équipes</h2>
                 <div class="flex flex-wrap items-center gap-4">
                     <select id="teamSelector" class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none w-full sm:w-auto">
-                        <!-- Les équipes seront listées ici -->
-                    </select>
+                        </select>
                     <div class="flex gap-2 w-full sm:w-auto">
                         <button onclick="openAddTeamModal()" class="flex-1 bg-indigo-500 text-white font-semibold py-2 px-3 rounded-lg hover:bg-indigo-600 transition">Nouvelle</button>
                         <div id="teamActions" class="flex-1 flex gap-2 hidden">
@@ -147,7 +143,6 @@
             </div>
 
             <div id="team-content" class="hidden">
-                <!-- Barre de navigation principale -->
                 <div class="mb-8 border-b border-gray-200">
                     <nav class="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto" aria-label="Tabs">
                         <button id="main-tab-roster" onclick="showMainTab('roster')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
@@ -165,20 +160,17 @@
                     </nav>
                 </div>
 
-                <!-- Contenu de l'onglet Effectif -->
                 <div id="main-view-roster">
                     <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
                         <h2 class="text-2xl font-bold mb-4 border-b pb-2">Effectif de l'équipe</h2>
                         <button onclick="openAddPlayerModal()" class="w-full bg-blue-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-600 transition duration-300 shadow mb-6">Ajouter un joueur</button>
 
                         <div id="playerList" class="mt-6 space-y-2">
-                            <!-- La liste des joueurs sera injectée ici par JavaScript -->
-                        </div>
+                            </div>
                         <button id="deleteAllPlayersBtn" onclick="deleteAllPlayers()" class="w-full mt-4 bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition hidden">Supprimer l'effectif</button>
                     </div>
                 </div>
                 
-                <!-- Contenu de l'onglet Matchs -->
                 <div id="main-view-matches" class="hidden">
                     <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
                         <h2 class="text-2xl font-bold mb-4 border-b pb-2">Gestion des Matchs</h2>
@@ -186,8 +178,7 @@
                         
                         <h3 class="text-xl font-semibold mb-3 border-t pt-6">Sélectionner un match</h3>
                         <select id="matchSelector" class="w-full p-3 border border-gray-300 rounded-lg mb-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                            <!-- Les options de match seront injectées ici -->
-                        </select>
+                            </select>
                         <p id="match-hint" class="text-sm text-gray-500 -mt-1 mb-2">Sélectionnez un match pour le gérer.</p>
                         <div id="matchActions" class="hidden flex gap-2 mb-4">
                             <button onclick="openEditMatchModal()" class="flex-1 bg-yellow-500 text-white text-sm font-semibold py-2 px-4 rounded-lg hover:bg-yellow-600 transition">Modifier</button>
@@ -196,20 +187,16 @@
                     </div>
                     
                     <div id="selectedMatchContent" class="hidden space-y-8">
-                        <!-- Feuille de Match -->
                         <div class="bg-white p-6 rounded-2xl shadow-lg">
                              <h3 class="text-xl font-semibold mb-3">Feuille de Match</h3>
                              <div id="attendanceList" class="space-y-2">
-                                <!-- La liste de présence sera injectée ici -->
-                             </div>
+                                </div>
                         </div>
 
-                        <!-- Vue Terrain -->
                         <div class="bg-white p-6 rounded-2xl shadow-lg">
                             <h3 class="text-xl font-semibold mb-4 text-center">Composition par set</h3>
                              <div id="set-selector-matches" class="flex justify-center gap-1 mb-4 rounded-lg bg-gray-200 p-1">
-                                <!-- Les boutons de set seront injectés ici -->
-                             </div>
+                                </div>
                             <div class="court-container relative">
                                <div class="court">
                                    <div class="net"></div>
@@ -224,12 +211,10 @@
                             <div id="substitutions-tracker" class="mt-6">
                                 <h4 class="font-semibold text-lg mb-2">Remplacements pour ce set</h4>
                                 <div id="substitutionsList" class="space-y-2">
-                                    <!-- Substitutes will be injected here -->
-                                </div>
+                                    </div>
                             </div>
                         </div>
 
-                        <!-- Score du Match -->
                         <div class="bg-white p-6 rounded-2xl shadow-lg">
                             <h3 class="text-xl font-semibold mb-3">Score du Match</h3>
                             <div class="space-y-4">
@@ -246,31 +231,26 @@
                                     </div>
                                 </div>
                                 <div id="setScoresContainer" class="space-y-2">
-                                    <!-- Set scores will be injected here -->
-                                </div>
+                                    </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Contenu de l'onglet Suivi en direct -->
                 <div id="main-view-live" class="hidden">
                     <div class="bg-white p-6 rounded-2xl shadow-lg">
                         <h2 class="text-2xl font-bold mb-4 border-b pb-2">Suivi des Fautes en Direct</h2>
                         <p id="live-match-hint" class="text-gray-600 mb-4">Veuillez d'abord sélectionner un match dans l'onglet "Matchs".</p>
                         <div id="live-content" class="hidden">
                             <div id="set-selector-live" class="flex justify-center gap-1 mb-6 rounded-lg bg-gray-200 p-1">
-                                <!-- Set selector for live tracking -->
-                            </div>
-                            <div id="fault-tracker-grid" class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                <!-- Fault tracker cards will be injected here -->
-                            </div>
+                                </div>
+                            <div id="fault-tracker-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Contenu de l'onglet Statistiques -->
-                 <div id="main-view-stats" class="hidden">
+                <div id="main-view-stats" class="hidden">
                     <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
                         <h3 class="text-2xl font-bold mb-4 border-b pb-2">Résultats de l'équipe</h3>
                         <div class="overflow-x-auto">
@@ -295,8 +275,7 @@
                                 </thead>
                                 <tbody>
                                     <tr id="teamStatsRow" class="font-mono text-center">
-                                        <!-- Team stats will be injected here -->
-                                    </tr>
+                                        </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -317,8 +296,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="statsTableBody">
-                                    <!-- Les statistiques seront injectées ici -->
-                                </tbody>
+                                    </tbody>
                             </table>
                         </div>
                     </div>
@@ -330,7 +308,6 @@
         </footer>
     </div>
 
-    <!-- Modals -->
     <div id="addPlayerModal" class="modal-backdrop hidden">
         <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0">
             <h2 class="text-2xl font-bold mb-4">Ajouter un joueur</h2>
@@ -962,16 +939,23 @@
             
             const matchSetCounts = {};
             currentTeam.players.forEach(player => { matchSetCounts[player.id] = 0; });
+            
+            SETS.forEach(setName => {
+                const setLineup = currentTeam.courtPositions[matchId] ? currentTeam.courtPositions[matchId][setName] : null;
+                const setSubs = match.substitutions ? match.substitutions[setName] : null;
 
-            if (currentTeam.courtPositions[matchId]) {
-                Object.values(currentTeam.courtPositions[matchId]).forEach(setLineup => {
+                if (setLineup) {
                     Object.values(setLineup).forEach(playerId => {
-                        if (matchSetCounts.hasOwnProperty(playerId)) {
-                            matchSetCounts[playerId]++;
-                        }
+                         if (matchSetCounts.hasOwnProperty(playerId)) matchSetCounts[playerId]++;
                     });
-                });
-            }
+                }
+                if (setSubs) {
+                    setSubs.forEach(playerId => {
+                        if (matchSetCounts.hasOwnProperty(playerId)) matchSetCounts[playerId]++;
+                    });
+                }
+            });
+
 
             const sortedPlayers = [...currentTeam.players].sort((a, b) => a.name.localeCompare(b.name));
             sortedPlayers.forEach(player => {
@@ -1220,6 +1204,18 @@
             saveData();
         }
         
+        // --- START CORRECTION ---
+        function renderSubstitutions() {
+            // Cette fonction était manquante, ce qui causait une erreur bloquant l'affichage.
+            // TODO: Vous pouvez implémenter ici la logique d'affichage des remplacements pour le set en cours.
+            const subsList = document.getElementById('substitutionsList');
+            if (subsList) {
+                // Pour l'instant, on affiche un message temporaire pour confirmer que ça fonctionne.
+                subsList.innerHTML = '<p class="text-gray-500 text-sm">Aucun remplacement enregistré pour ce set.</p>';
+            }
+        }
+        // --- END CORRECTION ---
+
         function recalculatePlayedStatus(matchId) {
             const currentTeam = getCurrentTeam();
             const match = currentTeam.matches.find(m => m.id === matchId);
@@ -1389,7 +1385,7 @@
             const lineupPlayerIds = Object.values(setLineup);
 
             if (lineupPlayerIds.length === 0) {
-                faultGrid.innerHTML = `<p class="text-gray-500 col-span-2 md:col-span-3">Définissez le 6 de départ dans l'onglet "Matchs" pour commencer le suivi.</p>`;
+                faultGrid.innerHTML = `<p class="text-gray-500 col-span-1 sm:col-span-2 md:col-span-3">Définissez le 6 de départ dans l'onglet "Matchs" pour commencer le suivi.</p>`;
                 return;
             }
 
@@ -1449,9 +1445,7 @@
                 saveData();
             }
         }
+        
     </script>
 </body>
 </html>
-
-
-            
