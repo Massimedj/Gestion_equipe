@@ -334,6 +334,10 @@
                                         <th class="p-3 font-semibold text-center">Matchs Joués</th>
                                         <th class="p-3 font-semibold text-center">Sets Joués</th>
                                         <th class="p-3 font-semibold text-center">Sets Gagnés</th>
+                                        <th class="p-3 font-semibold text-center text-red-600">F. Service</th>
+                                        <th class="p-3 font-semibold text-center text-red-600">F. Attaque</th>
+                                        <th class="p-3 font-semibold text-center text-red-600">F. Récep.</th>
+                                        <th class="p-3 font-semibold text-center text-red-600">Autres F.</th>
                                         <th class="p-3 font-semibold text-center">Total Fautes</th>
                                     </tr>
                                 </thead>
@@ -1316,12 +1320,13 @@
             if (!currentTeam) return;
 
             const sortedPlayers = [...currentTeam.players].sort((a, b) => a.name.localeCompare(b.name));
+            
             sortedPlayers.forEach(player => {
                 let presenceCount = 0;
                 let playedCount = 0;
                 let setCount = 0;
                 let setsWonCount = 0;
-                let totalFaults = 0;
+                let faultCounts = { service: 0, attack: 0, reception: 0, net: 0 };
 
                 currentTeam.matches.forEach(match => {
                     if (match.present.includes(player.id)) presenceCount++;
@@ -1347,11 +1352,17 @@
                     if (match.faults) {
                         Object.values(match.faults).forEach(setFaults => {
                             if (setFaults[player.id]) {
-                                totalFaults += Object.values(setFaults[player.id]).reduce((a, b) => a + b, 0);
+                                const playerFaultsInSet = setFaults[player.id];
+                                faultCounts.service += playerFaultsInSet.service || 0;
+                                faultCounts.attack += playerFaultsInSet.attack || 0;
+                                faultCounts.reception += playerFaultsInSet.reception || 0;
+                                faultCounts.net += playerFaultsInSet.net || 0;
                             }
                         });
                     }
                 });
+                
+                const totalFaults = faultCounts.service + faultCounts.attack + faultCounts.reception + faultCounts.net;
 
                 const row = document.createElement('tr');
                 row.className = 'border-b';
@@ -1361,7 +1372,11 @@
                     <td class="p-3 text-center">${playedCount}</td>
                     <td class="p-3 text-center">${setCount}</td>
                     <td class="p-3 text-center">${setsWonCount}</td>
-                    <td class="p-3 text-center">${totalFaults}</td>`;
+                    <td class="p-3 text-center">${faultCounts.service}</td>
+                    <td class="p-3 text-center">${faultCounts.attack}</td>
+                    <td class="p-3 text-center">${faultCounts.reception}</td>
+                    <td class="p-3 text-center">${faultCounts.net}</td>
+                    <td class="p-3 text-center font-bold">${totalFaults}</td>`;
                 statsBody.appendChild(row);
             });
         }
@@ -1621,4 +1636,3 @@
     </script>
 </body>
 </html>
-
