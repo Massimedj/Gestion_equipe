@@ -751,29 +751,34 @@
         function loadData() {
             const savedData = localStorage.getItem('volleyAppData');
             if (savedData) {
-                appData = JSON.parse(savedData);
-            } else {
-                // Migration depuis un ancien format si nécessaire
-                const oldPlayers = localStorage.getItem('volleyPlayers');
-                if (oldPlayers) {
-                    const defaultTeam = {
-                        id: Date.now(),
-                        name: "Mon Équipe",
-                        players: JSON.parse(localStorage.getItem('volleyPlayers')) || [],
-                        matches: JSON.parse(localStorage.getItem('volleyMatches')) || [],
-                        courtPositions: JSON.parse(localStorage.getItem('volleyPositions')) || {}
-                    };
-                    appData.teams.push(defaultTeam);
-                    appData.currentTeamId = defaultTeam.id;
-                    saveData();
-                    localStorage.removeItem('volleyPlayers');
-                    localStorage.removeItem('volleyMatches');
-                    localStorage.removeItem('volleyPositions');
+                try {
+                    appData = JSON.parse(savedData);
+                } catch (e) {
+                    console.error("Erreur de parsing du JSON depuis localStorage:", e);
+                    // Si les données sont corrompues, on repart de zéro
+                    appData = { teams: [], currentTeamId: null, lastFaultAction: null };
+                    return;
                 }
-            }
-             // S'assurer que la structure est correcte
-            if (!appData.lastFaultAction) {
-                appData.lastFaultAction = null;
+
+                // --- Logique de migration des données ---
+                // S'assure que les nouvelles propriétés existent sur les anciennes données.
+                if (appData.teams) {
+                    appData.teams.forEach(team => {
+                        if (team.matches) {
+                            team.matches.forEach(match => {
+                                if (typeof match.forfeitStatus === 'undefined') {
+                                    match.forfeitStatus = 'none';
+                                }
+                                if (typeof match.faultTrackingMode === 'undefined') {
+                                    match.faultTrackingMode = 'detailed';
+                                }
+                            });
+                        }
+                    });
+                }
+                if (typeof appData.lastFaultAction === 'undefined') {
+                    appData.lastFaultAction = null;
+                }
             }
         }
 
@@ -832,15 +837,16 @@
         function renderTeamSelector() {
             const selector = document.getElementById('teamSelector');
             selector.innerHTML = '';
-            if (appData.teams.length === 0) {
+            if (!appData.teams || appData.teams.length === 0) {
                 selector.innerHTML = '<option value="">Créez une équipe pour commencer</option>';
+            } else {
+                appData.teams.forEach(team => {
+                    const option = document.createElement('option');
+                    option.value = team.id;
+                    option.textContent = team.name;
+                    selector.appendChild(option);
+                });
             }
-            appData.teams.forEach(team => {
-                const option = document.createElement('option');
-                option.value = team.id;
-                option.textContent = team.name;
-                selector.appendChild(option);
-            });
             selector.value = appData.currentTeamId;
         }
 
@@ -1554,7 +1560,7 @@
             const currentTeam = getCurrentTeam();
             const statsRow = document.getElementById('teamStatsRow');
             statsRow.innerHTML = '';
-            if (!currentTeam || currentTeam.matches.length === 0) {
+            if (!currentTeam || !currentTeam.matches || currentTeam.matches.length === 0) {
                  statsRow.innerHTML = `<td colspan="14" class="p-4 text-center text-gray-500">Aucun match joué pour le moment.</td>`;
                  return;
             }
@@ -1566,7 +1572,7 @@
             };
 
             currentTeam.matches.forEach(match => {
-                if (!match.score || (match.score.myTeam === '' && match.score.opponent === '')) return;
+                if (!match.score || (match.score.myTeam === '' && match.score.opponent === '' && match.forfeitStatus === 'none')) return;
 
                 stats.joues++;
 
@@ -1953,4 +1959,93 @@
             const matchId = parseInt(document.getElementById('matchSelector').value);
             if (!summaryDiv || !currentTeam || !matchId) return;
 
-            const match = currentTeam.matches.find(m => m.id === matchId
+            const match = currentTeam.matches.find(m => m.id === matchId);
+            if (!match || !match.faults) {
+                summaryDiv.innerHTML = '';
+                return;
+            }
+
+            let totalMatchFaults = 0;
+            let summaryHtml = '<h4 class="text-lg font-semibold mb-2 text-center">Total des Fautes par Set</h4><div class="space-y-1">';
+
+            SETS.forEach((setName, index) => {
+                let setTotal = 0;
+                if (match.faults[setName]) {
+                    for (const playerId in match.faults[setName]) {
+                        setTotal += Object.values(match.faults[setName][playerId]).reduce((a, b) => a + b, 0);
+                    }
+                }
+                summaryHtml += `<p class="text-sm text-gray-700 text-center">Set ${index + 1}: <span class="font-bold text-lg">${setTotal}</span></p>`;
+                totalMatchFaults += setTotal;
+            });
+
+            summaryHtml += '</div><p class="text-md font-bold mt-3 border-t pt-2 text-center">Total Match: ' + totalMatchFaults + '</p>';
+            summaryDiv.innerHTML = summaryHtml;
+        }
+
+        function renderResults() {
+            const currentTeam = getCurrentTeam();
+            const resultsList = document.getElementById('results-list');
+            resultsList.innerHTML = '';
+
+            if (!currentTeam || !currentTeam.matches || currentTeam.matches.length === 0) {
+                resultsList.innerHTML = '<p class="text-gray-500 text-center">Aucun match enregistré pour cette équipe.</p>';
+                return;
+            }
+
+            const sortedMatches = [...currentTeam.matches].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            sortedMatches.forEach(match => {
+                const matchCard = document.createElement('div');
+                let isWin;
+                if (match.forfeitStatus === 'win') {
+                    isWin = true;
+                } else if (match.forfeitStatus === 'loss') {
+                    isWin = false;
+                } else {
+                    isWin = parseInt(match.score.myTeam) > parseInt(match.score.opponent);
+                }
+                
+                const hasScore = (match.score && (match.score.myTeam !== '' || match.score.opponent !== '')) || match.forfeitStatus !== 'none';
+                const cardColor = hasScore ? (isWin ? 'bg-green-50' : 'bg-red-50') : 'bg-gray-50';
+                
+                let setScoresHtml = '';
+                if(match.score && match.score.sets) {
+                    match.score.sets.forEach((set, index) => {
+                        if(set.myTeam !== '' || set.opponent !== '') {
+                             setScoresHtml += `<span class="text-xs px-2 py-1 bg-gray-200 rounded">${set.myTeam}-${set.opponent}</span>`;
+                        }
+                    });
+                }
+
+                let forfeitBadge = '';
+                if (match.forfeitStatus === 'win') {
+                    forfeitBadge = `<span class="text-xs font-bold text-green-600 ml-2">(FORFAIT GAGNÉ)</span>`;
+                } else if (match.forfeitStatus === 'loss') {
+                     forfeitBadge = `<span class="text-xs font-bold text-red-600 ml-2">(FORFAIT PERDU)</span>`;
+                }
+
+                matchCard.className = `p-4 rounded-lg border ${hasScore ? (isWin ? 'border-green-200' : 'border-red-200') : 'border-gray-200'} ${cardColor}`;
+                matchCard.innerHTML = `
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                        <div>
+                            <p class="text-sm text-gray-600">${new Date(match.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                            <p class="text-lg font-bold">${currentTeam.name} vs ${match.opponent} ${forfeitBadge}</p>
+                        </div>
+                        <div class="mt-2 sm:mt-0 text-right">
+                             <p class="text-2xl font-bold">${match.score.myTeam || '0'} - ${match.score.opponent || '0'}</p>
+                             ${hasScore ? `<p class="text-xs font-semibold ${isWin ? 'text-green-600' : 'text-red-600'}">${isWin ? 'VICTOIRE' : 'DÉFAITE'}</p>` : ''}
+                        </div>
+                    </div>
+                    <div class="mt-3 pt-3 border-t ${hasScore ? (isWin ? 'border-green-200' : 'border-red-200') : 'border-gray-200'} flex flex-wrap gap-2 items-center">
+                        <span class="text-sm font-semibold">Scores des sets :</span>
+                        ${setScoresHtml || '<span class="text-xs text-gray-500">Non renseignés</span>'}
+                    </div>
+                `;
+                resultsList.appendChild(matchCard);
+            });
+        }
+        
+    </script>
+</body>
+</html>
