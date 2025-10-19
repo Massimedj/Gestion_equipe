@@ -352,6 +352,9 @@
                             <div class="mt-4 text-center">
                                 <button id="undo-last-fault" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition text-sm">Annuler la dernière faute</button>
                             </div>
+                            
+                            <div id="set-faults-summary" class="mt-6 border-t pt-4">
+                                </div>
                         </div>
                     </div>
                 </div>
@@ -1531,10 +1534,16 @@
                 }
             };
             
-            // Événements pour ordinateur et mobile
+            // On supprime les anciens écouteurs pour éviter les doublons
+            button.removeEventListener('mousedown', startPress);
+            button.removeEventListener('touchstart', startPress);
+            button.removeEventListener('mouseup', endPress);
+            button.removeEventListener('mouseleave', endPress);
+            button.removeEventListener('touchend', endPress);
+            
+            // On ajoute les nouveaux
             button.addEventListener('mousedown', startPress);
             button.addEventListener('touchstart', startPress, { passive: false });
-
             button.addEventListener('mouseup', endPress);
             button.addEventListener('mouseleave', endPress);
             button.addEventListener('touchend', endPress);
@@ -1604,6 +1613,8 @@
                     }
                 }
             });
+
+            renderSetFaultsSummary();
         }
 
         function createPlayerCardLiveDetailed(match, player) {
@@ -1680,7 +1691,7 @@
             currentFaults[faultType] = currentCount;
             saveData();
             
-            // Mise à jour instantanée de l'affichage sans recharger toute la vue
+            // Mise à jour instantanée de l'affichage
             const detailedCountSpan = document.getElementById(`fault-count-${playerId}-${faultType}`);
             if (detailedCountSpan) {
                 detailedCountSpan.textContent = currentCount;
@@ -1691,6 +1702,7 @@
                 const totalFaults = Object.values(currentFaults).reduce((a, b) => a + b, 0);
                 simpleCountSpan.textContent = totalFaults;
             }
+            renderSetFaultsSummary();
         }
         
         function undoLastFault() {
@@ -1771,6 +1783,36 @@
             } else {
                 alert("Erreur : Le joueur à remplacer n'a pas été trouvé sur le terrain.");
             }
+        }
+
+        function renderSetFaultsSummary() {
+            const summaryDiv = document.getElementById('set-faults-summary');
+            const currentTeam = getCurrentTeam();
+            const matchId = parseInt(document.getElementById('matchSelector').value);
+            if (!summaryDiv || !currentTeam || !matchId) return;
+
+            const match = currentTeam.matches.find(m => m.id === matchId);
+            if (!match || !match.faults) {
+                summaryDiv.innerHTML = '';
+                return;
+            }
+
+            let totalMatchFaults = 0;
+            let summaryHtml = '<h4 class="text-lg font-semibold mb-2 text-center">Total des Fautes par Set</h4><div class="space-y-1">';
+
+            SETS.forEach((setName, index) => {
+                let setTotal = 0;
+                if (match.faults[setName]) {
+                    for (const playerId in match.faults[setName]) {
+                        setTotal += Object.values(match.faults[setName][playerId]).reduce((a, b) => a + b, 0);
+                    }
+                }
+                summaryHtml += `<p class="text-sm text-gray-700 text-center">Set ${index + 1}: <span class="font-bold text-lg">${setTotal}</span></p>`;
+                totalMatchFaults += setTotal;
+            });
+
+            summaryHtml += '</div><p class="text-md font-bold mt-3 border-t pt-2 text-center">Total Match: ' + totalMatchFaults + '</p>';
+            summaryDiv.innerHTML = summaryHtml;
         }
         
     </script>
