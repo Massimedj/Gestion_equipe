@@ -164,9 +164,9 @@
             justify-content: center;
             aspect-ratio: 1 / 1; /* Assure que le bouton est carré */
         }
-        .fault-grid-btn:hover, .simple-fault-btn:hover {
-            background-color: #f97316; /* Orange un peu plus foncé (orange-500) */
-            border-color: #f97316;
+        .fault-btn-active {
+            background-color: #f97316 !important; /* Orange un peu plus foncé (orange-500) */
+            border-color: #f97316 !important;
         }
         .fault-count {
             font-weight: 700;
@@ -1519,51 +1519,63 @@
         function addFaultButtonListeners(button, matchId, playerId, faultType) {
             let pressTimer;
             let longPressOccurred = false;
+            let isScrolling = false;
             let startX, startY;
 
             const startPress = (e) => {
-                // Pour les événements tactiles, on prend les coordonnées du premier doigt
+                isScrolling = false;
+                longPressOccurred = false;
                 startX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
                 startY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-                longPressOccurred = false;
                 
+                button.classList.add('fault-btn-active');
+
                 pressTimer = setTimeout(() => {
-                    e.preventDefault(); // Empêcher les actions par défaut (menu contextuel) seulement pour un appui long
+                    if (isScrolling) return; // Ne pas déclencher l'appui long si un scroll a commencé
+                    e.preventDefault();
                     longPressOccurred = true;
                     updateFault(matchId, playerId, faultType, -1);
-                }, 500); // 500ms pour un appui long
+                }, 500); 
             };
 
-            const endPress = (e) => {
-                clearTimeout(pressTimer);
-                if (!longPressOccurred) {
-                    // C'était un appui court (clic)
-                    e.preventDefault(); // Empêche un "ghost click" sur mobile
-                    updateFault(matchId, playerId, faultType, 1);
-                }
-            };
-            
-            const cancelPress = (e) => {
-                 // On calcule le mouvement pour déterminer si c'est un scroll
+            const movePress = (e) => {
+                if (longPressOccurred || isScrolling) return;
+
                 const moveX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
                 const moveY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
                 const diffX = Math.abs(startX - moveX);
                 const diffY = Math.abs(startY - moveY);
 
-                if (diffX > 10 || diffY > 10) { // Si le doigt a bougé de plus de 10px
+                if (diffX > 10 || diffY > 10) { 
+                    isScrolling = true;
                     clearTimeout(pressTimer);
+                    button.classList.remove('fault-btn-active');
                 }
             };
 
-            // On ajoute les écouteurs sur le bouton
+            const endPress = (e) => {
+                clearTimeout(pressTimer);
+                if (!longPressOccurred && !isScrolling) {
+                    e.preventDefault(); 
+                    updateFault(matchId, playerId, faultType, 1);
+                }
+                setTimeout(() => button.classList.remove('fault-btn-active'), 50); // Léger délai pour le feedback visuel
+            };
+            
+            // On ajoute les écouteurs
             button.addEventListener('mousedown', startPress);
-            button.addEventListener('touchstart', startPress, { passive: true }); // passive:true pour autoriser le scroll par défaut
+            button.addEventListener('touchstart', startPress, { passive: true });
+
+            button.addEventListener('mousemove', movePress);
+            button.addEventListener('touchmove', movePress, { passive: true });
 
             button.addEventListener('mouseup', endPress);
             button.addEventListener('touchend', endPress);
-
-            button.addEventListener('mouseleave', () => clearTimeout(pressTimer));
-            button.addEventListener('touchmove', cancelPress);
+            
+            button.addEventListener('mouseleave', () => {
+                clearTimeout(pressTimer);
+                button.classList.remove('fault-btn-active');
+            });
         }
         
         function renderLiveTrackingView() {
