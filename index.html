@@ -247,6 +247,9 @@
                         <button id="main-tab-live" onclick="showMainTab('live')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
                             Suivi des Fautes
                         </button>
+                         <button id="main-tab-results" onclick="showMainTab('results')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
+                            Résultats
+                        </button>
                         <button id="main-tab-stats" onclick="showMainTab('stats')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
                             Statistiques
                         </button>
@@ -366,6 +369,14 @@
                             <div id="set-faults-summary" class="mt-6 border-t pt-4">
                                 </div>
                         </div>
+                    </div>
+                </div>
+                
+                <div id="main-view-results" class="hidden">
+                    <div class="bg-white p-6 rounded-2xl shadow-lg">
+                        <h2 class="text-2xl font-bold mb-4 border-b pb-2">Résultats de la Saison</h2>
+                        <div id="results-list" class="space-y-4">
+                            </div>
                     </div>
                 </div>
 
@@ -607,9 +618,9 @@
             document.getElementById('main-view-matches').classList.add('hidden');
             document.getElementById('main-view-stats').classList.add('hidden');
             document.getElementById('main-view-live').classList.add('hidden');
-
+            document.getElementById('main-view-results').classList.add('hidden');
             
-            const tabs = ['roster', 'matches', 'stats', 'live'];
+            const tabs = ['roster', 'matches', 'stats', 'live', 'results'];
             tabs.forEach(t => {
                 const tabButton = document.getElementById(`main-tab-${t}`);
                 tabButton.classList.remove('border-indigo-500', 'text-indigo-600');
@@ -626,6 +637,9 @@
             }
             if (tabName === 'live') {
                 renderLiveTrackingView();
+            }
+             if (tabName === 'results') {
+                renderResults();
             }
         }
         
@@ -1554,7 +1568,7 @@
                 const diffX = Math.abs(startX - moveX);
                 const diffY = Math.abs(startY - moveY);
 
-                if (diffX > 10 || diffY > 10) { 
+                if (diffX > 5 || diffY > 5) { // Seuil de détection de scroll réduit
                     isScrolling = true;
                     clearTimeout(pressTimer);
                     button.classList.remove('fault-btn-active');
@@ -1581,7 +1595,7 @@
             
             button.addEventListener('mouseleave', () => {
                 clearTimeout(pressTimer);
-                isScrolling = true; // Empêche l'incrémentation si la souris quitte le bouton
+                isScrolling = true;
                 button.classList.remove('fault-btn-active');
             });
         }
@@ -1864,6 +1878,54 @@
 
             summaryHtml += '</div><p class="text-md font-bold mt-3 border-t pt-2 text-center">Total Match: ' + totalMatchFaults + '</p>';
             summaryDiv.innerHTML = summaryHtml;
+        }
+
+        function renderResults() {
+            const currentTeam = getCurrentTeam();
+            const resultsList = document.getElementById('results-list');
+            resultsList.innerHTML = '';
+
+            if (!currentTeam || !currentTeam.matches || currentTeam.matches.length === 0) {
+                resultsList.innerHTML = '<p class="text-gray-500 text-center">Aucun match enregistré pour cette équipe.</p>';
+                return;
+            }
+
+            const sortedMatches = [...currentTeam.matches].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            sortedMatches.forEach(match => {
+                const matchCard = document.createElement('div');
+                const isWin = parseInt(match.score.myTeam) > parseInt(match.score.opponent);
+                const cardColor = isWin ? 'bg-green-50' : 'bg-red-50';
+                
+                let setScoresHtml = '';
+                if(match.score && match.score.sets) {
+                    match.score.sets.forEach((set, index) => {
+                        if(set.myTeam !== '' || set.opponent !== '') {
+                             setScoresHtml += `<span class="text-xs px-2 py-1 bg-gray-200 rounded">${set.myTeam}-${set.opponent}</span>`;
+                        }
+                    });
+                }
+
+
+                matchCard.className = `p-4 rounded-lg border ${isWin ? 'border-green-200' : 'border-red-200'} ${cardColor}`;
+                matchCard.innerHTML = `
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                        <div>
+                            <p class="text-sm text-gray-600">${new Date(match.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                            <p class="text-lg font-bold">${currentTeam.name} vs ${match.opponent}</p>
+                        </div>
+                        <div class="mt-2 sm:mt-0 text-right">
+                             <p class="text-2xl font-bold">${match.score.myTeam || '0'} - ${match.score.opponent || '0'}</p>
+                             <p class="text-xs font-semibold ${isWin ? 'text-green-600' : 'text-red-600'}">${isWin ? 'VICTOIRE' : 'DÉFAITE'}</p>
+                        </div>
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-gray-200 flex flex-wrap gap-2 items-center">
+                        <span class="text-sm font-semibold">Scores des sets :</span>
+                        ${setScoresHtml || '<span class="text-xs text-gray-500">Non renseignés</span>'}
+                    </div>
+                `;
+                resultsList.appendChild(matchCard);
+            });
         }
         
     </script>
