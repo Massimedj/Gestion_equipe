@@ -111,11 +111,6 @@
             background-color: #f59e0b;
             border-color: #f59e0b;
         }
-        .fault-btn {
-            width: 28px;
-            height: 28px;
-            line-height: 28px;
-        }
         /* Styles pour la nouvelle vue Suivi en Direct */
         #live-court-layout {
             display: grid;
@@ -128,6 +123,8 @@
             padding: 0.75rem;
             text-align: center;
             background-color: #f9fafb;
+            display: flex;
+            flex-direction: column;
         }
         .fault-grid {
             display: grid;
@@ -135,18 +132,31 @@
             gap: 0.5rem;
             margin-top: 0.75rem;
         }
-        .fault-grid-btn {
+        .fault-grid-btn, .simple-fault-btn {
             background-color: #ffffff;
             border: 1px solid #d1d5db;
             border-radius: 0.5rem;
-            padding: 0.5rem 0.25rem;
-            font-size: 0.8rem;
             font-weight: 500;
             color: #374151;
             transition: background-color 0.2s;
             cursor: pointer;
+            user-select: none; /* Empêche la sélection de texte pendant l'appui long */
         }
-        .fault-grid-btn:hover {
+        .fault-grid-btn {
+             padding: 0.5rem 0.25rem;
+             font-size: 0.8rem;
+        }
+        .simple-fault-btn {
+            flex-grow: 1;
+            margin-top: 0.75rem;
+            font-size: 2.25rem;
+            font-weight: 700;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .fault-grid-btn:hover, .simple-fault-btn:hover {
             background-color: #f3f4f6;
         }
         .fault-count {
@@ -1492,7 +1502,41 @@
             `;
         }
 
-        // --- LIVE TRACKING (Refonte) ---
+        // --- LIVE TRACKING (Refonte avec appui long) ---
+
+        function addFaultButtonListeners(button, matchId, playerId, faultType) {
+            let pressTimer;
+            let longPressOccurred = false;
+
+            const startPress = (e) => {
+                e.preventDefault();
+                longPressOccurred = false;
+                pressTimer = setTimeout(() => {
+                    updateFault(matchId, playerId, faultType, -1);
+                    longPressOccurred = true;
+                }, 500); // 500ms pour un appui long
+            };
+
+            const endPress = () => {
+                clearTimeout(pressTimer);
+            };
+
+            const clickEvent = () => {
+                if (!longPressOccurred) {
+                    updateFault(matchId, playerId, faultType, 1);
+                }
+            };
+
+            button.addEventListener('mousedown', startPress);
+            button.addEventListener('touchstart', startPress, { passive: false });
+
+            button.addEventListener('mouseup', endPress);
+            button.addEventListener('mouseleave', endPress);
+            button.addEventListener('touchend', endPress);
+            
+            button.addEventListener('click', clickEvent);
+        }
+        
         function renderLiveTrackingView() {
             const currentTeam = getCurrentTeam();
             const matchId = parseInt(document.getElementById('matchSelector').value);
@@ -1515,7 +1559,6 @@
             const match = currentTeam.matches.find(m => m.id === matchId);
             if (!match) return;
 
-            // Assurer que la propriété existe pour les anciens matchs
             if (typeof match.faultTrackingMode === 'undefined') {
                 match.faultTrackingMode = 'detailed';
             }
@@ -1544,10 +1587,18 @@
                     let card;
                     if (match.faultTrackingMode === 'detailed') {
                         card = createPlayerCardLiveDetailed(match, player);
+                        courtLayout.appendChild(card);
+                        const faultTypes = ['service', 'attack', 'reception', 'net'];
+                        faultTypes.forEach(type => {
+                            const button = card.querySelector(`#fault-btn-${player.id}-${type}`);
+                            addFaultButtonListeners(button, match.id, player.id, type);
+                        });
                     } else {
                         card = createPlayerCardLiveSimple(match, player);
+                        courtLayout.appendChild(card);
+                        const button = card.querySelector(`#fault-btn-${player.id}-simple`);
+                        addFaultButtonListeners(button, match.id, player.id, 'net'); // Le mode simple agit sur la faute "net" (Autres)
                     }
-                    courtLayout.appendChild(card);
                 }
             });
         }
@@ -1565,17 +1616,17 @@
                     #${player.jerseyNumber || '-'} ${player.name}
                 </div>
                 <div class="fault-grid">
-                    <button class="fault-grid-btn" onclick="updateFault(${match.id}, ${player.id}, 'service', 1)">
-                        Service: <span class="fault-count" id="livefault-${player.id}-service">${faults.service}</span>
+                    <button id="fault-btn-${player.id}-service" class="fault-grid-btn">
+                        Service: <span class="fault-count" id="fault-count-${player.id}-service">${faults.service}</span>
                     </button>
-                    <button class="fault-grid-btn" onclick="updateFault(${match.id}, ${player.id}, 'attack', 1)">
-                        Attaque: <span class="fault-count" id="livefault-${player.id}-attack">${faults.attack}</span>
+                    <button id="fault-btn-${player.id}-attack" class="fault-grid-btn">
+                        Attaque: <span class="fault-count" id="fault-count-${player.id}-attack">${faults.attack}</span>
                     </button>
-                    <button class="fault-grid-btn" onclick="updateFault(${match.id}, ${player.id}, 'reception', 1)">
-                        Récep: <span class="fault-count" id="livefault-${player.id}-reception">${faults.reception}</span>
+                    <button id="fault-btn-${player.id}-reception" class="fault-grid-btn">
+                        Récep: <span class="fault-count" id="fault-count-${player.id}-reception">${faults.reception}</span>
                     </button>
-                    <button class="fault-grid-btn" onclick="updateFault(${match.id}, ${player.id}, 'net', 1)">
-                        Autres: <span class="fault-count" id="livefault-${player.id}-net">${faults.net}</span>
+                    <button id="fault-btn-${player.id}-net" class="fault-grid-btn">
+                        Autres: <span class="fault-count" id="fault-count-${player.id}-net">${faults.net}</span>
                     </button>
                 </div>
             `;
@@ -1595,11 +1646,9 @@
                 <div class="font-bold cursor-pointer hover:text-blue-600" onclick="openSubstitutionModal(${player.id})">
                     #${player.jerseyNumber || '-'} ${player.name}
                 </div>
-                <div class="flex items-center justify-center gap-4 mt-4">
-                     <button onclick="updateFault(${match.id}, ${player.id}, 'net', -1)" class="fault-btn bg-red-200 text-red-800 rounded-full font-bold text-lg">-</button>
-                     <span class="font-bold text-3xl w-12 text-center">${totalFaults}</span>
-                     <button onclick="updateFault(${match.id}, ${player.id}, 'net', 1)" class="fault-btn bg-green-200 text-green-800 rounded-full font-bold text-lg">+</button>
-                </div>
+                <button id="fault-btn-${player.id}-simple" class="simple-fault-btn">
+                    <span id="fault-count-${player.id}-simple">${totalFaults}</span>
+                </button>
             `;
             return card;
         }
@@ -1613,25 +1662,28 @@
             if (!match.faults[currentSet]) match.faults[currentSet] = {};
             if (!match.faults[currentSet][playerId]) match.faults[currentSet][playerId] = { service: 0, attack: 0, reception: 0, net: 0 };
             
-            // Si une faute de type 'net' est à 0 et qu'on veut décrémenter, on ne fait rien pour ne pas passer en négatif
-            if (change < 0 && match.faults[currentSet][playerId][faultType] === 0) {
-                 appData.lastFaultAction = null;
-                 return;
+            const currentFaults = match.faults[currentSet][playerId];
+            let currentCount = currentFaults[faultType] || 0;
+
+            if (change < 0 && currentCount === 0) {
+                 return; // Ne pas passer en négatif
             }
 
             if (change > 0) {
                  appData.lastFaultAction = { matchId, playerId, faultType, set: currentSet };
-            } else {
-                 appData.lastFaultAction = null;
             }
-            
-            let currentCount = match.faults[currentSet][playerId][faultType] || 0;
+
             currentCount += change;
-            
-            match.faults[currentSet][playerId][faultType] = currentCount;
+            currentFaults[faultType] = currentCount;
             saveData();
-            // Le rendu sera géré par la fonction appelante pour éviter les rendus multiples
-            renderLiveTrackingView();
+            
+            // Mise à jour instantanée de l'affichage sans recharger toute la vue
+            if (match.faultTrackingMode === 'detailed') {
+                document.getElementById(`fault-count-${playerId}-${faultType}`).textContent = currentCount;
+            } else {
+                const totalFaults = Object.values(currentFaults).reduce((a, b) => a + b, 0);
+                document.getElementById(`fault-count-${playerId}-simple`).textContent = totalFaults;
+            }
         }
         
         function undoLastFault() {
@@ -1649,10 +1701,8 @@
             const currentTeam = getCurrentTeam();
             const match = currentTeam.matches.find(m => m.id === matchId);
             if (match && match.faults[set] && match.faults[set][playerId] && match.faults[set][playerId][faultType] > 0) {
-                match.faults[set][playerId][faultType]--;
-                appData.lastFaultAction = null; 
-                saveData();
-                renderLiveTrackingView();
+                appData.lastFaultAction = null; // Important: on ne peut annuler qu'une fois
+                updateFault(matchId, playerId, faultType, -1); // Utiliser updateFault pour la cohérence
             } else {
                 alert("Impossible d'annuler cette faute.");
             }
