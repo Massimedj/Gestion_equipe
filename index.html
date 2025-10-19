@@ -1519,29 +1519,51 @@
         function addFaultButtonListeners(button, matchId, playerId, faultType) {
             let pressTimer;
             let longPressOccurred = false;
+            let startX, startY;
 
             const startPress = (e) => {
-                e.preventDefault();
+                // Pour les événements tactiles, on prend les coordonnées du premier doigt
+                startX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+                startY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
                 longPressOccurred = false;
+                
                 pressTimer = setTimeout(() => {
+                    e.preventDefault(); // Empêcher les actions par défaut (menu contextuel) seulement pour un appui long
                     longPressOccurred = true;
                     updateFault(matchId, playerId, faultType, -1);
                 }, 500); // 500ms pour un appui long
             };
 
-            const endPress = () => {
+            const endPress = (e) => {
                 clearTimeout(pressTimer);
                 if (!longPressOccurred) {
+                    // C'était un appui court (clic)
+                    e.preventDefault(); // Empêche un "ghost click" sur mobile
                     updateFault(matchId, playerId, faultType, 1);
                 }
             };
             
-            // On ajoute les écouteurs. Le re-rendu de la vue les créera sur de nouveaux éléments.
+            const cancelPress = (e) => {
+                 // On calcule le mouvement pour déterminer si c'est un scroll
+                const moveX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+                const moveY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+                const diffX = Math.abs(startX - moveX);
+                const diffY = Math.abs(startY - moveY);
+
+                if (diffX > 10 || diffY > 10) { // Si le doigt a bougé de plus de 10px
+                    clearTimeout(pressTimer);
+                }
+            };
+
+            // On ajoute les écouteurs sur le bouton
             button.addEventListener('mousedown', startPress);
-            button.addEventListener('touchstart', startPress, { passive: false });
+            button.addEventListener('touchstart', startPress, { passive: true }); // passive:true pour autoriser le scroll par défaut
+
             button.addEventListener('mouseup', endPress);
-            button.addEventListener('mouseleave', endPress);
             button.addEventListener('touchend', endPress);
+
+            button.addEventListener('mouseleave', () => clearTimeout(pressTimer));
+            button.addEventListener('touchmove', cancelPress);
         }
         
         function renderLiveTrackingView() {
