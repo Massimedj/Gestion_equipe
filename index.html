@@ -140,18 +140,18 @@
             margin-top: 0.75rem;
         }
         .fault-grid-btn, .simple-fault-btn {
-            border: 1px solid #d1d5db;
             border-radius: 0.5rem;
             font-weight: 500;
             transition: background-color 0.2s;
             cursor: pointer;
             user-select: none; /* Empêche la sélection de texte pendant l'appui long */
+            background-color: #fb923c; /* Orange clair (orange-400) */
+            color: white;
+            border: 1px solid #fb923c;
         }
         .fault-grid-btn {
              padding: 0.5rem 0.25rem;
              font-size: 0.8rem;
-             background-color: #ffffff;
-             color: #374151;
         }
         .simple-fault-btn {
             flex-grow: 1;
@@ -163,15 +163,10 @@
             align-items: center;
             justify-content: center;
             aspect-ratio: 1 / 1; /* Assure que le bouton est carré */
-            background-color: #f97316; /* Orange */
-            color: white;
+        }
+        .fault-grid-btn:hover, .simple-fault-btn:hover {
+            background-color: #f97316; /* Orange un peu plus foncé (orange-500) */
             border-color: #f97316;
-        }
-        .fault-grid-btn:hover {
-             background-color: #f3f4f6;
-        }
-        .simple-fault-btn:hover {
-            background-color: #ea580c; /* Orange plus foncé */
         }
         .fault-count {
             font-weight: 700;
@@ -1704,7 +1699,7 @@
                 detailedCountSpan.textContent = currentCount;
             }
 
-            const simpleCountSpan = document.getElementById(`fault-count-${playerId}-simple`);
+            const simpleCountSpan = document.getElementById(`fault-count-${player.id}-simple`);
             if (simpleCountSpan) {
                 const totalFaults = Object.values(currentFaults).reduce((a, b) => a + b, 0);
                 simpleCountSpan.textContent = totalFaults;
