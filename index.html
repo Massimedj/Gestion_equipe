@@ -153,6 +153,43 @@
             font-weight: 700;
             margin-left: 0.25rem;
         }
+        /* Style pour l'interrupteur */
+        .toggle-label {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .toggle-input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            width: 44px;
+            height: 24px;
+            background-color: #ccc;
+            border-radius: 9999px;
+            transition: background-color 0.2s;
+            position: relative;
+        }
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            height: 20px;
+            width: 20px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        .toggle-input:checked + .toggle-slider {
+            background-color: #3b82f6;
+        }
+        .toggle-input:checked + .toggle-slider::before {
+            transform: translateX(20px);
+        }
     </style>
 </head>
 <body class="text-gray-800">
@@ -189,7 +226,7 @@
                             Matchs
                         </button>
                         <button id="main-tab-live" onclick="showMainTab('live')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
-                            Suivi des fautes
+                            Suivi des Fautes
                         </button>
                         <button id="main-tab-stats" onclick="showMainTab('stats')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
                             Statistiques
@@ -276,7 +313,17 @@
 
                 <div id="main-view-live" class="hidden">
                     <div class="bg-white p-4 md:p-6 rounded-2xl shadow-lg">
-                        <h2 class="text-2xl font-bold mb-4 border-b pb-2">Suivi des Fautes Directes</h2>
+                        <div class="flex justify-between items-center mb-4 border-b pb-2">
+                            <h2 class="text-2xl font-bold">Suivi de Fautes Directes</h2>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-medium text-gray-700">Suivi Détaillé</span>
+                                <label class="toggle-label">
+                                    <input type="checkbox" id="fault-mode-toggle" class="toggle-input">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
                         <p id="live-match-hint" class="text-gray-600 mb-4">Veuillez d'abord sélectionner un match dans l'onglet "Matchs".</p>
                         
                         <div id="live-content" class="hidden">
@@ -900,7 +947,8 @@
                         sets: Array(5).fill(null).map(() => ({ myTeam: '', opponent: '' }))
                     },
                     substitutions: {},
-                    faults: {}
+                    faults: {},
+                    faultTrackingMode: 'detailed' // 'detailed' ou 'simple'
                 };
                 currentTeam.matches.push(newMatch);
                 saveData();
@@ -1451,9 +1499,10 @@
             const liveContent = document.getElementById('live-content');
             const liveHint = document.getElementById('live-match-hint');
             const courtLayout = document.getElementById('live-court-layout');
+            const toggle = document.getElementById('fault-mode-toggle');
 
             document.getElementById('undo-last-fault').onclick = undoLastFault;
-
+            
             if (!matchId || !currentTeam) {
                 liveContent.classList.add('hidden');
                 liveHint.classList.remove('hidden');
@@ -1465,6 +1514,18 @@
             
             const match = currentTeam.matches.find(m => m.id === matchId);
             if (!match) return;
+
+            // Assurer que la propriété existe pour les anciens matchs
+            if (typeof match.faultTrackingMode === 'undefined') {
+                match.faultTrackingMode = 'detailed';
+            }
+
+            toggle.checked = match.faultTrackingMode === 'detailed';
+            toggle.onchange = () => {
+                match.faultTrackingMode = toggle.checked ? 'detailed' : 'simple';
+                saveData();
+                renderLiveTrackingView();
+            };
 
             renderSetSelector();
             
@@ -1480,13 +1541,18 @@
             lineupPlayerIds.forEach(playerId => {
                 const player = currentTeam.players.find(p => p.id === playerId);
                 if (player) {
-                    const card = createPlayerCardLive(match, player);
+                    let card;
+                    if (match.faultTrackingMode === 'detailed') {
+                        card = createPlayerCardLiveDetailed(match, player);
+                    } else {
+                        card = createPlayerCardLiveSimple(match, player);
+                    }
                     courtLayout.appendChild(card);
                 }
             });
         }
 
-        function createPlayerCardLive(match, player) {
+        function createPlayerCardLiveDetailed(match, player) {
             const card = document.createElement('div');
             const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
             card.className = `live-player-card ${genderClass}`;
@@ -1516,6 +1582,28 @@
             return card;
         }
 
+        function createPlayerCardLiveSimple(match, player) {
+            const card = document.createElement('div');
+            const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
+            card.className = `live-player-card ${genderClass}`;
+
+            const faults = (match.faults && match.faults[currentSet] && match.faults[currentSet][player.id]) 
+                         || { service: 0, attack: 0, reception: 0, net: 0 };
+            const totalFaults = Object.values(faults).reduce((a, b) => a + b, 0);
+
+            card.innerHTML = `
+                <div class="font-bold cursor-pointer hover:text-blue-600" onclick="openSubstitutionModal(${player.id})">
+                    #${player.jerseyNumber || '-'} ${player.name}
+                </div>
+                <div class="flex items-center justify-center gap-4 mt-4">
+                     <button onclick="updateFault(${match.id}, ${player.id}, 'net', -1)" class="fault-btn bg-red-200 text-red-800 rounded-full font-bold text-lg">-</button>
+                     <span class="font-bold text-3xl w-12 text-center">${totalFaults}</span>
+                     <button onclick="updateFault(${match.id}, ${player.id}, 'net', 1)" class="fault-btn bg-green-200 text-green-800 rounded-full font-bold text-lg">+</button>
+                </div>
+            `;
+            return card;
+        }
+
         function updateFault(matchId, playerId, faultType, change) {
             const currentTeam = getCurrentTeam();
             const match = currentTeam.matches.find(m => m.id === matchId);
@@ -1524,25 +1612,26 @@
             if (!match.faults) match.faults = {};
             if (!match.faults[currentSet]) match.faults[currentSet] = {};
             if (!match.faults[currentSet][playerId]) match.faults[currentSet][playerId] = { service: 0, attack: 0, reception: 0, net: 0 };
-
-            let currentCount = match.faults[currentSet][playerId][faultType];
             
+            // Si une faute de type 'net' est à 0 et qu'on veut décrémenter, on ne fait rien pour ne pas passer en négatif
+            if (change < 0 && match.faults[currentSet][playerId][faultType] === 0) {
+                 appData.lastFaultAction = null;
+                 return;
+            }
+
             if (change > 0) {
                  appData.lastFaultAction = { matchId, playerId, faultType, set: currentSet };
             } else {
                  appData.lastFaultAction = null;
             }
-
+            
+            let currentCount = match.faults[currentSet][playerId][faultType] || 0;
             currentCount += change;
             
-            if (currentCount >= 0) {
-                match.faults[currentSet][playerId][faultType] = currentCount;
-                const faultCountSpan = document.getElementById(`livefault-${playerId}-${faultType}`);
-                if (faultCountSpan) {
-                    faultCountSpan.textContent = currentCount;
-                }
-                saveData();
-            }
+            match.faults[currentSet][playerId][faultType] = currentCount;
+            saveData();
+            // Le rendu sera géré par la fonction appelante pour éviter les rendus multiples
+            renderLiveTrackingView();
         }
         
         function undoLastFault() {
@@ -1636,4 +1725,3 @@
     </script>
 </body>
 </html>
-
