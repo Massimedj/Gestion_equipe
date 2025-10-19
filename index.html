@@ -133,11 +133,9 @@
             margin-top: 0.75rem;
         }
         .fault-grid-btn, .simple-fault-btn {
-            background-color: #ffffff;
             border: 1px solid #d1d5db;
             border-radius: 0.5rem;
             font-weight: 500;
-            color: #374151;
             transition: background-color 0.2s;
             cursor: pointer;
             user-select: none; /* Empêche la sélection de texte pendant l'appui long */
@@ -145,6 +143,8 @@
         .fault-grid-btn {
              padding: 0.5rem 0.25rem;
              font-size: 0.8rem;
+             background-color: #ffffff;
+             color: #374151;
         }
         .simple-fault-btn {
             flex-grow: 1;
@@ -155,9 +155,16 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            aspect-ratio: 1 / 1; /* Assure que le bouton est carré */
+            background-color: #f97316; /* Orange */
+            color: white;
+            border-color: #f97316;
         }
-        .fault-grid-btn:hover, .simple-fault-btn:hover {
-            background-color: #f3f4f6;
+        .fault-grid-btn:hover {
+             background-color: #f3f4f6;
+        }
+        .simple-fault-btn:hover {
+            background-color: #ea580c; /* Orange plus foncé */
         }
         .fault-count {
             font-weight: 700;
@@ -1519,22 +1526,18 @@
 
             const endPress = () => {
                 clearTimeout(pressTimer);
-            };
-
-            const clickEvent = () => {
                 if (!longPressOccurred) {
                     updateFault(matchId, playerId, faultType, 1);
                 }
             };
-
+            
+            // Événements pour ordinateur et mobile
             button.addEventListener('mousedown', startPress);
             button.addEventListener('touchstart', startPress, { passive: false });
 
             button.addEventListener('mouseup', endPress);
             button.addEventListener('mouseleave', endPress);
             button.addEventListener('touchend', endPress);
-            
-            button.addEventListener('click', clickEvent);
         }
         
         function renderLiveTrackingView() {
@@ -1678,11 +1681,15 @@
             saveData();
             
             // Mise à jour instantanée de l'affichage sans recharger toute la vue
-            if (match.faultTrackingMode === 'detailed') {
-                document.getElementById(`fault-count-${playerId}-${faultType}`).textContent = currentCount;
-            } else {
+            const detailedCountSpan = document.getElementById(`fault-count-${playerId}-${faultType}`);
+            if (detailedCountSpan) {
+                detailedCountSpan.textContent = currentCount;
+            }
+
+            const simpleCountSpan = document.getElementById(`fault-count-${playerId}-simple`);
+            if (simpleCountSpan) {
                 const totalFaults = Object.values(currentFaults).reduce((a, b) => a + b, 0);
-                document.getElementById(`fault-count-${playerId}-simple`).textContent = totalFaults;
+                simpleCountSpan.textContent = totalFaults;
             }
         }
         
@@ -1697,15 +1704,9 @@
                  alert(`La dernière faute a été enregistrée sur le set ${set.replace('set','')}. Veuillez sélectionner ce set pour l'annuler.`);
                  return;
             }
-
-            const currentTeam = getCurrentTeam();
-            const match = currentTeam.matches.find(m => m.id === matchId);
-            if (match && match.faults[set] && match.faults[set][playerId] && match.faults[set][playerId][faultType] > 0) {
-                appData.lastFaultAction = null; // Important: on ne peut annuler qu'une fois
-                updateFault(matchId, playerId, faultType, -1); // Utiliser updateFault pour la cohérence
-            } else {
-                alert("Impossible d'annuler cette faute.");
-            }
+            
+            updateFault(matchId, playerId, faultType, -1);
+            appData.lastFaultAction = null; // Important: on ne peut annuler qu'une fois
         }
 
         function openSubstitutionModal(playerIdToReplace) {
