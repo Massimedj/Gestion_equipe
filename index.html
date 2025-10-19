@@ -126,6 +126,13 @@
             display: flex;
             flex-direction: column;
         }
+        .player-name-display {
+            line-height: 1.25rem; /* Hauteur d'une ligne de texte */
+            height: 2.5rem;      /* Hauteur pour deux lignes de texte */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
         .fault-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -1291,7 +1298,7 @@
                 select.dataset.position = `pos-${i}`;
                 select.innerHTML = '<option value="">-- Choisir --</option>';
                 presentPlayers.forEach(player => {
-                    select.innerHTML += `<option value="${player.id}">${player.jerseyNumber || '#'} - ${player.name}</option>`;
+                    select.innerHTML += `<option value="${player.id}">${player.jerseyNumber || '#'}.${player.name}</option>`;
                 });
                 
                 const matchSetPositions = currentTeam.courtPositions[matchId] ? (currentTeam.courtPositions[matchId][currentSet] || {}) : {};
@@ -1534,7 +1541,7 @@
                 }
             };
             
-            // On supprime les anciens écouteurs pour éviter les doublons
+            // On supprime les anciens écouteurs pour éviter les doublons au re-rendu
             button.removeEventListener('mousedown', startPress);
             button.removeEventListener('touchstart', startPress);
             button.removeEventListener('mouseup', endPress);
@@ -1626,7 +1633,7 @@
                          || { service: 0, attack: 0, reception: 0, net: 0 };
 
             card.innerHTML = `
-                <div class="font-bold cursor-pointer hover:text-blue-600" onclick="openSubstitutionModal(${player.id})">
+                <div class="font-bold cursor-pointer hover:text-blue-600 player-name-display" onclick="openSubstitutionModal(${player.id})">
                     #${player.jerseyNumber || '-'} ${player.name}
                 </div>
                 <div class="fault-grid">
@@ -1657,7 +1664,7 @@
             const totalFaults = Object.values(faults).reduce((a, b) => a + b, 0);
 
             card.innerHTML = `
-                <div class="font-bold cursor-pointer hover:text-blue-600" onclick="openSubstitutionModal(${player.id})">
+                <div class="font-bold cursor-pointer hover:text-blue-600 player-name-display" onclick="openSubstitutionModal(${player.id})">
                     #${player.jerseyNumber || '-'} ${player.name}
                 </div>
                 <button id="fault-btn-${player.id}-simple" class="simple-fault-btn">
