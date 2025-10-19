@@ -1524,8 +1524,8 @@
                 e.preventDefault();
                 longPressOccurred = false;
                 pressTimer = setTimeout(() => {
-                    updateFault(matchId, playerId, faultType, -1);
                     longPressOccurred = true;
+                    updateFault(matchId, playerId, faultType, -1);
                 }, 500); // 500ms pour un appui long
             };
 
@@ -1536,14 +1536,7 @@
                 }
             };
             
-            // On supprime les anciens écouteurs pour éviter les doublons au re-rendu
-            button.removeEventListener('mousedown', startPress);
-            button.removeEventListener('touchstart', startPress);
-            button.removeEventListener('mouseup', endPress);
-            button.removeEventListener('mouseleave', endPress);
-            button.removeEventListener('touchend', endPress);
-            
-            // On ajoute les nouveaux
+            // On ajoute les écouteurs. Le re-rendu de la vue les créera sur de nouveaux éléments.
             button.addEventListener('mousedown', startPress);
             button.addEventListener('touchstart', startPress, { passive: false });
             button.addEventListener('mouseup', endPress);
@@ -1699,7 +1692,7 @@
                 detailedCountSpan.textContent = currentCount;
             }
 
-            const simpleCountSpan = document.getElementById(`fault-count-${player.id}-simple`);
+            const simpleCountSpan = document.getElementById(`fault-count-${playerId}-simple`);
             if (simpleCountSpan) {
                 const totalFaults = Object.values(currentFaults).reduce((a, b) => a + b, 0);
                 simpleCountSpan.textContent = totalFaults;
