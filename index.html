@@ -328,6 +328,14 @@
                                 </div>
                                 <div id="setScoresContainer" class="space-y-2">
                                     </div>
+                                <div id="forfeit-controls" class="mt-4 pt-4 border-t">
+                                    <p id="forfeit-status-display" class="hidden text-center font-semibold mb-2"></p>
+                                    <div id="forfeit-buttons" class="flex gap-2">
+                                        <button onclick="setForfeit('win')" class="flex-1 bg-green-500 text-white text-sm font-semibold py-2 px-4 rounded-lg hover:bg-green-600">Victoire par Forfait</button>
+                                        <button onclick="setForfeit('loss')" class="flex-1 bg-red-500 text-white text-sm font-semibold py-2 px-4 rounded-lg hover:bg-red-600">Défaite par Forfait</button>
+                                    </div>
+                                    <button id="cancel-forfeit-button" onclick="setForfeit('none')" class="hidden w-full bg-gray-500 text-white text-sm font-semibold py-2 px-4 rounded-lg hover:bg-gray-600">Annuler le Forfait</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -623,8 +631,10 @@
             const tabs = ['roster', 'matches', 'stats', 'live', 'results'];
             tabs.forEach(t => {
                 const tabButton = document.getElementById(`main-tab-${t}`);
-                tabButton.classList.remove('border-indigo-500', 'text-indigo-600');
-                tabButton.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                if (tabButton) {
+                    tabButton.classList.remove('border-indigo-500', 'text-indigo-600');
+                    tabButton.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                }
             });
 
             document.getElementById(`main-view-${tabName}`).classList.remove('hidden');
@@ -992,7 +1002,8 @@
                     },
                     substitutions: {},
                     faults: {},
-                    faultTrackingMode: 'detailed' // 'detailed' ou 'simple'
+                    faultTrackingMode: 'detailed', // 'detailed' ou 'simple'
+                    forfeitStatus: 'none' // 'none', 'win', ou 'loss'
                 };
                 currentTeam.matches.push(newMatch);
                 saveData();
@@ -1056,9 +1067,12 @@
                     option.value = match.id;
                     const locationText = match.location === 'domicile' ? '(Dom.)' : '(Ext.)';
                     let scoreText = '';
-                    if (match.score && match.score.myTeam !== '' && match.score.opponent !== '') {
-                        scoreText = ` [${match.score.myTeam} - ${match.score.opponent}]`;
+                    if (match.score && (match.score.myTeam !== '' || match.score.opponent !== '')) {
+                         scoreText = ` [${match.score.myTeam} - ${match.score.opponent}]`;
                     }
+                    if (match.forfeitStatus === 'win') scoreText += ' (Forfait G)';
+                    if (match.forfeitStatus === 'loss') scoreText += ' (Forfait P)';
+
                     option.textContent = `Match du ${new Date(match.date).toLocaleDateString('fr-FR')} vs ${match.opponent} ${locationText}${scoreText}`;
                     selector.appendChild(option);
                 });
@@ -1166,9 +1180,11 @@
             document.getElementById('myTeamNameLabel').textContent = currentTeam.name;
             document.getElementById('opponentNameLabel').textContent = match.opponent;
 
-
             if (!match.score) {
                 match.score = { myTeam: '', opponent: '', sets: Array(5).fill(null).map(() => ({ myTeam: '', opponent: '' })) };
+            }
+            if (!match.forfeitStatus) {
+                match.forfeitStatus = 'none';
             }
 
             const setScoresContainer = document.getElementById('setScoresContainer');
@@ -1192,18 +1208,41 @@
             document.querySelectorAll('.set-score-input').forEach(input => {
                 input.oninput = updateScore;
             });
+
+            // Gérer l'affichage des boutons de forfait
+            const statusDisplay = document.getElementById('forfeit-status-display');
+            const forfeitButtons = document.getElementById('forfeit-buttons');
+            const cancelForfeitButton = document.getElementById('cancel-forfeit-button');
+            const scoreInputs = document.querySelectorAll('.set-score-input');
+
+            if (match.forfeitStatus === 'win' || match.forfeitStatus === 'loss') {
+                statusDisplay.textContent = `Statut : ${match.forfeitStatus === 'win' ? 'Victoire' : 'Défaite'} par Forfait`;
+                statusDisplay.className = `text-center font-semibold mb-2 ${match.forfeitStatus === 'win' ? 'text-green-600' : 'text-red-600'}`;
+                statusDisplay.classList.remove('hidden');
+                forfeitButtons.classList.add('hidden');
+                cancelForfeitButton.classList.remove('hidden');
+                scoreInputs.forEach(input => input.disabled = true);
+            } else {
+                statusDisplay.classList.add('hidden');
+                forfeitButtons.classList.remove('hidden');
+                cancelForfeitButton.classList.add('hidden');
+                scoreInputs.forEach(input => input.disabled = false);
+            }
         }
         
         function updateFinalScore(match) {
             let myTeamSetsWon = 0;
             let opponentSetsWon = 0;
 
-            if (match.score && match.score.sets) {
+            if (match.forfeitStatus !== 'none') {
+                myTeamSetsWon = match.score.myTeam;
+                opponentSetsWon = match.score.opponent;
+            } else if (match.score && match.score.sets) {
                 match.score.sets.forEach(set => {
                     const myTeamScore = parseInt(set.myTeam, 10);
                     const opponentScore = parseInt(set.opponent, 10);
 
-                    if (!isNaN(myTeamScore) && !isNaN(opponentScore)) {
+                    if (!isNaN(myTeamScore) && !isNaN(opponentScore) && (myTeamScore > 0 || opponentScore > 0) ) {
                         if (myTeamScore > opponentScore) {
                             myTeamSetsWon++;
                         } else if (opponentScore > myTeamScore) {
@@ -1211,12 +1250,12 @@
                         }
                     }
                 });
+                match.score.myTeam = myTeamSetsWon;
+                match.score.opponent = opponentSetsWon;
             }
             
             document.getElementById('scoreMyTeam').value = myTeamSetsWon;
             document.getElementById('scoreOpponent').value = opponentSetsWon;
-            match.score.myTeam = myTeamSetsWon;
-            match.score.opponent = opponentSetsWon;
         }
 
         function updateScore() {
@@ -1227,6 +1266,9 @@
             const match = currentTeam.matches.find(m => m.id === matchId);
             if (!match) return;
 
+            // La saisie manuelle annule un forfait
+            match.forfeitStatus = 'none';
+
             document.querySelectorAll('.set-score-input').forEach(input => {
                 const setIndex = parseInt(input.dataset.setIndex);
                 const team = input.dataset.team;
@@ -1236,6 +1278,41 @@
             updateFinalScore(match);
             saveData();
             renderMatchSelector();
+            renderScoreTracker(match); // Pour ré-afficher les boutons de forfait
+        }
+
+        function setForfeit(status) {
+            const currentTeam = getCurrentTeam();
+            const matchId = parseInt(document.getElementById('matchSelector').value);
+            const match = currentTeam.matches.find(m => m.id === matchId);
+            if (!match) return;
+
+            match.forfeitStatus = status;
+
+            if (status === 'win') {
+                match.score.myTeam = 3;
+                match.score.opponent = 0;
+                match.score.sets = [
+                    { myTeam: 25, opponent: 0 }, { myTeam: 25, opponent: 0 }, { myTeam: 25, opponent: 0 },
+                    { myTeam: '', opponent: '' }, { myTeam: '', opponent: '' }
+                ];
+            } else if (status === 'loss') {
+                match.score.myTeam = 0;
+                match.score.opponent = 3;
+                match.score.sets = [
+                    { myTeam: 0, opponent: 25 }, { myTeam: 0, opponent: 25 }, { myTeam: 0, opponent: 25 },
+                    { myTeam: '', opponent: '' }, { myTeam: '', opponent: '' }
+                ];
+            } else { // status === 'none'
+                match.score.myTeam = '';
+                match.score.opponent = '';
+                match.score.sets = Array(5).fill(null).map(() => ({ myTeam: '', opponent: '' }));
+            }
+            
+            saveData();
+            renderScoreTracker(match);
+            renderMatchSelector();
+            renderResults();
         }
 
         function updatePresence(matchId, playerId, isChecked) {
@@ -1489,12 +1566,30 @@
             };
 
             currentTeam.matches.forEach(match => {
-                const mySets = match.score ? parseInt(match.score.myTeam) : NaN;
-                const oppSets = match.score ? parseInt(match.score.opponent) : NaN;
-
-                if (isNaN(mySets) || isNaN(oppSets)) return; // Skip matches without a final score
+                if (!match.score || (match.score.myTeam === '' && match.score.opponent === '')) return;
 
                 stats.joues++;
+
+                if (match.forfeitStatus === 'win') {
+                    stats.points += 3;
+                    stats.gagnes++;
+                    stats.g30++;
+                    stats.setsPour += 3;
+                    stats.ptsPour += 75;
+                    return; // On passe au match suivant
+                }
+                if (match.forfeitStatus === 'loss') {
+                    stats.points -= 1;
+                    stats.perdus++;
+                    stats.p03++;
+                    stats.setsContre += 3;
+                    stats.ptsContre += 75;
+                    return; // On passe au match suivant
+                }
+
+                const mySets = parseInt(match.score.myTeam);
+                const oppSets = parseInt(match.score.opponent);
+
                 stats.setsPour += mySets;
                 stats.setsContre += oppSets;
                 
@@ -1510,11 +1605,11 @@
                     if (mySets === 3 && oppSets === 0) { stats.points += 3; stats.g30++; }
                     else if (mySets === 3 && oppSets === 1) { stats.points += 3; stats.g31++; }
                     else if (mySets === 3 && oppSets === 2) { stats.points += 2; stats.g32++; }
-                } else {
+                } else if (oppSets > mySets) {
                     stats.perdus++;
                     if (mySets === 2 && oppSets === 3) { stats.points += 1; stats.p23++; }
-                    else if (mySets === 1 && oppSets === 3) { stats.points += 0; stats.p13++; }
-                    else if (mySets === 0 && oppSets === 3) { stats.points += 0; stats.p03++; }
+                    else if (mySets === 1 && oppSets === 3) { stats.p13++; }
+                    else if (mySets === 0 && oppSets === 3) { stats.p03++; }
                 }
             });
 
@@ -1553,7 +1648,7 @@
                 button.classList.add('fault-btn-active');
 
                 pressTimer = setTimeout(() => {
-                    if (isScrolling) return; // Ne pas déclencher l'appui long si un scroll a commencé
+                    if (isScrolling) return; 
                     e.preventDefault(); 
                     longPressOccurred = true;
                     updateFault(matchId, playerId, faultType, -1);
@@ -1568,7 +1663,7 @@
                 const diffX = Math.abs(startX - moveX);
                 const diffY = Math.abs(startY - moveY);
 
-                if (diffX > 5 || diffY > 5) { // Seuil de détection de scroll réduit
+                if (diffX > 5 || diffY > 5) { 
                     isScrolling = true;
                     clearTimeout(pressTimer);
                     button.classList.remove('fault-btn-active');
@@ -1629,9 +1724,11 @@
             // Afficher le nom du match sélectionné
             const locationText = match.location === 'domicile' ? '(Dom.)' : '(Ext.)';
             let scoreText = '';
-            if (match.score && match.score.myTeam !== '' && match.score.opponent !== '') {
+            if (match.score && (match.score.myTeam !== '' || match.score.opponent !== '')) {
                 scoreText = ` [${match.score.myTeam} - ${match.score.opponent}]`;
             }
+             if (match.forfeitStatus === 'win') scoreText += ' (Forfait G)';
+             if (match.forfeitStatus === 'loss') scoreText += ' (Forfait P)';
             liveMatchName.textContent = `le ${new Date(match.date).toLocaleDateString('fr-FR')} vs ${match.opponent} ${locationText}${scoreText}`;
 
 
@@ -1856,78 +1953,4 @@
             const matchId = parseInt(document.getElementById('matchSelector').value);
             if (!summaryDiv || !currentTeam || !matchId) return;
 
-            const match = currentTeam.matches.find(m => m.id === matchId);
-            if (!match || !match.faults) {
-                summaryDiv.innerHTML = '';
-                return;
-            }
-
-            let totalMatchFaults = 0;
-            let summaryHtml = '<h4 class="text-lg font-semibold mb-2 text-center">Total des Fautes par Set</h4><div class="space-y-1">';
-
-            SETS.forEach((setName, index) => {
-                let setTotal = 0;
-                if (match.faults[setName]) {
-                    for (const playerId in match.faults[setName]) {
-                        setTotal += Object.values(match.faults[setName][playerId]).reduce((a, b) => a + b, 0);
-                    }
-                }
-                summaryHtml += `<p class="text-sm text-gray-700 text-center">Set ${index + 1}: <span class="font-bold text-lg">${setTotal}</span></p>`;
-                totalMatchFaults += setTotal;
-            });
-
-            summaryHtml += '</div><p class="text-md font-bold mt-3 border-t pt-2 text-center">Total Match: ' + totalMatchFaults + '</p>';
-            summaryDiv.innerHTML = summaryHtml;
-        }
-
-        function renderResults() {
-            const currentTeam = getCurrentTeam();
-            const resultsList = document.getElementById('results-list');
-            resultsList.innerHTML = '';
-
-            if (!currentTeam || !currentTeam.matches || currentTeam.matches.length === 0) {
-                resultsList.innerHTML = '<p class="text-gray-500 text-center">Aucun match enregistré pour cette équipe.</p>';
-                return;
-            }
-
-            const sortedMatches = [...currentTeam.matches].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-            sortedMatches.forEach(match => {
-                const matchCard = document.createElement('div');
-                const isWin = parseInt(match.score.myTeam) > parseInt(match.score.opponent);
-                const cardColor = isWin ? 'bg-green-50' : 'bg-red-50';
-                
-                let setScoresHtml = '';
-                if(match.score && match.score.sets) {
-                    match.score.sets.forEach((set, index) => {
-                        if(set.myTeam !== '' || set.opponent !== '') {
-                             setScoresHtml += `<span class="text-xs px-2 py-1 bg-gray-200 rounded">${set.myTeam}-${set.opponent}</span>`;
-                        }
-                    });
-                }
-
-
-                matchCard.className = `p-4 rounded-lg border ${isWin ? 'border-green-200' : 'border-red-200'} ${cardColor}`;
-                matchCard.innerHTML = `
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                        <div>
-                            <p class="text-sm text-gray-600">${new Date(match.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                            <p class="text-lg font-bold">${currentTeam.name} vs ${match.opponent}</p>
-                        </div>
-                        <div class="mt-2 sm:mt-0 text-right">
-                             <p class="text-2xl font-bold">${match.score.myTeam || '0'} - ${match.score.opponent || '0'}</p>
-                             <p class="text-xs font-semibold ${isWin ? 'text-green-600' : 'text-red-600'}">${isWin ? 'VICTOIRE' : 'DÉFAITE'}</p>
-                        </div>
-                    </div>
-                    <div class="mt-3 pt-3 border-t border-gray-200 flex flex-wrap gap-2 items-center">
-                        <span class="text-sm font-semibold">Scores des sets :</span>
-                        ${setScoresHtml || '<span class="text-xs text-gray-500">Non renseignés</span>'}
-                    </div>
-                `;
-                resultsList.appendChild(matchCard);
-            });
-        }
-        
-    </script>
-</body>
-</html>
+            const match = currentTeam.matches.find(m => m.id === matchId
