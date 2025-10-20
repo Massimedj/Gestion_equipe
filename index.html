@@ -383,8 +383,23 @@
                 <div id="main-view-results" class="hidden">
                     <div class="bg-white p-6 rounded-2xl shadow-lg">
                         <h2 class="text-2xl font-bold mb-4 border-b pb-2">Résultats de la Saison</h2>
-                        <div id="results-list" class="space-y-4">
+                        <div id="results-summary" class="text-center mb-6 p-4 bg-gray-100 rounded-lg">
                             </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left table-auto">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="p-3 font-semibold">Date</th>
+                                        <th class="p-3 font-semibold">Adversaire</th>
+                                        <th class="p-3 font-semibold text-center">Lieu</th>
+                                        <th class="p-3 font-semibold text-center">Résultat</th>
+                                        <th class="p-3 font-semibold">Score des Sets</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="results-list-table">
+                                    </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -515,9 +530,15 @@
     <div id="addTeamModal" class="modal-backdrop hidden">
         <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0">
             <h2 class="text-2xl font-bold mb-4">Ajouter une nouvelle équipe</h2>
-            <div class="flex flex-col">
-                <label for="newTeamName" class="font-semibold mb-1">Nom de l'équipe</label>
-                <input type="text" id="newTeamName" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Ex: Régional senior Masculin 2025/2026">
+            <div class="space-y-4">
+                <div>
+                    <label for="newTeamName" class="font-semibold mb-1 block">Nom de l'équipe</label>
+                    <input type="text" id="newTeamName" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Ex: Régional Senior Masculin">
+                </div>
+                <div>
+                    <label for="newTeamSeason" class="font-semibold mb-1 block">Saison</label>
+                    <input type="text" id="newTeamSeason" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Ex: 2025/2026">
+                </div>
             </div>
             <div class="flex justify-end gap-4 mt-6">
                 <button onclick="closeModal('addTeamModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-400">Annuler</button>
@@ -528,10 +549,16 @@
     
     <div id="editTeamModal" class="modal-backdrop hidden">
         <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0">
-            <h2 class="text-2xl font-bold mb-4">Modifier le nom de l'équipe</h2>
-            <div class="flex flex-col">
-                <label for="editTeamName" class="font-semibold mb-1">Nom de l'équipe</label>
-                <input type="text" id="editTeamName" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Ex: Régional senior Masculin 2025/2026">
+            <h2 class="text-2xl font-bold mb-4">Modifier l'équipe</h2>
+             <div class="space-y-4">
+                <div>
+                    <label for="editTeamName" class="font-semibold mb-1 block">Nom de l'équipe</label>
+                    <input type="text" id="editTeamName" class="w-full p-3 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label for="editTeamSeason" class="font-semibold mb-1 block">Saison</label>
+                    <input type="text" id="editTeamSeason" class="w-full p-3 border border-gray-300 rounded-lg">
+                </div>
             </div>
             <div class="flex justify-end gap-4 mt-6">
                 <button onclick="closeModal('editTeamModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-400">Annuler</button>
@@ -673,6 +700,8 @@
 
         function openAddTeamModal() {
             document.getElementById('newTeamName').value = '';
+            const currentYear = new Date().getFullYear();
+            document.getElementById('newTeamSeason').value = `${currentYear}/${currentYear + 1}`;
             document.getElementById('addTeamModal').classList.remove('hidden');
         }
 
@@ -680,6 +709,7 @@
             const currentTeam = getCurrentTeam();
             if (!currentTeam) return;
             document.getElementById('editTeamName').value = currentTeam.name;
+            document.getElementById('editTeamSeason').value = currentTeam.season || '';
             document.getElementById('editTeamModal').classList.remove('hidden');
         }
 
@@ -755,15 +785,16 @@
                     appData = JSON.parse(savedData);
                 } catch (e) {
                     console.error("Erreur de parsing du JSON depuis localStorage:", e);
-                    // Si les données sont corrompues, on repart de zéro
                     appData = { teams: [], currentTeamId: null, lastFaultAction: null };
                     return;
                 }
 
                 // --- Logique de migration des données ---
-                // S'assure que les nouvelles propriétés existent sur les anciennes données.
                 if (appData.teams) {
                     appData.teams.forEach(team => {
+                         if (typeof team.season === 'undefined') {
+                            team.season = ''; 
+                        }
                         if (team.matches) {
                             team.matches.forEach(match => {
                                 if (typeof match.forfeitStatus === 'undefined') {
@@ -784,19 +815,23 @@
 
         // --- GESTION D'ÉQUIPE ---
         function getCurrentTeam() {
+            if (!appData.teams) return null;
             return appData.teams.find(t => t.id === appData.currentTeamId);
         }
 
         function addTeam() {
             const teamName = document.getElementById('newTeamName').value.trim();
+            const teamSeason = document.getElementById('newTeamSeason').value.trim();
             if(teamName) {
                 const newTeam = {
                     id: Date.now(),
                     name: teamName,
+                    season: teamSeason,
                     players: [],
                     matches: [],
                     courtPositions: {}
                 };
+                if (!appData.teams) appData.teams = [];
                 appData.teams.push(newTeam);
                 switchTeam(newTeam.id);
                 closeModal('addTeamModal');
@@ -807,8 +842,10 @@
             const currentTeam = getCurrentTeam();
             if (!currentTeam) return;
             const newName = document.getElementById('editTeamName').value.trim();
+            const newSeason = document.getElementById('editTeamSeason').value.trim();
             if (newName) {
                 currentTeam.name = newName;
+                currentTeam.season = newSeason;
                 saveData();
                 renderTeamSelector();
                 closeModal('editTeamModal');
@@ -843,7 +880,7 @@
                 appData.teams.forEach(team => {
                     const option = document.createElement('option');
                     option.value = team.id;
-                    option.textContent = team.name;
+                    option.textContent = team.name; // On affiche que le nom
                     selector.appendChild(option);
                 });
             }
@@ -1985,65 +2022,77 @@
 
         function renderResults() {
             const currentTeam = getCurrentTeam();
-            const resultsList = document.getElementById('results-list');
-            resultsList.innerHTML = '';
+            const resultsTableBody = document.getElementById('results-list-table');
+            const summaryDiv = document.getElementById('results-summary');
+            resultsTableBody.innerHTML = '';
+            summaryDiv.innerHTML = '';
 
             if (!currentTeam || !currentTeam.matches || currentTeam.matches.length === 0) {
-                resultsList.innerHTML = '<p class="text-gray-500 text-center">Aucun match enregistré pour cette équipe.</p>';
+                resultsTableBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">Aucun match enregistré pour cette équipe.</td></tr>';
+                summaryDiv.innerHTML = `<h3 class="text-xl font-bold">Synthèse : 0 victoires sur 0 matchs joués</h3>`;
                 return;
             }
 
-            const sortedMatches = [...currentTeam.matches].sort((a, b) => new Date(b.date) - new Date(a.date));
+            const sortedMatches = [...currentTeam.matches].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            let totalPlayed = 0;
+            let totalWins = 0;
 
             sortedMatches.forEach(match => {
-                const matchCard = document.createElement('div');
-                let isWin;
-                if (match.forfeitStatus === 'win') {
-                    isWin = true;
-                } else if (match.forfeitStatus === 'loss') {
-                    isWin = false;
-                } else {
-                    isWin = parseInt(match.score.myTeam) > parseInt(match.score.opponent);
-                }
+                const mySets = parseInt(match.score.myTeam);
+                const oppSets = parseInt(match.score.opponent);
                 
-                const hasScore = (match.score && (match.score.myTeam !== '' || match.score.opponent !== '')) || match.forfeitStatus !== 'none';
-                const cardColor = hasScore ? (isWin ? 'bg-green-50' : 'bg-red-50') : 'bg-gray-50';
+                const isPlayed = match.forfeitStatus !== 'none' || (!isNaN(mySets) && !isNaN(oppSets) && (mySets > 0 || oppSets > 0));
+                
+                let resultText = 'À Jouer';
+                let resultColor = 'text-gray-500';
+                let isWin = false;
+
+                if (isPlayed) {
+                    totalPlayed++;
+                    if (match.forfeitStatus === 'win') {
+                        isWin = true;
+                    } else if (match.forfeitStatus === 'loss') {
+                        isWin = false;
+                    } else {
+                        isWin = mySets > oppSets;
+                    }
+
+                    if (isWin) {
+                        totalWins++;
+                        resultText = 'Victoire';
+                        resultColor = 'text-green-600';
+                    } else {
+                        resultText = 'Défaite';
+                        resultColor = 'text-red-600';
+                    }
+                     if (match.forfeitStatus !== 'none') {
+                        resultText += ' (F)';
+                    }
+                }
                 
                 let setScoresHtml = '';
                 if(match.score && match.score.sets) {
-                    match.score.sets.forEach((set, index) => {
+                    match.score.sets.forEach((set) => {
                         if(set.myTeam !== '' || set.opponent !== '') {
                              setScoresHtml += `<span class="text-xs px-2 py-1 bg-gray-200 rounded">${set.myTeam}-${set.opponent}</span>`;
                         }
                     });
                 }
 
-                let forfeitBadge = '';
-                if (match.forfeitStatus === 'win') {
-                    forfeitBadge = `<span class="text-xs font-bold text-green-600 ml-2">(FORFAIT GAGNÉ)</span>`;
-                } else if (match.forfeitStatus === 'loss') {
-                     forfeitBadge = `<span class="text-xs font-bold text-red-600 ml-2">(FORFAIT PERDU)</span>`;
-                }
-
-                matchCard.className = `p-4 rounded-lg border ${hasScore ? (isWin ? 'border-green-200' : 'border-red-200') : 'border-gray-200'} ${cardColor}`;
-                matchCard.innerHTML = `
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                        <div>
-                            <p class="text-sm text-gray-600">${new Date(match.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                            <p class="text-lg font-bold">${currentTeam.name} vs ${match.opponent} ${forfeitBadge}</p>
-                        </div>
-                        <div class="mt-2 sm:mt-0 text-right">
-                             <p class="text-2xl font-bold">${match.score.myTeam || '0'} - ${match.score.opponent || '0'}</p>
-                             ${hasScore ? `<p class="text-xs font-semibold ${isWin ? 'text-green-600' : 'text-red-600'}">${isWin ? 'VICTOIRE' : 'DÉFAITE'}</p>` : ''}
-                        </div>
-                    </div>
-                    <div class="mt-3 pt-3 border-t ${hasScore ? (isWin ? 'border-green-200' : 'border-red-200') : 'border-gray-200'} flex flex-wrap gap-2 items-center">
-                        <span class="text-sm font-semibold">Scores des sets :</span>
-                        ${setScoresHtml || '<span class="text-xs text-gray-500">Non renseignés</span>'}
-                    </div>
+                const row = document.createElement('tr');
+                row.className = 'border-b';
+                row.innerHTML = `
+                    <td class="p-3 text-sm text-gray-600">${new Date(match.date).toLocaleDateString('fr-FR')}</td>
+                    <td class="p-3 font-medium">${match.opponent}</td>
+                    <td class="p-3 text-center text-sm">${match.location === 'domicile' ? 'Dom.' : 'Ext.'}</td>
+                    <td class="p-3 text-center font-bold ${resultColor}">${mySets || '0'}-${oppSets || '0'} <span class="text-xs font-semibold">${resultText}</span></td>
+                    <td class="p-3 flex flex-wrap gap-1">${setScoresHtml || '<span class="text-xs text-gray-500">N/A</span>'}</td>
                 `;
-                resultsList.appendChild(matchCard);
+                resultsTableBody.appendChild(row);
             });
+
+            summaryDiv.innerHTML = `<h3 class="text-xl font-bold">Synthèse : <span class="text-green-600">${totalWins}</span> victoires sur <span class="font-bold">${totalPlayed}</span> matchs joués</h3>`;
         }
         
     </script>
