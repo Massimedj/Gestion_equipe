@@ -215,7 +215,7 @@
 
     <div class="container mx-auto p-4 md:p-8 max-w-7xl">
         <header class="text-center mb-8">
-            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">🏐 Assistant pour la gestion de l'équipe 🏐</h1>
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">🏐Assistant du Coach</h1>
             <p class="text-lg text-gray-600 mt-2">Votre outil tout-en-un pour le coaching</p>
         </header>
 
@@ -236,8 +236,8 @@
             </div>
 
             <div id="team-content" class="hidden">
-                <div class="mb-8 border-b border-gray-200">
-                    <nav class="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto" aria-label="Tabs">
+                <div class="mb-8">
+					<nav class="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto border-b border-gray-200" aria-label="Tabs">
                         <button id="main-tab-roster" onclick="showMainTab('roster')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
                             Effectif
                         </button>
@@ -245,7 +245,7 @@
                             Matchs
                         </button>
                         <button id="main-tab-live" onclick="showMainTab('live')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
-                            Suivi des Fautes
+                            Fautes
                         </button>
                          <button id="main-tab-results" onclick="showMainTab('results')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
                             Résultats
@@ -290,7 +290,7 @@
                         </div>
 
                         <div class="bg-white p-6 rounded-2xl shadow-lg">
-                            <h3 class="text-xl font-semibold mb-4 text-center">Composition par set</h3>
+                            <h3 class="text-xl font-semibold mb-4 text-center">Composition par Set</h3>
                              <div id="set-selector-matches" class="flex justify-center gap-1 mb-4 rounded-lg bg-gray-200 p-1">
                                 </div>
                             <div class="court-container relative">
@@ -305,7 +305,7 @@
                                </div>
                             </div>
                             <div id="substitutions-tracker" class="mt-6">
-                                <h4 class="font-semibold text-lg mb-2">Remplacements pour ce set</h4>
+                                <h4 class="font-semibold text-lg mb-2">Remplacements pour ce Set</h4>
                                 <div id="substitutionsList" class="space-y-2">
                                     </div>
                             </div>
@@ -386,18 +386,19 @@
                         <div id="results-summary" class="text-center mb-6 p-4 bg-gray-100 rounded-lg">
                             </div>
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left table-auto">
+                            <table class="w-full text-left table-auto text-sm border-collapse">
                                 <thead class="bg-gray-100">
                                     <tr>
-                                        <th class="p-3 font-semibold">Date</th>
-                                        <th class="p-3 font-semibold">Adversaire</th>
-                                        <th class="p-3 font-semibold text-center">Lieu</th>
-                                        <th class="p-3 font-semibold text-center">Résultat</th>
-                                        <th class="p-3 font-semibold">Score des Sets</th>
+                                        <th class="p-2 font-semibold">Date</th>
+                                        <th class="p-2 font-semibold">Adversaire</th>
+                                        <th class="p-2 font-semibold text-center">Lieu</th>
+                                        <th class="p-2 font-semibold text-center">Résultat</th>
+                                        <th class="p-2 font-semibold whitespace-nowrap">Score des Sets</th>
                                     </tr>
                                 </thead>
                                 <tbody id="results-list-table">
-                                    </tbody>
+								</tbody>
+
                             </table>
                         </div>
                     </div>
@@ -437,19 +438,19 @@
                     <div class="bg-white p-6 rounded-2xl shadow-lg">
                         <h3 class="text-2xl font-bold mb-4 border-b pb-2">Statistiques des Joueurs</h3>
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left table-auto">
+                            <table class="w-full text-left table-auto text-sm border-collapse">
                                 <thead class="bg-gray-100">
                                     <tr>
-                                        <th class="p-3 font-semibold">Joueur</th>
-                                        <th class="p-3 font-semibold text-center">Présences</th>
-                                        <th class="p-3 font-semibold text-center">Matchs Joués</th>
-                                        <th class="p-3 font-semibold text-center">Sets Joués</th>
-                                        <th class="p-3 font-semibold text-center">Sets Gagnés</th>
-                                        <th class="p-3 font-semibold text-center text-red-600">F. Service</th>
-                                        <th class="p-3 font-semibold text-center text-red-600">F. Attaque</th>
-                                        <th class="p-3 font-semibold text-center text-red-600">F. Récep.</th>
-                                        <th class="p-3 font-semibold text-center text-red-600">Autres F.</th>
-                                        <th class="p-3 font-semibold text-center">Total Fautes</th>
+                                        <th class="p-2 font-semibold">Joueur</th>
+                                        <th class="p-2 font-semibold text-center">Présences</th>
+                                        <th class="p-2 font-semibold text-center">Matchs Joués</th>
+                                        <th class="p-2 font-semibold text-center">Sets Joués</th>
+                                        <th class="p-2 font-semibold text-center">Sets Gagnés</th>
+                                        <th class="p-2 font-semibold text-center text-red-600">F. Service</th>
+                                        <th class="p-2 font-semibold text-center text-red-600">F. Attaque</th>
+                                        <th class="p-2 font-semibold text-center text-red-600">F. Récep.</th>
+                                        <th class="p-2 font-semibold text-center text-red-600">Autres F.</th>
+                                        <th class="p-2 font-semibold text-center">Total Fautes</th>
                                     </tr>
                                 </thead>
                                 <tbody id="statsTableBody">
@@ -1236,13 +1237,13 @@
                 const setRow = document.createElement('div');
                 setRow.className = 'flex items-center gap-4';
                 setRow.innerHTML = `
-                    <label class="font-semibold w-1/3">Set ${index + 1}</label>
-                    <div class="flex items-center gap-2 w-2/3">
-                        <input type="number" data-set-index="${index}" data-team="myTeam" class="set-score-input w-full p-2 border border-gray-300 rounded-lg text-center" value="${set.myTeam || ''}">
-                        <span>-</span>
-                        <input type="number" data-set-index="${index}" data-team="opponent" class="set-score-input w-full p-2 border border-gray-300 rounded-lg text-center" value="${set.opponent || ''}">
-                    </div>
-                `;
+					<label class="font-semibold w-1/3">Set ${index + 1}</label>
+					<div class="flex items-center gap-2 w-2/3">
+						<input type="number" data-set-index="${index}" data-team="myTeam" class="set-score-input flex-1 p-2 border border-gray-300 rounded-lg text-center" value="${set.myTeam || ''}">
+						<span>-</span>
+						<input type="number" data-set-index="${index}" data-team="opponent" class="set-score-input flex-1 p-2 border border-gray-300 rounded-lg text-center" value="${set.opponent || ''}">
+					</div>
+				`;
                 setScoresContainer.appendChild(setRow);
             });
             
@@ -1772,7 +1773,7 @@
             }
              if (match.forfeitStatus === 'win') scoreText += ' (Forfait G)';
              if (match.forfeitStatus === 'loss') scoreText += ' (Forfait P)';
-            liveMatchName.textContent = `le ${new Date(match.date).toLocaleDateString('fr-FR')} vs ${match.opponent} ${locationText}${scoreText}`;
+            liveMatchName.textContent = `le ${new Date(match.date).toLocaleDateString('fr-FR')} vs ${match.opponent} ${locationText}`;
 
 
             if (typeof match.faultTrackingMode === 'undefined') {
@@ -2075,7 +2076,7 @@
                 if(match.score && match.score.sets) {
                     match.score.sets.forEach((set) => {
                         if(set.myTeam !== '' || set.opponent !== '') {
-                             setScoresHtml += `<span class="text-xs px-2 py-1 bg-gray-200 rounded">${set.myTeam}-${set.opponent}</span>`;
+                             setScoresHtml += `<span class="whitespace-nowrap text-xs px-2 py-1 bg-gray-200 rounded">${set.myTeam}-${set.opponent}</span>`;
                         }
                     });
                 }
@@ -2086,8 +2087,8 @@
                     <td class="p-3 text-sm text-gray-600">${new Date(match.date).toLocaleDateString('fr-FR')}</td>
                     <td class="p-3 font-medium">${match.opponent}</td>
                     <td class="p-3 text-center text-sm">${match.location === 'domicile' ? 'Dom.' : 'Ext.'}</td>
-                    <td class="p-3 text-center font-bold ${resultColor}">${mySets || '0'}-${oppSets || '0'} <span class="text-xs font-semibold">${resultText}</span></td>
-                    <td class="p-3 flex flex-wrap gap-1">${setScoresHtml || '<span class="text-xs text-gray-500">N/A</span>'}</td>
+                    <td class="p-3 text-center font-bold ${resultColor}">${mySets || '0'}-${oppSets || '0'}</td>
+                    <td class="p-3 flex gap-1">${setScoresHtml || '<span class="text-xs text-gray-500">N/A</span>'}</td>
                 `;
                 resultsTableBody.appendChild(row);
             });
