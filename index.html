@@ -2084,7 +2084,7 @@
                 const row = document.createElement('tr');
                 row.className = 'border-b';
                 row.innerHTML = `
-                    <td class="p-3 text-sm text-gray-600">${new Date(match.date).toLocaleDateString('fr-FR')}</td>
+                    <td class="p-3 text-sm text-gray-600">${new Date(match.date.replace(/-/g, '/')).toLocaleDateString('fr-FR')}</td>
                     <td class="p-3 font-medium">${match.opponent}</td>
                     <td class="p-3 text-center text-sm">${match.location === 'domicile' ? 'Dom.' : 'Ext.'}</td>
                     <td class="p-3 text-center font-bold ${resultColor}">${mySets || '0'}-${oppSets || '0'}</td>
