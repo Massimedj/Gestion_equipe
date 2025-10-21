@@ -315,10 +315,10 @@
                             <h3 class="text-xl font-semibold mb-3">Score du Match</h3>
                             <div class="space-y-4">
                                 <div class="p-3 bg-gray-100 rounded-lg">
-                                     <div class="grid grid-cols-3 items-center gap-2 text-center mb-2">
-                                        <label id="myTeamNameLabel" class="font-semibold"></label>
+                                    <div class="grid grid-cols-3 items-center gap-2 text-center mb-2">
+                                        <label id="myTeamNameLabel" class="font-semibold break-all"></label>
                                         <div></div>
-                                        <label id="opponentNameLabel" class="font-semibold"></label>
+                                        <label id="opponentNameLabel" class="font-semibold break-all"></label>
                                     </div>
                                     <div class="grid grid-cols-3 items-center gap-2 text-center">
                                         <input type="number" id="scoreMyTeam" class="w-full p-2 border border-gray-300 rounded-lg text-center font-bold text-lg bg-gray-200" disabled>
@@ -650,6 +650,7 @@
 
         // --- GESTION DES ONGLETS & VUES ---
         function showMainTab(tabName) {
+			localStorage.setItem('lastActiveTab', tabName);
             document.getElementById('main-view-roster').classList.add('hidden');
             document.getElementById('main-view-matches').classList.add('hidden');
             document.getElementById('main-view-stats').classList.add('hidden');
@@ -719,28 +720,30 @@
         }
 
         // --- LOGIQUE DE L'APPLICATION ---
-        document.addEventListener('DOMContentLoaded', () => {
-            loadData();
-            renderTeamSelector();
-            populatePositionSelects();
-            renderAllForCurrentTeam();
-            
-            document.getElementById('teamSelector').addEventListener('change', (e) => {
-                const teamSelected = !!e.target.value;
-                document.getElementById('teamActions').classList.toggle('hidden', !teamSelected);
-                switchTeam(parseInt(e.target.value));
-            });
+document.addEventListener('DOMContentLoaded', () => {
+    loadData();
+    renderTeamSelector();
+    populatePositionSelects();
 
-            document.getElementById('matchSelector').addEventListener('change', (e) => {
-                const matchSelected = !!e.target.value;
-                document.getElementById('matchActions').classList.toggle('hidden', !matchSelected);
-                document.getElementById('match-hint').classList.toggle('hidden', matchSelected);
-                document.getElementById('selectedMatchContent').classList.toggle('hidden', !matchSelected);
-                selectSet('set1'); 
-                renderAttendanceForSelectedMatch();
-                renderLiveTrackingView();
-            });
-        });
+    document.getElementById('teamSelector').addEventListener('change', (e) => {
+        const teamSelected = !!e.target.value;
+        document.getElementById('teamActions').classList.toggle('hidden', !teamSelected);
+        switchTeam(parseInt(e.target.value));
+    });
+
+    document.getElementById('matchSelector').addEventListener('change', (e) => {
+        const matchSelected = !!e.target.value;
+        localStorage.setItem(`lastSelectedMatch_${appData.currentTeamId}`, e.target.value);
+        document.getElementById('matchActions').classList.toggle('hidden', !matchSelected);
+        document.getElementById('match-hint').classList.toggle('hidden', matchSelected);
+        document.getElementById('selectedMatchContent').classList.toggle('hidden', !matchSelected);
+        selectSet('set1'); 
+        renderAttendanceForSelectedMatch();
+        renderLiveTrackingView();
+    });
+
+    renderAllForCurrentTeam(); 
+});
 
         function renderAllForCurrentTeam() {
             const teamExists = !!getCurrentTeam();
@@ -752,7 +755,18 @@
                 renderMatchSelector();
                 renderSetSelector();
                 renderAttendanceForSelectedMatch();
-                showMainTab('roster');
+                const lastTab = localStorage.getItem('lastActiveTab') || 'roster';
+				showMainTab(lastTab);
+
+                const savedMatchId = localStorage.getItem(`lastSelectedMatch_${appData.currentTeamId}`);
+                if (savedMatchId) {
+                    const selector = document.getElementById('matchSelector');
+                    // On vérifie que le match existe toujours dans la liste
+                    if (selector.querySelector(`option[value="${savedMatchId}"]`)) {
+                        selector.value = savedMatchId;
+                        selector.dispatchEvent(new Event('change')); // On simule un clic pour tout afficher
+                    }
+                }        
             }
         }
         
@@ -960,21 +974,40 @@
             closeModal('editPlayerModal');
         }
 
+function deletePlayer(playerId) {
+    const currentTeam = getCurrentTeam();
+    if (confirm('Voulez-vous vraiment supprimer ce joueur ? Il sera retiré de tous les matchs.')) {
+        // 1. Supprime le joueur de la liste de l'effectif
+        currentTeam.players = currentTeam.players.filter(p => p.id !== playerId);
 
-        function deletePlayer(playerId) {
-             const currentTeam = getCurrentTeam();
-            if (confirm('Voulez-vous vraiment supprimer ce joueur ? Il sera retiré de tous les matchs.')) {
-                currentTeam.players = currentTeam.players.filter(p => p.id !== playerId);
-                currentTeam.matches.forEach(match => {
-                    match.present = match.present.filter(id => id !== playerId);
-                    recalculatePlayedStatus(match.id);
-                });
-                saveData();
-                renderPlayerList();
-                renderAttendanceForSelectedMatch();
-                renderStats();
+        // 2. Nettoie sa présence, son statut de capitaine et ses positions sur le terrain dans tous les matchs
+        currentTeam.matches.forEach(match => {
+            // Retire le joueur de la liste des présents
+            match.present = match.present.filter(id => id !== playerId);
+            
+            // Le destitue de son rôle de capitaine si nécessaire
+            if (match.captainId === playerId) {
+                match.captainId = null;
             }
-        }
+
+            // Supprime le joueur de toutes les compositions de sets pour ce match
+            if (currentTeam.courtPositions[match.id]) {
+                Object.values(currentTeam.courtPositions[match.id]).forEach(setPositions => {
+                    for (const pos in setPositions) {
+                        if (setPositions[pos] === playerId) {
+                            delete setPositions[pos];
+                        }
+                    }
+                });
+            }
+        });
+
+        saveData();
+        renderPlayerList();
+        renderAttendanceForSelectedMatch(); // Rafraîchit l'affichage du match en cours
+        renderStats();
+    }
+}
         
         function deleteAllPlayers() {
             const currentTeam = getCurrentTeam();
@@ -1117,7 +1150,7 @@
                     if (match.forfeitStatus === 'win') scoreText += ' (Forfait G)';
                     if (match.forfeitStatus === 'loss') scoreText += ' (Forfait P)';
 
-                    option.textContent = `Match du ${new Date(match.date).toLocaleDateString('fr-FR')} vs ${match.opponent} ${locationText}${scoreText}`;
+                    option.textContent = `Match du ${new Date(match.date.replace(/-/g, '/')).toLocaleDateString('fr-FR')} vs ${match.opponent} ${locationText}${scoreText}`;
                     selector.appendChild(option);
                 });
             }
@@ -1235,16 +1268,15 @@
             setScoresContainer.innerHTML = '';
             match.score.sets.forEach((set, index) => {
                 const setRow = document.createElement('div');
-                setRow.className = 'flex items-center gap-4';
-               setRow.innerHTML = `
-    <label class="font-semibold w-16 flex-shrink-0">Set ${index + 1}</label>
-    <div class="flex items-center gap-2 flex-1">
-        <input type="number" data-set-index="${index}" data-team="myTeam" class="set-score-input flex-1 p-2 border border-gray-300 rounded-lg text-center" value="${set.myTeam || ''}">
-        <span>-</span>
-        <input type="number" data-set-index="${index}" data-team="opponent" class="set-score-input flex-1 p-2 border border-gray-300 rounded-lg text-center" value="${set.opponent || ''}">
-    </div>
-`;
-
+                setRow.className = 'flex items-center justify-between';
+                setRow.innerHTML = `
+                    <label class="font-semibold">Set ${index + 1}</label>
+                    <div class="flex items-center gap-2">
+                        <input type="number" data-set-index="${index}" data-team="myTeam" class="set-score-input w-20 p-2 border border-gray-300 rounded-lg text-center" value="${set.myTeam || ''}">
+                        <span>-</span>
+                        <input type="number" data-set-index="${index}" data-team="opponent" class="set-score-input w-20 p-2 border border-gray-300 rounded-lg text-center" value="${set.opponent || ''}">
+                    </div>
+                `;
                 setScoresContainer.appendChild(setRow);
             });
             
@@ -1303,28 +1335,35 @@
             document.getElementById('scoreOpponent').value = opponentSetsWon;
         }
 
-        function updateScore() {
-            const currentTeam = getCurrentTeam();
-            const matchId = parseInt(document.getElementById('matchSelector').value);
-            if (!matchId || !currentTeam) return;
+function updateScore() {
+    const currentTeam = getCurrentTeam();
+    const matchId = parseInt(document.getElementById('matchSelector').value);
+    if (!matchId || !currentTeam) return;
 
-            const match = currentTeam.matches.find(m => m.id === matchId);
-            if (!match) return;
+    const match = currentTeam.matches.find(m => m.id === matchId);
+    if (!match) return;
 
-            // La saisie manuelle annule un forfait
-            match.forfeitStatus = 'none';
+    // Si le statut était "forfait", on le retire et on réactive les champs.
+    if (match.forfeitStatus !== 'none') {
+        match.forfeitStatus = 'none';
+        // Met à jour l'interface des boutons de forfait sans tout redessiner
+        document.getElementById('forfeit-status-display').classList.add('hidden');
+        document.getElementById('forfeit-buttons').classList.remove('hidden');
+        document.getElementById('cancel-forfeit-button').classList.add('hidden');
+        document.querySelectorAll('.set-score-input').forEach(input => input.disabled = false);
+    }
 
-            document.querySelectorAll('.set-score-input').forEach(input => {
-                const setIndex = parseInt(input.dataset.setIndex);
-                const team = input.dataset.team;
-                match.score.sets[setIndex][team] = input.value;
-            });
-            
-            updateFinalScore(match);
-            saveData();
-            renderMatchSelector();
-            renderScoreTracker(match); // Pour ré-afficher les boutons de forfait
-        }
+    // Met à jour les données du score en mémoire
+    document.querySelectorAll('.set-score-input').forEach(input => {
+        const setIndex = parseInt(input.dataset.setIndex);
+        const team = input.dataset.team;
+        match.score.sets[setIndex][team] = input.value;
+    });
+
+    // Recalcule le score final et sauvegarde
+    updateFinalScore(match);
+    saveData();
+}
 
         function setForfeit(status) {
             const currentTeam = getCurrentTeam();
@@ -1418,39 +1457,63 @@
             selectElement.classList.add('bg-white');
         }
         
-        function renderCourt() {
-            const currentTeam = getCurrentTeam();
-            const matchId = parseInt(document.getElementById('matchSelector').value);
-            
-            for (let i = 1; i <= 6; i++) {
-                const posDiv = document.getElementById(`pos-${i}`);
-                const oldSelect = posDiv.querySelector('select');
-                if (oldSelect) posDiv.removeChild(oldSelect);
-                if (!matchId || !currentTeam) continue;
-
-                const match = currentTeam.matches.find(m => m.id === matchId);
-                if (!match) continue;
-
-                const presentPlayers = currentTeam.players.filter(p => match.present.includes(p.id));
-                const select = document.createElement('select');
-                select.className = 'player-select';
-                select.dataset.position = `pos-${i}`;
-                select.innerHTML = '<option value="">-- Choisir --</option>';
-                presentPlayers.forEach(player => {
-                    select.innerHTML += `<option value="${player.id}">${player.jerseyNumber || '#'}.${player.name}</option>`;
-                });
-                
-                const matchSetPositions = currentTeam.courtPositions[matchId] ? (currentTeam.courtPositions[matchId][currentSet] || {}) : {};
-                const selectedPlayerId = matchSetPositions[`pos-${i}`];
-                if (selectedPlayerId) {
-                    select.value = selectedPlayerId;
-                }
-                
-                select.addEventListener('change', updatePosition);
-                posDiv.appendChild(select);
-                setCourtPositionColor(select, select.value);
-            }
+function renderCourt() {
+    const currentTeam = getCurrentTeam();
+    const matchId = parseInt(document.getElementById('matchSelector').value);
+    
+    // S'il n'y a pas de match sélectionné, on ne fait rien.
+    if (!matchId || !currentTeam) {
+        for (let i = 1; i <= 6; i++) {
+            const posDiv = document.getElementById(`pos-${i}`);
+            const oldSelect = posDiv.querySelector('select');
+            if (oldSelect) posDiv.removeChild(oldSelect);
         }
+        return;
+    }
+
+    const match = currentTeam.matches.find(m => m.id === matchId);
+    if (!match) return;
+
+    // 1. On récupère la composition du set actuel et les ID des joueurs déjà placés.
+    const matchSetPositions = currentTeam.courtPositions[matchId] ? (currentTeam.courtPositions[matchId][currentSet] || {}) : {};
+    const selectedPlayerIds = Object.values(matchSetPositions);
+    const presentPlayers = currentTeam.players.filter(p => match.present.includes(p.id));
+
+    for (let i = 1; i <= 6; i++) {
+        const posDiv = document.getElementById(`pos-${i}`);
+        const positionKey = `pos-${i}`;
+        
+        const oldSelect = posDiv.querySelector('select');
+        if (oldSelect) posDiv.removeChild(oldSelect);
+
+        const select = document.createElement('select');
+        select.className = 'player-select';
+        select.dataset.position = positionKey;
+        select.innerHTML = '<option value="">-- Choisir --</option>';
+
+        // 2. On identifie le joueur actuellement sélectionné pour CE poste précis.
+        const currentPlayerIdForThisPos = matchSetPositions[positionKey];
+        
+        presentPlayers.forEach(player => {
+            
+            // 3. On n'affiche un joueur dans la liste que si :
+            //    a) C'est celui qui est déjà sélectionné pour ce poste, OU
+            //    b) Il n'est sélectionné sur aucun autre poste.
+            if (player.id === currentPlayerIdForThisPos || !selectedPlayerIds.includes(player.id)) {
+                select.innerHTML += `<option value="${player.id}">${player.jerseyNumber || '#'}.${player.name}</option>`;
+            }            
+        });
+        
+        // La valeur sélectionnée est celle du joueur à ce poste.
+        if (currentPlayerIdForThisPos) {
+            select.value = currentPlayerIdForThisPos;
+        }
+        
+        select.addEventListener('change', updatePosition);
+        posDiv.appendChild(select);
+        setCourtPositionColor(select, select.value);
+    }
+}
 
         function updatePosition(event) {
             const currentTeam = getCurrentTeam();
@@ -1774,7 +1837,7 @@
             }
              if (match.forfeitStatus === 'win') scoreText += ' (Forfait G)';
              if (match.forfeitStatus === 'loss') scoreText += ' (Forfait P)';
-            liveMatchName.textContent = `le ${new Date(match.date).toLocaleDateString('fr-FR')} vs ${match.opponent} ${locationText}`;
+            liveMatchName.textContent = `le ${new Date(match.date.replace(/-/g, '/')).toLocaleDateString('fr-FR')} vs ${match.opponent} ${locationText}`;
 
 
             if (typeof match.faultTrackingMode === 'undefined') {
@@ -2100,4 +2163,3 @@
     </script>
 </body>
 </html>
-
