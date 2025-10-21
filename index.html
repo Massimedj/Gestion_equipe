@@ -1236,14 +1236,15 @@
             match.score.sets.forEach((set, index) => {
                 const setRow = document.createElement('div');
                 setRow.className = 'flex items-center gap-4';
-                setRow.innerHTML = `
-					<label class="font-semibold w-1/3">Set ${index + 1}</label>
-					<div class="flex items-center gap-2 w-2/3">
-						<input type="number" data-set-index="${index}" data-team="myTeam" class="set-score-input flex-1 p-2 border border-gray-300 rounded-lg text-center" value="${set.myTeam || ''}">
-						<span>-</span>
-						<input type="number" data-set-index="${index}" data-team="opponent" class="set-score-input flex-1 p-2 border border-gray-300 rounded-lg text-center" value="${set.opponent || ''}">
-					</div>
-				`;
+               setRow.innerHTML = `
+    <label class="font-semibold w-16 flex-shrink-0">Set ${index + 1}</label>
+    <div class="flex items-center gap-2 flex-1">
+        <input type="number" data-set-index="${index}" data-team="myTeam" class="set-score-input flex-1 p-2 border border-gray-300 rounded-lg text-center" value="${set.myTeam || ''}">
+        <span>-</span>
+        <input type="number" data-set-index="${index}" data-team="opponent" class="set-score-input flex-1 p-2 border border-gray-300 rounded-lg text-center" value="${set.opponent || ''}">
+    </div>
+`;
+
                 setScoresContainer.appendChild(setRow);
             });
             
@@ -2099,3 +2100,4 @@
     </script>
 </body>
 </html>
+
