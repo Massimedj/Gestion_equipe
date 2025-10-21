@@ -481,7 +481,7 @@
                     </div>
                     <div class="flex flex-col">
                         <label for="newJerseyNumber" class="font-semibold mb-1">N° de Maillot</label>
-                        <input type="number" id="newJerseyNumber" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Ex: 10">
+                        <input type="number" id="newJerseyNumber" min="0" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Ex: 10">
                     </div>
                     <div class="flex flex-col">
                         <label class="font-semibold mb-1">Genre</label>
@@ -581,7 +581,7 @@
                     </div>
                     <div class="flex flex-col">
                         <label for="editJerseyNumber" class="font-semibold mb-1">N° de Maillot</label>
-                        <input type="number" id="editJerseyNumber" class="w-full p-3 border border-gray-300 rounded-lg">
+                        <input type="number" id="editJerseyNumber" min="0" class="w-full p-3 border border-gray-300 rounded-lg">
                     </div>
                 </div>
                  <div>
@@ -1142,15 +1142,8 @@ function deletePlayer(playerId) {
                 sortedMatches.forEach(match => {
                     const option = document.createElement('option');
                     option.value = match.id;
-                    const locationText = match.location === 'domicile' ? '(Dom.)' : '(Ext.)';
-                    let scoreText = '';
-                    if (match.score && (match.score.myTeam !== '' || match.score.opponent !== '')) {
-                         scoreText = ` [${match.score.myTeam} - ${match.score.opponent}]`;
-                    }
-                    if (match.forfeitStatus === 'win') scoreText += ' (Forfait G)';
-                    if (match.forfeitStatus === 'loss') scoreText += ' (Forfait P)';
-
-                    option.textContent = `Match du ${new Date(match.date.replace(/-/g, '/')).toLocaleDateString('fr-FR')} vs ${match.opponent} ${locationText}${scoreText}`;
+                    // La nouvelle ligne, beaucoup plus simple !
+                    option.textContent = formatMatchTitle(match);
                     selector.appendChild(option);
                 });
             }
@@ -1272,7 +1265,7 @@ function deletePlayer(playerId) {
                 setRow.innerHTML = `
                     <label class="font-semibold">Set ${index + 1}</label>
                     <div class="flex items-center gap-2">
-                        <input type="number" data-set-index="${index}" data-team="myTeam" class="set-score-input w-20 p-2 border border-gray-300 rounded-lg text-center" value="${set.myTeam || ''}">
+                        <input type="number" min="0" data-set-index="${index}" data-team="myTeam" class="set-score-input w-20 p-2 border border-gray-300 rounded-lg text-center" value="${set.myTeam || ''}">
                         <span>-</span>
                         <input type="number" data-set-index="${index}" data-team="opponent" class="set-score-input w-20 p-2 border border-gray-300 rounded-lg text-center" value="${set.opponent || ''}">
                     </div>
@@ -1830,14 +1823,7 @@ function renderCourt() {
             if (!match) return;
 
             // Afficher le nom du match sélectionné
-            const locationText = match.location === 'domicile' ? '(Dom.)' : '(Ext.)';
-            let scoreText = '';
-            if (match.score && (match.score.myTeam !== '' || match.score.opponent !== '')) {
-                scoreText = ` [${match.score.myTeam} - ${match.score.opponent}]`;
-            }
-             if (match.forfeitStatus === 'win') scoreText += ' (Forfait G)';
-             if (match.forfeitStatus === 'loss') scoreText += ' (Forfait P)';
-            liveMatchName.textContent = `le ${new Date(match.date.replace(/-/g, '/')).toLocaleDateString('fr-FR')} vs ${match.opponent} ${locationText}`;
+            liveMatchName.textContent = formatMatchTitle(match);
 
 
             if (typeof match.faultTrackingMode === 'undefined') {
@@ -2159,8 +2145,21 @@ function renderCourt() {
 
             summaryDiv.innerHTML = `<h3 class="text-xl font-bold">Synthèse : <span class="text-green-600">${totalWins}</span> victoires sur <span class="font-bold">${totalPlayed}</span> matchs joués</h3>`;
         }
-        
+		
+		function formatMatchTitle(match) {
+    if (!match) return '';
+    const date = new Date(match.date.replace(/-/g, '/')).toLocaleDateString('fr-FR');
+    const location = match.location === 'domicile' ? '(Dom.)' : '(Ext.)';
+
+    let scoreText = '';
+    if (match.forfeitStatus === 'win') {
+        scoreText = ' [Forfait G]';
+    } else if (match.forfeitStatus === 'loss') {
+        scoreText = ' [Forfait P]';
+    }
+
+    return `Match du ${date} vs ${match.opponent} ${location}${scoreText}`;
+}  
     </script>
 </body>
 </html>
-
