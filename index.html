@@ -2046,6 +2046,13 @@ function createPlayerCardLiveDetailed(match, player) {
             if (change < 0 && currentCount === 0) {
                  return; // Ne pas passer en négatif
             }
+			
+			// Si on décrémente, on fait vibrer le téléphone
+  			  if (change < 0) {
+   			     if (navigator.vibrate) { // On vérifie si le navigateur supporte la vibration
+    			        navigator.vibrate(100); // Vibration de 100 millisecondes
+    			    }
+    			}
 
             if (change > 0) {
                  appData.lastFaultAction = { matchId, playerId, faultType, set: currentSet };
