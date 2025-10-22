@@ -286,9 +286,14 @@
                     
                     <div id="selectedMatchContent" class="hidden space-y-8">
                         <div class="bg-white p-6 rounded-2xl shadow-lg">
-                             <h3 class="text-xl font-semibold mb-3">Feuille de Match</h3>
-                             <div id="attendanceList" class="space-y-2">
-                                </div>
+                            <div onclick="toggleAttendanceList()" class="flex justify-between items-center cursor-pointer">
+                                <h3 class="text-xl font-semibold">Feuille de Match</h3>
+                                <svg id="attendance-toggle-icon" class="w-6 h-6 transition-transform transform -rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                                </svg>
+                            </div>
+                            <div id="attendanceList" class="space-y-2 mt-4 hidden">
+                               </div>
                         </div>
 
                         <div class="bg-white p-6 rounded-2xl shadow-lg">
@@ -655,6 +660,17 @@
         // --- STRUCTURE DES DONNÉES ---
         let appData = { teams: [], currentTeamId: null, lastFaultAction: null };
         let currentSet = 'set1';
+		
+		function toggleAttendanceList() {
+ 		   const list = document.getElementById('attendanceList');
+ 		   const icon = document.getElementById('attendance-toggle-icon');
+  		  
+  		  // Affiche ou cache la liste des joueurs
+  		  list.classList.toggle('hidden');
+    
+ 		   // Fait pivoter l'icône de la flèche
+  		  icon.classList.toggle('-rotate-180');
+		}
 
         // --- GESTION DES ONGLETS & VUES ---
         function showMainTab(tabName) {
