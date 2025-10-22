@@ -115,7 +115,7 @@
         /* Styles pour la nouvelle vue Suivi en Direct */
         #live-court-layout {
             display: grid;
-            grid-template-columns: 1fr 1fr; /* Grille 2x3 */
+            grid-template-columns: repeat(2, minmax(0, 1fr)); /* Grille 2x3 robuste */
             gap: 0.75rem;
         }
         .live-player-card {
@@ -239,20 +239,20 @@
 
             <div id="team-content" class="hidden">
                 <div class="mb-8">
-					<nav class="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto border-b border-gray-200" aria-label="Tabs">
-                        <button id="main-tab-roster" onclick="showMainTab('roster')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
+					<nav class="-mb-px flex space-x-1 sm:space-x-6 overflow-x-auto border-b border-gray-200" aria-label="Tabs">
+                        <button id="main-tab-roster" onclick="showMainTab('roster')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-m">
                             Effectif
                         </button>
-                        <button id="main-tab-matches" onclick="showMainTab('matches')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
+                        <button id="main-tab-matches" onclick="showMainTab('matches')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-m">
                             Matchs
                         </button>
-                        <button id="main-tab-live" onclick="showMainTab('live')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
+                        <button id="main-tab-live" onclick="showMainTab('live')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-m">
                             Fautes
                         </button>
-                         <button id="main-tab-results" onclick="showMainTab('results')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
+                         <button id="main-tab-results" onclick="showMainTab('results')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-m">
                             Résultats
                         </button>
-                        <button id="main-tab-stats" onclick="showMainTab('stats')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
+                        <button id="main-tab-stats" onclick="showMainTab('stats')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-m">
                             Statistiques
                         </button>
                     </nav>
@@ -306,6 +306,12 @@
                                    <div id="pos-1" class="position"><span class="position-label">P1</span></div>
                                </div>
                             </div>
+							
+							<div id="libero-selection" class="mt-6 border-t pt-4">
+								<h4 class="font-semibold text-lg mb-2 ">Libéro pour ce Set</h4>
+								<div id="libero-selector-container" class="max-w-xs mx-auto">
+                                </div>
+							</div>
                             <div id="substitutions-tracker" class="mt-6">
                                 <h4 class="font-semibold text-lg mb-2">Remplacements pour ce Set</h4>
                                 <div id="substitutionsList" class="space-y-2">
@@ -1456,24 +1462,28 @@ function renderCourt() {
     const currentTeam = getCurrentTeam();
     const matchId = parseInt(document.getElementById('matchSelector').value);
     
-    // S'il n'y a pas de match sélectionné, on ne fait rien.
     if (!matchId || !currentTeam) {
         for (let i = 1; i <= 6; i++) {
             const posDiv = document.getElementById(`pos-${i}`);
             const oldSelect = posDiv.querySelector('select');
             if (oldSelect) posDiv.removeChild(oldSelect);
         }
+        document.getElementById('libero-selector-container').innerHTML = ''; // Vider le sélecteur de libéro
         return;
     }
 
     const match = currentTeam.matches.find(m => m.id === matchId);
     if (!match) return;
 
-    // 1. On récupère la composition du set actuel et les ID des joueurs déjà placés.
     const matchSetPositions = currentTeam.courtPositions[matchId] ? (currentTeam.courtPositions[matchId][currentSet] || {}) : {};
-    const selectedPlayerIds = Object.values(matchSetPositions);
+    const onCourtPlayerIds = Object.keys(matchSetPositions)
+                                .filter(pos => pos.startsWith('pos-'))
+                                .map(pos => matchSetPositions[pos]);
+
+    const liberoId = matchSetPositions.libero;
     const presentPlayers = currentTeam.players.filter(p => match.present.includes(p.id));
 
+    // Rendu des 6 postes du terrain
     for (let i = 1; i <= 6; i++) {
         const posDiv = document.getElementById(`pos-${i}`);
         const positionKey = `pos-${i}`;
@@ -1486,53 +1496,89 @@ function renderCourt() {
         select.dataset.position = positionKey;
         select.innerHTML = '<option value="">-- Choisir --</option>';
 
-        // 2. On identifie le joueur actuellement sélectionné pour CE poste précis.
         const currentPlayerIdForThisPos = matchSetPositions[positionKey];
-        
+
         presentPlayers.forEach(player => {
-            
-            // 3. On n'affiche un joueur dans la liste que si :
-            //    a) C'est celui qui est déjà sélectionné pour ce poste, OU
-            //    b) Il n'est sélectionné sur aucun autre poste.
-            if (player.id === currentPlayerIdForThisPos || !selectedPlayerIds.includes(player.id)) {
+            // Un joueur est dispo pour le terrain s'il n'est pas le libéro
+            if (player.id === liberoId) return;
+
+            if (player.id === currentPlayerIdForThisPos || !onCourtPlayerIds.includes(player.id)) {
                 select.innerHTML += `<option value="${player.id}">${player.jerseyNumber || '#'}.${player.name}</option>`;
-            }            
+            }
         });
         
-        // La valeur sélectionnée est celle du joueur à ce poste.
-        if (currentPlayerIdForThisPos) {
-            select.value = currentPlayerIdForThisPos;
-        }
+        if (currentPlayerIdForThisPos) select.value = currentPlayerIdForThisPos;
         
         select.addEventListener('change', updatePosition);
         posDiv.appendChild(select);
         setCourtPositionColor(select, select.value);
     }
+
+    // Rendu du sélecteur de Libéro
+    const liberoContainer = document.getElementById('libero-selector-container');
+    liberoContainer.innerHTML = '';
+    const liberoSelect = document.createElement('select');
+    liberoSelect.className = 'player-select w-full p-2';
+    liberoSelect.dataset.position = 'libero';
+    liberoSelect.innerHTML = '<option value="">-- Choisir un libéro --</option>';
+
+    presentPlayers.forEach(player => {
+		// Un joueur est dispo pour être libéro s'il n'est pas sur le terrain ET si son poste est Libéro
+		const isLibero = player.mainPosition === 'Libéro' || player.secondaryPosition === 'Libéro';
+		if (isLibero && (player.id === liberoId || !onCourtPlayerIds.includes(player.id))) {
+			liberoSelect.innerHTML += `<option value="${player.id}">${player.jerseyNumber || '#'}.${player.name}</option>`;
+		}
+	});
+
+    if (liberoId) liberoSelect.value = liberoId;
+    
+    liberoSelect.addEventListener('change', updatePosition);
+    liberoContainer.appendChild(liberoSelect);
+    setCourtPositionColor(liberoSelect, liberoSelect.value);
 }
+        
+function updatePosition(event) {
+    const currentTeam = getCurrentTeam();
+    const matchId = parseInt(document.getElementById('matchSelector').value);
+    if (!matchId) return;
+    
+    const selectElement = event.target;
+    const position = selectElement.dataset.position;
+    const playerId = selectElement.value ? parseInt(selectElement.value) : null;
+    
+    if (!currentTeam.courtPositions[matchId]) currentTeam.courtPositions[matchId] = {};
+    if (!currentTeam.courtPositions[matchId][currentSet]) currentTeam.courtPositions[matchId][currentSet] = {};
+    
+    const setPositions = currentTeam.courtPositions[matchId][currentSet];
 
-        function updatePosition(event) {
-            const currentTeam = getCurrentTeam();
-            const matchId = parseInt(document.getElementById('matchSelector').value);
-            if (!matchId) return;
-            const selectElement = event.target;
-            const position = selectElement.dataset.position;
-            const playerId = selectElement.value ? parseInt(selectElement.value) : null;
-            
-            if (!currentTeam.courtPositions[matchId]) currentTeam.courtPositions[matchId] = {};
-            if (!currentTeam.courtPositions[matchId][currentSet]) currentTeam.courtPositions[matchId][currentSet] = {};
-
-            if (playerId) {
-                 currentTeam.courtPositions[matchId][currentSet][position] = playerId;
-            } else {
-                delete currentTeam.courtPositions[matchId][currentSet][position];
+    // Gérer les conflits : un joueur ne peut pas être sur le terrain ET libéro
+    if (playerId) {
+        if (position === 'libero') {
+            // Si on nomme un joueur libéro, on le retire du terrain
+            for (const pos in setPositions) {
+                if (pos.startsWith('pos-') && setPositions[pos] === playerId) {
+                    delete setPositions[pos];
+                }
             }
-            
-            setCourtPositionColor(selectElement, playerId);
-            recalculatePlayedStatus(matchId);
-            renderAttendanceForSelectedMatch();
-            renderSubstitutions();
-            saveData();
+        } else {
+            // Si on met un joueur sur le terrain, on le retire du poste de libéro
+            if (setPositions.libero === playerId) {
+                delete setPositions.libero;
+            }
         }
+    }
+
+    // Mettre à jour la nouvelle position
+    if (playerId) {
+        setPositions[position] = playerId;
+    } else {
+        delete setPositions[position];
+    }
+    
+    recalculatePlayedStatus(matchId);
+    saveData();
+    renderAttendanceForSelectedMatch(); // Ceci va appeler renderCourt() pour tout rafraîchir
+}
         
         function renderSubstitutions() {
             const subsList = document.getElementById('substitutionsList');
@@ -1798,82 +1844,98 @@ function renderCourt() {
             });
         }
         
-        function renderLiveTrackingView() {
-            const currentTeam = getCurrentTeam();
-            const matchId = parseInt(document.getElementById('matchSelector').value);
-            const liveContent = document.getElementById('live-content');
-            const liveHint = document.getElementById('live-match-hint');
-            const courtLayout = document.getElementById('live-court-layout');
-            const toggle = document.getElementById('fault-mode-toggle');
-            const liveMatchDisplay = document.getElementById('live-match-display');
-            const liveMatchName = document.getElementById('live-match-name');
+function renderLiveTrackingView() {
+    const currentTeam = getCurrentTeam();
+    const matchId = parseInt(document.getElementById('matchSelector').value);
+    const liveContent = document.getElementById('live-content');
+    const liveHint = document.getElementById('live-match-hint');
+    const courtLayout = document.getElementById('live-court-layout');
+    const toggle = document.getElementById('fault-mode-toggle');
+    const liveMatchDisplay = document.getElementById('live-match-display');
+    const liveMatchName = document.getElementById('live-match-name');
 
-            document.getElementById('undo-last-fault').onclick = undoLastFault;
-            
-            if (!matchId || !currentTeam) {
-                liveContent.classList.add('hidden');
-                liveMatchDisplay.classList.add('hidden');
-                liveHint.classList.remove('hidden');
-                return;
+    document.getElementById('undo-last-fault').onclick = undoLastFault;
+    
+    if (!matchId || !currentTeam) {
+        liveContent.classList.add('hidden');
+        liveMatchDisplay.classList.add('hidden');
+        liveHint.classList.remove('hidden');
+        return;
+    }
+    
+    liveHint.classList.add('hidden');
+    liveMatchDisplay.classList.remove('hidden');
+    liveContent.classList.remove('hidden');
+    
+    const match = currentTeam.matches.find(m => m.id === matchId);
+    if (!match) return;
+
+    liveMatchName.textContent = formatMatchTitle(match);
+
+    if (typeof match.faultTrackingMode === 'undefined') {
+        match.faultTrackingMode = 'detailed';
+    }
+
+    toggle.checked = match.faultTrackingMode === 'detailed';
+    toggle.onchange = () => {
+        match.faultTrackingMode = toggle.checked ? 'detailed' : 'simple';
+        saveData();
+        renderLiveTrackingView();
+    };
+
+    renderSetSelector();
+    
+    courtLayout.innerHTML = '';
+    const setLineup = (currentTeam.courtPositions[matchId] && currentTeam.courtPositions[matchId][currentSet]) || {};
+    
+    // On sépare les joueurs de champ et le libéro
+    const onCourtPlayerIds = Object.keys(setLineup)
+        .filter(pos => pos.startsWith('pos-'))
+        .map(pos => setLineup[pos]);
+    const liberoId = setLineup.libero;
+
+    if (onCourtPlayerIds.length === 0 && !liberoId) {
+        courtLayout.innerHTML = `<p class="text-gray-500 col-span-2 text-center">Définissez la composition dans l'onglet "Matchs" pour commencer le suivi.</p>`;
+        renderSetFaultsSummary();
+        return;
+    }
+
+    const createAndAppendCard = (playerId) => {
+        const player = currentTeam.players.find(p => p.id === playerId);
+        if (player) {
+            let card;
+            if (match.faultTrackingMode === 'detailed') {
+                card = createPlayerCardLiveDetailed(match, player);
+                courtLayout.appendChild(card);
+                ['service', 'attack', 'reception', 'net'].forEach(type => {
+                    const button = card.querySelector(`#fault-btn-${player.id}-${type}`);
+                    addFaultButtonListeners(button, match.id, player.id, type);
+                });
+            } else {
+                card = createPlayerCardLiveSimple(match, player);
+                courtLayout.appendChild(card);
+                const button = card.querySelector(`#fault-btn-${player.id}-simple`);
+                addFaultButtonListeners(button, match.id, player.id, 'net');
             }
-            
-            liveHint.classList.add('hidden');
-            liveMatchDisplay.classList.remove('hidden');
-            liveContent.classList.remove('hidden');
-            
-            const match = currentTeam.matches.find(m => m.id === matchId);
-            if (!match) return;
-
-            // Afficher le nom du match sélectionné
-            liveMatchName.textContent = formatMatchTitle(match);
-
-
-            if (typeof match.faultTrackingMode === 'undefined') {
-                match.faultTrackingMode = 'detailed';
-            }
-
-            toggle.checked = match.faultTrackingMode === 'detailed';
-            toggle.onchange = () => {
-                match.faultTrackingMode = toggle.checked ? 'detailed' : 'simple';
-                saveData();
-                renderLiveTrackingView();
-            };
-
-            renderSetSelector();
-            
-            courtLayout.innerHTML = '';
-            const setLineup = (currentTeam.courtPositions[matchId] && currentTeam.courtPositions[matchId][currentSet]) || {};
-            const lineupPlayerIds = Object.values(setLineup);
-
-            if (lineupPlayerIds.length === 0) {
-                courtLayout.innerHTML = `<p class="text-gray-500 col-span-2 text-center">Définissez le 6 de départ dans l'onglet "Matchs" pour commencer le suivi.</p>`;
-                renderSetFaultsSummary(); // Afficher le résumé même sans joueur
-                return;
-            }
-
-            lineupPlayerIds.forEach(playerId => {
-                const player = currentTeam.players.find(p => p.id === playerId);
-                if (player) {
-                    let card;
-                    if (match.faultTrackingMode === 'detailed') {
-                        card = createPlayerCardLiveDetailed(match, player);
-                        courtLayout.appendChild(card);
-                        const faultTypes = ['service', 'attack', 'reception', 'net'];
-                        faultTypes.forEach(type => {
-                            const button = card.querySelector(`#fault-btn-${player.id}-${type}`);
-                            addFaultButtonListeners(button, match.id, player.id, type);
-                        });
-                    } else {
-                        card = createPlayerCardLiveSimple(match, player);
-                        courtLayout.appendChild(card);
-                        const button = card.querySelector(`#fault-btn-${player.id}-simple`);
-                        addFaultButtonListeners(button, match.id, player.id, 'net'); // Le mode simple agit sur la faute "net" (Autres)
-                    }
-                }
-            });
-
-            renderSetFaultsSummary();
+            return card;
         }
+    };
+
+    // Affiche les 6 joueurs du terrain
+    onCourtPlayerIds.forEach(createAndAppendCard);
+
+    // Affiche le libéro en bas et visuellement séparé
+    if (liberoId) {
+		const liberoCard = createAndAppendCard(liberoId);
+		if (liberoCard) {
+			// On retire 'col-span-2' pour que la carte prenne une seule colonne
+			liberoCard.classList.add('border-t-4', 'border-yellow-500', 'mt-2', 'pt-4');
+			const nameDiv = liberoCard.querySelector('.player-name-display');
+		}
+	}
+
+    renderSetFaultsSummary();
+}
 
         function createPlayerCardLiveDetailed(match, player) {
             const card = document.createElement('div');
@@ -1979,34 +2041,60 @@ function renderCourt() {
             appData.lastFaultAction = null; // Important: on ne peut annuler qu'une fois
         }
 
-        function openSubstitutionModal(playerIdToReplace) {
-            const currentTeam = getCurrentTeam();
-            const matchId = parseInt(document.getElementById('matchSelector').value);
-            const match = currentTeam.matches.find(m => m.id === matchId);
-            const playerToReplace = currentTeam.players.find(p => p.id === playerIdToReplace);
+function openSubstitutionModal(playerIdToReplace) {
+    const currentTeam = getCurrentTeam();
+    const matchId = parseInt(document.getElementById('matchSelector').value);
+    const match = currentTeam.matches.find(m => m.id === matchId);
+    const playerToReplace = currentTeam.players.find(p => p.id === playerIdToReplace);
 
-            document.getElementById('substitutionModalTitle').textContent = `Remplacer ${playerToReplace.name}`;
-            
-            const substitutesListDiv = document.getElementById('substitutesList');
-            substitutesListDiv.innerHTML = '';
+    document.getElementById('substitutionModalTitle').textContent = `Remplacer ${playerToReplace.name}`;
+    
+    const substitutesListDiv = document.getElementById('substitutesList');
+    substitutesListDiv.innerHTML = '';
 
-            const onCourtPlayerIds = Object.values(currentTeam.courtPositions[matchId][currentSet]);
-            const availableSubstitutes = currentTeam.players.filter(p => match.present.includes(p.id) && !onCourtPlayerIds.includes(p.id));
+    const setPositions = currentTeam.courtPositions[matchId][currentSet] || {};
+    const onCourtPlayerIds = Object.keys(setPositions)
+        .filter(pos => pos.startsWith('pos-'))
+        .map(pos => setPositions[pos]);
+    const liberoId = setPositions.libero;
 
-            if (availableSubstitutes.length === 0) {
-                substitutesListDiv.innerHTML = `<p class="text-gray-500">Aucun remplaçant disponible sur le banc.</p>`;
-            } else {
-                availableSubstitutes.forEach(sub => {
-                    const subButton = document.createElement('button');
-                    subButton.className = 'w-full text-left p-3 bg-gray-100 rounded-lg hover:bg-blue-100 transition';
-                    subButton.innerHTML = `<span class="font-bold">#${sub.jerseyNumber || '-'}</span> ${sub.name}`;
-                    subButton.onclick = () => executeSubstitution(playerIdToReplace, sub.id);
-                    substitutesListDiv.appendChild(subButton);
-                });
-            }
+    // --- NOUVELLE LOGIQUE ---
+    // On détermine si le joueur à remplacer est le libéro
+    const isReplacingLibero = (playerIdToReplace === liberoId);
 
-            document.getElementById('substitutionModal').classList.remove('hidden');
-        }
+    // On récupère tous les joueurs sur le banc
+    let availableSubstitutes = currentTeam.players.filter(p => 
+        match.present.includes(p.id) && 
+        !onCourtPlayerIds.includes(p.id) &&
+        p.id !== liberoId
+    );
+
+    // On filtre la liste en fonction du rôle du joueur sortant
+    if (isReplacingLibero) {
+        document.getElementById('substitutionModalTitle').textContent = `Remplacer le Libéro`;
+        // Si on remplace le libéro, on ne montre que les autres libéros disponibles
+        availableSubstitutes = currentTeam.players.filter(p => {
+            const isLiberoPlayer = p.mainPosition === 'Libéro' || p.secondaryPosition === 'Libéro';
+            return isLiberoPlayer && !onCourtPlayerIds.includes(p.id) && p.id !== playerIdToReplace;
+        });
+    }
+    // --- FIN DE LA NOUVELLE LOGIQUE ---
+
+
+    if (availableSubstitutes.length === 0) {
+        substitutesListDiv.innerHTML = `<p class="text-gray-500">Aucun remplaçant éligible disponible.</p>`;
+    } else {
+        availableSubstitutes.forEach(sub => {
+            const subButton = document.createElement('button');
+            subButton.className = 'w-full text-left p-3 bg-gray-100 rounded-lg hover:bg-blue-100 transition';
+            subButton.innerHTML = `<span class="font-bold">#${sub.jerseyNumber || '-'}</span> ${sub.name}`;
+            subButton.onclick = () => executeSubstitution(playerIdToReplace, sub.id);
+            substitutesListDiv.appendChild(subButton);
+        });
+    }
+
+    document.getElementById('substitutionModal').classList.remove('hidden');
+}
 
         function executeSubstitution(playerOutId, playerInId) {
             const currentTeam = getCurrentTeam();
@@ -2165,6 +2253,3 @@ function renderCourt() {
     </script>
 </body>
 </html>
-
-
-
