@@ -1,0 +1,199 @@
+/* Styles personnalisés */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Fond gris très clair */
+        }
+        .court-container::before, .court-container::after {
+            content: '';
+            position: absolute;
+            width: 8px; /* Poteaux épais */
+            height: 12px;
+            background-color: #374151;
+            top: 10px; /* Aligné avec le haut du terrain */
+            transform: translateY(-50%); /* Centré sur la ligne du filet */
+            z-index: 10;
+        }
+        .court-container::before {
+            left: -4px;
+        }
+        .court-container::after {
+            right: -4px;
+        }
+        .court {
+            width: 100%;
+            max-width: 400px;
+            aspect-ratio: 1 / 1;
+            height: auto;
+            background-color: #fde68a; /* Couleur sable */
+            border: 2px solid #374151;
+            position: relative;
+            margin: 0 auto;
+            margin-top: 10px; /* Espace pour le filet */
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr; /* 3 joueurs en ligne */
+            grid-template-rows: 1fr 1fr; /* 2 lignes */
+        }
+        .net {
+            position: absolute;
+            top: 0; /* Positionné en haut du terrain */
+            left: 0;
+            width: 100%;
+            height: 4px; /* Filet plus visible */
+            background-color: #1f2937;
+            transform: translateY(-50%); /* Centré sur la bordure supérieure */
+        }
+        .position {
+            border: 1px dashed #6b7280;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 8px;
+            text-align: center;
+        }
+        .position-label {
+            font-weight: bold;
+            font-size: 0.9em;
+            color: #4b5563;
+        }
+        .player-select {
+            margin-top: 5px;
+            width: 100%;
+            border-radius: 4px;
+            border: 1px solid #d1d5db;
+            font-size: 0.8em;
+        }
+        .tab-button, .set-button {
+            transition: all 0.3s ease;
+        }
+        .tab-button.active, .set-button.active {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        /* Style pour les modals */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
+        .jersey-badge {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            background-color: #4b5563;
+        }
+        .captain-checkbox:checked {
+            background-color: #f59e0b;
+            border-color: #f59e0b;
+        }
+        /* Styles pour la nouvelle vue Suivi en Direct */
+        #live-court-layout {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr)); /* Grille 2x3 robuste */
+            gap: 0.75rem;
+        }
+        .live-player-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            padding: 0.75rem;
+            text-align: center;
+            background-color: #f9fafb;
+            display: flex;
+            flex-direction: column;
+        }
+        .player-name-display {
+            line-height: 1.25rem; /* Hauteur d'une ligne de texte */
+            height: 2.5rem;      /* Hauteur pour deux lignes de texte */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .fault-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        .fault-grid-btn, .simple-fault-btn {
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            cursor: pointer;
+            user-select: none; /* Empêche la sélection de texte pendant l'appui long */
+            background-color: #fb923c; /* Orange clair (orange-400) */
+            color: white;
+            border: 1px solid #fb923c;
+        }
+        .fault-grid-btn {
+             padding: 0.5rem 0.25rem;
+             font-size: 0.8rem;
+        }
+        .simple-fault-btn {
+            flex-grow: 1;
+            margin-top: 0.75rem;
+            font-size: 2.25rem;
+            font-weight: 700;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            aspect-ratio: 1 / 1; /* Assure que le bouton est carré */
+        }
+        .fault-btn-active {
+            background-color: #f97316 !important; /* Orange un peu plus foncé (orange-500) */
+            border-color: #f97316 !important;
+        }
+        .fault-count {
+            font-weight: 700;
+            margin-left: 0.25rem;
+        }
+        /* Style pour l'interrupteur */
+        .toggle-label {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .toggle-input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            width: 44px;
+            height: 24px;
+            background-color: #ccc;
+            border-radius: 9999px;
+            transition: background-color 0.2s;
+            position: relative;
+        }
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            height: 20px;
+            width: 20px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        .toggle-input:checked + .toggle-slider {
+            background-color: #3b82f6;
+        }
+        .toggle-input:checked + .toggle-slider::before {
+            transform: translateX(20px);
+        }
