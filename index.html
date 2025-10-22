@@ -1033,7 +1033,7 @@ function deletePlayer(playerId) {
             const playerListDiv = document.getElementById('playerList');
             document.getElementById('deleteAllPlayersBtn').classList.toggle('hidden', currentTeam.players.length === 0);
             playerListDiv.innerHTML = currentTeam.players.length ? '' : '<p class="text-gray-500">Aucun joueur dans l\'effectif.</p>';
-            const sortedPlayers = [...currentTeam.players].sort((a, b) => a.name.localeCompare(b.name));
+            const sortedPlayers = [...currentTeam.players].sort((a, b) => (parseInt(a.jerseyNumber) || Infinity) - (parseInt(b.jerseyNumber) || Infinity));
 
             sortedPlayers.forEach(player => {
                 const playerDiv = document.createElement('div');
@@ -1193,7 +1193,7 @@ function deletePlayer(playerId) {
             });
 
 
-            const sortedPlayers = [...currentTeam.players].sort((a, b) => a.name.localeCompare(b.name));
+            const sortedPlayers = [...currentTeam.players].sort((a, b) => (parseInt(a.jerseyNumber) || Infinity) - (parseInt(b.jerseyNumber) || Infinity));
             sortedPlayers.forEach(player => {
                 const isPresent = match.present.includes(player.id);
                 const isCaptain = match.captainId === player.id;
@@ -1591,7 +1591,7 @@ function renderCourt() {
             statsBody.innerHTML = '';
             if (!currentTeam) return;
 
-            const sortedPlayers = [...currentTeam.players].sort((a, b) => a.name.localeCompare(b.name));
+            const sortedPlayers = [...currentTeam.players].sort((a, b) => (parseInt(a.jerseyNumber) || Infinity) - (parseInt(b.jerseyNumber) || Infinity));
             
             sortedPlayers.forEach(player => {
                 let presenceCount = 0;
@@ -2165,5 +2165,6 @@ function renderCourt() {
     </script>
 </body>
 </html>
+
 
 
