@@ -1798,68 +1798,69 @@ function updatePosition(event) {
 
         // --- LIVE TRACKING (Refonte avec appui long) ---
 
-        function addFaultButtonListeners(button, matchId, playerId, faultType) {
-            let pressTimer;
-            let longPressOccurred = false;
-            let isScrolling = false;
-            let startX, startY;
+function addFaultButtonListeners(button, matchId, playerId, faultType) {
+    let pressTimer;
+    let longPressOccurred = false;
+    let isScrolling = false;
+    let startX, startY;
 
-            const startPress = (e) => {
-                isScrolling = false;
-                longPressOccurred = false;
-                startX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
-                startY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-                
-                button.classList.add('fault-btn-active');
-
-                pressTimer = setTimeout(() => {
-                    if (isScrolling) return; 
-                    e.preventDefault(); 
-                    longPressOccurred = true;
-                    updateFault(matchId, playerId, faultType, -1);
-                }, 500);
-            };
-
-            const movePress = (e) => {
-                if (longPressOccurred || isScrolling) return;
-
-                const moveX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
-                const moveY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
-                const diffX = Math.abs(startX - moveX);
-                const diffY = Math.abs(startY - moveY);
-
-                if (diffX > 5 || diffY > 5) { 
-                    isScrolling = true;
-                    clearTimeout(pressTimer);
-                    button.classList.remove('fault-btn-active');
-                }
-            };
-
-            const endPress = (e) => {
-                clearTimeout(pressTimer);
-                if (!longPressOccurred && !isScrolling) {
-                    e.preventDefault(); 
-                    updateFault(matchId, playerId, faultType, 1);
-                }
-                setTimeout(() => button.classList.remove('fault-btn-active'), 50);
-            };
-            
-            button.addEventListener('mousedown', startPress);
-            button.addEventListener('touchstart', startPress, { passive: true });
-
-            button.addEventListener('mousemove', movePress);
-            button.addEventListener('touchmove', movePress, { passive: true });
-
-            button.addEventListener('mouseup', endPress);
-            button.addEventListener('touchend', endPress);
-            
-            button.addEventListener('mouseleave', () => {
-                clearTimeout(pressTimer);
-                isScrolling = true;
-                button.classList.remove('fault-btn-active');
-            });
-        }
+    const startPress = (e) => {
+        isScrolling = false;
+        longPressOccurred = false;
+        startX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+        startY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
         
+        button.classList.add('fault-btn-active');
+
+        pressTimer = setTimeout(() => {
+            if (isScrolling) return; 
+            // On empêche le comportement par défaut (sélection de texte, etc.)
+            e.preventDefault(); 
+            longPressOccurred = true;
+            updateFault(matchId, playerId, faultType, -1);
+        }, 500);
+    };
+
+    const movePress = (e) => {
+        if (longPressOccurred || isScrolling) return;
+
+        const moveX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+        const moveY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+        const diffX = Math.abs(startX - moveX);
+        const diffY = Math.abs(startY - moveY);
+
+        // Tolérance au mouvement augmentée à 10px pour plus de souplesse
+        if (diffX > 10 || diffY > 10) { 
+            isScrolling = true;
+            clearTimeout(pressTimer);
+            button.classList.remove('fault-btn-active');
+        }
+    };
+
+    const endPress = (e) => {
+        clearTimeout(pressTimer);
+        if (!longPressOccurred && !isScrolling) {
+            e.preventDefault(); 
+            updateFault(matchId, playerId, faultType, 1);
+        }
+        setTimeout(() => button.classList.remove('fault-btn-active'), 50);
+    };
+    
+    button.addEventListener('mousedown', startPress);
+    button.addEventListener('mouseup', endPress);
+    button.addEventListener('mousemove', movePress);
+    button.addEventListener('mouseleave', () => {
+        clearTimeout(pressTimer);
+        isScrolling = true;
+        button.classList.remove('fault-btn-active');
+    });
+
+    // Écouteurs tactiles sans l'option "passive: true"
+    button.addEventListener('touchstart', startPress);
+    button.addEventListener('touchend', endPress);
+    button.addEventListener('touchmove', movePress);
+}
+       
 function renderLiveTrackingView() {
     const currentTeam = getCurrentTeam();
     const matchId = parseInt(document.getElementById('matchSelector').value);
