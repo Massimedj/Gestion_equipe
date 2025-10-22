@@ -1904,7 +1904,6 @@ function renderLiveTrackingView() {
     courtLayout.innerHTML = '';
     const setLineup = (currentTeam.courtPositions[matchId] && currentTeam.courtPositions[matchId][currentSet]) || {};
     
-    // On sépare les joueurs de champ et le libéro
     const onCourtPlayerIds = Object.keys(setLineup)
         .filter(pos => pos.startsWith('pos-'))
         .map(pos => setLineup[pos]);
@@ -1925,7 +1924,9 @@ function renderLiveTrackingView() {
                 courtLayout.appendChild(card);
                 ['service', 'attack', 'reception', 'net'].forEach(type => {
                     const button = card.querySelector(`#fault-btn-${player.id}-${type}`);
-                    addFaultButtonListeners(button, match.id, player.id, type);
+                    if (button) { // Vérification pour éviter une erreur avec le libéro
+                        addFaultButtonListeners(button, match.id, player.id, type);
+                    }
                 });
             } else {
                 card = createPlayerCardLiveSimple(match, player);
@@ -1935,6 +1936,7 @@ function renderLiveTrackingView() {
             }
             return card;
         }
+        return null;
     };
 
     // Affiche les 6 joueurs du terrain
@@ -1942,46 +1944,71 @@ function renderLiveTrackingView() {
 
     // Affiche le libéro en bas et visuellement séparé
     if (liberoId) {
-		const liberoCard = createAndAppendCard(liberoId);
-		if (liberoCard) {
-			// On retire 'col-span-2' pour que la carte prenne une seule colonne
-			liberoCard.classList.add('border-t-4', 'border-yellow-500', 'mt-2', 'pt-4');
-			const nameDiv = liberoCard.querySelector('.player-name-display');
-		}
-	}
+        const liberoCard = createAndAppendCard(liberoId);
+        if (liberoCard) {
+            // CETTE LIGNE AJOUTE LE CADRE JAUNE, quel que soit le mode (simple ou détaillé)
+            liberoCard.classList.add('border-t-4', 'border-yellow-500', 'mt-2');
+        }
+    }
 
     renderSetFaultsSummary();
 }
 
-        function createPlayerCardLiveDetailed(match, player) {
-            const card = document.createElement('div');
-            const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
-            card.className = `live-player-card ${genderClass}`;
+function createPlayerCardLiveDetailed(match, player) {
+    const card = document.createElement('div');
+    const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
+    card.className = `live-player-card ${genderClass}`;
 
-            const faults = (match.faults && match.faults[currentSet] && match.faults[currentSet][player.id]) 
-                         || { service: 0, attack: 0, reception: 0, net: 0 };
+    const faults = (match.faults && match.faults[currentSet] && match.faults[currentSet][player.id]) 
+                 || { service: 0, attack: 0, reception: 0, net: 0 };
 
-            card.innerHTML = `
-                <div class="font-bold cursor-pointer hover:text-blue-600 player-name-display" onclick="openSubstitutionModal(${player.id})">
-                    #${player.jerseyNumber || '-'} ${player.name}
-                </div>
-                <div class="fault-grid">
-                    <button id="fault-btn-${player.id}-service" class="fault-grid-btn">
-                        Service: <span class="fault-count" id="fault-count-${player.id}-service">${faults.service}</span>
-                    </button>
-                    <button id="fault-btn-${player.id}-attack" class="fault-grid-btn">
-                        Attaque: <span class="fault-count" id="fault-count-${player.id}-attack">${faults.attack}</span>
-                    </button>
-                    <button id="fault-btn-${player.id}-reception" class="fault-grid-btn">
-                        Récep: <span class="fault-count" id="fault-count-${player.id}-reception">${faults.reception}</span>
-                    </button>
-                    <button id="fault-btn-${player.id}-net" class="fault-grid-btn">
-                        Autres: <span class="fault-count" id="fault-count-${player.id}-net">${faults.net}</span>
-                    </button>
-                </div>
-            `;
-            return card;
-        }
+    // --- NOUVELLE LOGIQUE ---
+    // 1. On vérifie si le joueur a le poste de Libéro
+    const isLibero = player.mainPosition === 'Libéro' || player.secondaryPosition === 'Libéro';
+
+    let buttonsHtml = '';
+    // 2. On affiche les boutons en fonction de son poste
+    if (isLibero) {
+        // Pour un libéro, on n'affiche que les fautes de Réception et Autres
+        buttonsHtml = `
+            <div class="flex flex-col gap-2 mt-4">
+                <button id="fault-btn-${player.id}-reception" class="fault-grid-btn w-full py-3">
+                    Réception: <span class="fault-count" id="fault-count-${player.id}-reception">${faults.reception}</span>
+                </button>
+                <button id="fault-btn-${player.id}-net" class="fault-grid-btn w-full py-3">
+                    Autres: <span class="fault-count" id="fault-count-${player.id}-net">${faults.net}</span>
+                </button>
+            </div>
+        `;
+    } else {
+        // Pour les autres joueurs, on affiche les quatre types de fautes
+        buttonsHtml = `
+            <div class="fault-grid">
+                <button id="fault-btn-${player.id}-service" class="fault-grid-btn">
+                    Service: <span class="fault-count" id="fault-count-${player.id}-service">${faults.service}</span>
+                </button>
+                <button id="fault-btn-${player.id}-attack" class="fault-grid-btn">
+                    Attaque: <span class="fault-count" id="fault-count-${player.id}-attack">${faults.attack}</span>
+                </button>
+                <button id="fault-btn-${player.id}-reception" class="fault-grid-btn">
+                    Récep: <span class="fault-count" id="fault-count-${player.id}-reception">${faults.reception}</span>
+                </button>
+                <button id="fault-btn-${player.id}-net" class="fault-grid-btn">
+                    Autres: <span class="fault-count" id="fault-count-${player.id}-net">${faults.net}</span>
+                </button>
+            </div>
+        `;
+    }
+    // --- FIN DE LA NOUVELLE LOGIQUE ---
+
+    card.innerHTML = `
+        <div class="font-bold cursor-pointer hover:text-blue-600 player-name-display" onclick="openSubstitutionModal(${player.id})">
+            #${player.jerseyNumber || '-'} ${player.name}
+        </div>
+        ${buttonsHtml}
+    `;
+    return card;
+}
 
         function createPlayerCardLiveSimple(match, player) {
             const card = document.createElement('div');
