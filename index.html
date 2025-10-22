@@ -354,44 +354,54 @@
                     </div>
                 </div>
 
-                <div id="main-view-live" class="hidden">
-                    <div class="bg-white p-4 md:p-6 rounded-2xl shadow-lg">
-                        <div class="flex justify-between items-center mb-4 border-b pb-2">
-                            <h2 class="text-2xl font-bold">Suivi de Fautes Directes</h2>
-                            <div class="flex items-center gap-2">
-                                <span class="text-sm font-medium text-gray-700">Suivi Détaillé</span>
-                                <label class="toggle-label">
-                                    <input type="checkbox" id="fault-mode-toggle" class="toggle-input">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                        </div>
+<div id="main-view-live" class="hidden">
+    <div class="bg-white p-4 md:p-6 rounded-2xl shadow-lg">
 
-                        <div id="live-match-display" class="hidden my-4 p-3 bg-gray-100 rounded-lg sm:flex items-center justify-between gap-4">
-                            <div class="text-sm">
-                                <span class="font-semibold">Match&nbsp;:</span>
-                                <span id="live-match-name"></span>
-                            </div>
-                            <button onclick="showMainTab('matches')" class="bg-blue-500 text-white text-xs font-semibold py-1 px-3 rounded-lg hover:bg-blue-600 transition-colors flex-shrink-0">Changer</button>
-                        </div>
-                        
-                        <p id="live-match-hint" class="text-gray-600 my-4">Veuillez d'abord sélectionner un match dans l'onglet "Matchs".</p>
-                        
-                        <div id="live-content" class="hidden">
-                            <div id="set-selector-live" class="flex justify-center gap-1 mb-4 rounded-lg bg-gray-200 p-1">
-                                </div>
-                            
-                            <div id="live-court-layout" class="mt-4">
-                                </div>
-                            <div class="mt-4 text-center">
-                                <button id="undo-last-fault" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition text-sm">Annuler la dernière faute</button>
-                            </div>
-                            
-                            <div id="set-faults-summary" class="mt-6 border-t pt-4">
-                                </div>
-                        </div>
-                    </div>
+        <div class="flex justify-between items-center mb-4 border-b pb-2">
+
+            <div class="flex items-center gap-3">
+                <h2 class="text-2xl font-bold">Suivi de Fautes Directes</h2>
+                <button onclick="openInfoFaultsModal()" title="Informations" class="flex items-center justify-center h-5 w-5 bg-blue-400 text-white rounded-full hover:bg-blue-600 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-gray-700">Suivi Détaillé</span>
+                <label class="toggle-label">
+                    <input type="checkbox" id="fault-mode-toggle" class="toggle-input">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+        </div>
+        <div id="live-match-display" class="hidden my-4 p-3 bg-gray-100 rounded-lg sm:flex items-center justify-between gap-4">
+            <div class="text-sm">
+                <span class="font-semibold">Match&nbsp;:</span>
+                <span id="live-match-name"></span>
+            </div>
+            <button onclick="showMainTab('matches')" class="bg-blue-500 text-white text-xs font-semibold py-1 px-3 rounded-lg hover:bg-blue-600 transition-colors flex-shrink-0">Changer</button>
+        </div>
+        
+        <p id="live-match-hint" class="text-gray-600 my-4">Veuillez d'abord sélectionner un match dans l'onglet "Matchs".</p>
+        
+        <div id="live-content" class="hidden">
+            <div id="set-selector-live" class="flex justify-center gap-1 mb-4 rounded-lg bg-gray-200 p-1">
                 </div>
+            
+            <div id="live-court-layout" class="mt-4">
+                </div>
+            <div class="mt-4 text-center">
+                <button id="undo-last-fault" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition text-sm">Annuler la dernière faute</button>
+            </div>
+            
+            <div id="set-faults-summary" class="mt-6 border-t pt-4">
+                </div>
+        </div>
+    </div>
+</div>
                 
                 <div id="main-view-results" class="hidden">
                     <div class="bg-white p-6 rounded-2xl shadow-lg">
@@ -651,6 +661,20 @@
             </div>
         </div>
     </div>
+	
+	<div id="infoFaultsModal" class="modal-backdrop hidden">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md mx-4 sm:mx-0">
+            <h2 class="text-2xl font-bold mb-4">Comment ça marche ?</h2>
+            <ul class="space-y-4 list-disc list-inside text-gray-700">
+                <li><span class="font-semibold">Remplacer un joueur :</span> Cliquez sur le nom du joueur.</li>
+                <li><span class="font-semibold">Ajouter une faute :</span> Faites un clic simple sur un bouton orange.</li>
+                <li><span class="font-semibold">Retirer une faute :</span> Faites un appui long sur un bouton orange.</li>
+            </ul>
+            <div class="flex justify-end mt-8">
+                <button onclick="closeModal('infoFaultsModal')" class="bg-blue-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-600">Compris</button>
+            </div>
+        </div>
+    </div>
 
 
     <script>
@@ -716,6 +740,10 @@
         }
 
         // --- GESTION DES MODALS ---
+		
+		function openInfoFaultsModal() {
+  		  document.getElementById('infoFaultsModal').classList.remove('hidden');
+		}
         function openAddPlayerModal() {
             document.getElementById('addPlayerModal').classList.remove('hidden');
         }
