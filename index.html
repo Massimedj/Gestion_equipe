@@ -5,30 +5,90 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Assistant du Coach de Volley-Ball</title>
-	<link rel="icon" type="image/png" href="Images/Favicone.png">
+    <link rel="icon" type="image/png" href="Images/Favicone.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    
+
+    <!-- Firebase SDK (inchangé) -->
+	<script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, enableIndexedDbPersistence, CACHE_SIZE_UNLIMITED, initializeFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBFmZGcL8OCu2UkIo9kGY69bED7KCW6nXo",
+            authDomain: "assistant-coach-volley.firebaseapp.com",
+            projectId: "assistant-coach-volley",
+            storageBucket: "assistant-coach-volley.appspot.com",
+            messagingSenderId: "196721861277",
+            appId: "1:196721861277:web:85810ab46b7a18f6612a74",
+            measurementId: "G-6LJF2SPSLZ"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = initializeFirestore(app, { cacheSizeBytes: CACHE_SIZE_UNLIMITED });
+        const auth = getAuth(app);
+
+        enableIndexedDbPersistence(db).catch((err) => { console.warn("Firestore Persistence failed: ", err); });
+
+        // Exposition des fonctions et objets Firebase (Modifié)
+        window.db = db;
+        window.auth = auth;
+        window.doc = doc;
+        window.getDoc = getDoc;
+        window.setDoc = setDoc;
+        window.onSnapshot = onSnapshot;
+        window.onAuthStateChanged = onAuthStateChanged;
+        window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+        window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+        window.signOut = signOut;
+        window.sendPasswordResetEmail = sendPasswordResetEmail; // <-- AJOUT DE CETTE LIGNE
+
+        document.dispatchEvent(new CustomEvent('firebaseReady'));
+    </script>
 </head>
 <body class="text-gray-800">
 
     <div class="container mx-auto p-4 md:p-8 max-w-7xl">
-        <header class="text-center mb-8">
+        <!-- ... (header reste inchangé) ... -->
+         <header class="text-center mb-8">
             <img src="Images/Logo_EsayPlay.png" alt="Logo EasyPlay" class="mx-auto h-20 w-auto mb-4">
             <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">Assistant du Coach de Volley-Ball</h1>
             <p class="text-lg text-gray-600 mt-2">Votre outil tout-en-un pour le coaching</p>
         </header>
 
         <main>
-             <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+            <!-- Section Auth (inchangée) -->
+            <div id="auth-section" class="bg-white p-4 rounded-2xl shadow-lg mb-8">
+                <div id="auth-logged-out" class="flex flex-wrap items-center justify-center gap-4">
+                    <p class="text-gray-600">Sauvegardez et sécurisez vos données en ligne et accédez-y de partout.</p>
+                    <button onclick="openAuthModal()" class="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-600 transition">
+                        Connexion / Inscription
+                    </button>
+                </div>
+                <div id="auth-logged-in" class="hidden flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <p id="auth-greeting-label" class="text-gray-600">Connecté en tant que :</p>
+                        <p id="user-email-display" class="font-semibold text-gray-800"></p>
+                    </div>
+                    <button onclick="handleLogOut()" class="bg-red-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-600 transition">
+                        Déconnexion
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
                 <h2 class="text-2xl font-bold mb-4 border-b pb-2">Gestion des Équipes</h2>
-                <div class="flex flex-wrap items-center gap-4">
-                    <select id="teamSelector" class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none w-full sm:w-auto">
+                
+                <div class="flex flex-col lg:flex-row items-center gap-4">
+                    
+                    <select id="teamSelector" class="py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none w-full lg:w-auto lg:flex-grow text-m">
                         </select>
-                    <div class="flex gap-2 w-full sm:w-auto">
+                    
+                    <div class="flex gap-2 w-full lg:w-auto">
                         <button onclick="openAddTeamModal()" class="flex-1 bg-indigo-500 text-white font-semibold py-2 px-3 rounded-lg hover:bg-indigo-600 transition">Nouvelle</button>
                         <div id="teamActions" class="flex-1 flex gap-2 hidden">
                             <button onclick="openEditTeamModal()" class="w-full bg-yellow-500 text-white font-semibold py-2 px-3 rounded-lg hover:bg-yellow-600 transition">Modifier</button>
@@ -39,21 +99,21 @@
             </div>
 
             <div id="team-content" class="hidden">
-                <div class="mb-8">
-					<nav class="-mb-px flex space-x-1 sm:space-x-6 overflow-x-auto border-b border-gray-200" aria-label="Tabs">
-                        <button id="main-tab-roster" onclick="showMainTab('roster')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-m">
+                 <div class="mb-8">
+					<nav class="-mb-px flex space-x-2 sm:space-x-6 overflow-x-auto border-b border-gray-200" aria-label="Tabs">
+                        <button id="main-tab-roster" onclick="showMainTab('roster')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
                             Effectif
                         </button>
-                        <button id="main-tab-matches" onclick="showMainTab('matches')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-m">
+                        <button id="main-tab-matches" onclick="showMainTab('matches')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
                             Matchs
                         </button>
-                        <button id="main-tab-live" onclick="showMainTab('live')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-m">
-                            Fautes
+                        <button id="main-tab-live" onclick="showMainTab('live')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
+                            Suivi
                         </button>
-                         <button id="main-tab-results" onclick="showMainTab('results')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-m">
+                         <button id="main-tab-results" onclick="showMainTab('results')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
                             Résultats
                         </button>
-                        <button id="main-tab-stats" onclick="showMainTab('stats')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-m">
+                        <button id="main-tab-stats" onclick="showMainTab('stats')" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
                             Statistiques
                         </button>
                     </nav>
@@ -69,12 +129,12 @@
                         <button id="deleteAllPlayersBtn" onclick="deleteAllPlayers()" class="w-full mt-4 bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition hidden">Supprimer l'effectif</button>
                     </div>
                 </div>
-                
+
                 <div id="main-view-matches" class="hidden">
                     <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
                         <h2 class="text-2xl font-bold mb-4 border-b pb-2">Gestion des Matchs</h2>
                         <button onclick="openAddMatchModal()" class="w-full bg-green-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-green-600 transition duration-300 shadow mb-6">Ajouter une rencontre</button>
-                        
+
                         <h3 class="text-xl font-semibold mb-3 border-t pt-6">Sélectionner un match</h3>
                         <select id="matchSelector" class="w-full p-3 border border-gray-300 rounded-lg mb-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
                             </select>
@@ -84,9 +144,9 @@
                             <button onclick="deleteSelectedMatch()" class="flex-1 bg-red-500 text-white text-sm font-semibold py-2 px-4 rounded-lg hover:bg-red-600 transition">Supprimer</button>
                         </div>
                     </div>
-                    
+
                     <div id="selectedMatchContent" class="hidden space-y-8">
-                        <div class="bg-white p-6 rounded-2xl shadow-lg">
+                         <div class="bg-white p-6 rounded-2xl shadow-lg">
                             <div onclick="toggleAttendanceList()" class="flex justify-between items-center cursor-pointer">
                                 <h3 class="text-xl font-semibold">Feuille de Match</h3>
                                 <svg id="attendance-toggle-icon" class="w-6 h-6 transition-transform transform -rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -112,13 +172,12 @@
                                    <div id="pos-1" class="position"><span class="position-label">P1</span></div>
                                </div>
                             </div>
-							
-							<div id="libero-selection" class="mt-6 border-t pt-4">
-								<h4 class="font-semibold text-lg mb-2 ">Libéro pour ce Set</h4>
-								<div id="libero-selector-container" class="max-w-xs mx-auto">
-                                </div>
-							</div>
-                            <div id="substitutions-tracker" class="mt-6">
+                             <div id="libero-selection" class="mt-6 border-t pt-4">
+                                <h4 class="font-semibold text-lg mb-2 text-center">Libéro pour ce Set</h4>
+                                <div id="libero-selector-container" class="max-w-xs mx-auto">
+                                    </div>
+                            </div>
+                             <div id="substitutions-tracker" class="mt-6 border-t pt-4">
                                 <h4 class="font-semibold text-lg mb-2">Remplacements pour ce Set</h4>
                                 <div id="substitutionsList" class="space-y-2">
                                     </div>
@@ -129,7 +188,7 @@
                             <h3 class="text-xl font-semibold mb-3">Score du Match</h3>
                             <div class="space-y-4">
                                 <div class="p-3 bg-gray-100 rounded-lg">
-                                    <div class="grid grid-cols-3 items-center gap-2 text-center mb-2">
+                                     <div class="grid grid-cols-3 items-center gap-2 text-center mb-2">
                                         <label id="myTeamNameLabel" class="font-semibold break-all"></label>
                                         <div></div>
                                         <label id="opponentNameLabel" class="font-semibold break-all"></label>
@@ -156,55 +215,66 @@
                 </div>
 
 <div id="main-view-live" class="hidden">
-    <div class="bg-white p-4 md:p-6 rounded-2xl shadow-lg">
+                     <div class="bg-white p-4 md:p-6 rounded-2xl shadow-lg">
+                        
+                        <div class="flex items-center gap-3 mb-4 border-b pb-2">
+                            <div class="flex items-center gap-3">
+                                <h2 class="text-2xl font-bold">Suivi des Points et des Fautes par Joueur</h2>
+                                <button onclick="openInfoLiveModal()" title="Informations" class="flex items-center justify-center h-5 w-8 bg-blue-400 text-white rounded-full hover:bg-blue-600 transition">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                                    </svg>
+                                </button>
+                            </div>
 
-        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 border-b pb-2">
+                            </div>
+                        <div id="live-match-display" class="hidden my-4 p-3 bg-gray-100 rounded-lg sm:flex items-center justify-between gap-4">
+                            <div class="text-sm">
+                                <span class="font-semibold">Match&nbsp;:</span>
+                                <span id="live-match-name"></span>
+                            </div>
+                            <button onclick="showMainTab('matches')" class="bg-blue-500 text-white text-xs font-semibold py-1 px-3 rounded-lg hover:bg-blue-600 transition-colors flex-shrink-0">Changer</button>
+                        </div>
 
-            <div class="flex items-center gap-3">
-                <h2 class="text-2xl font-bold">Suivi de Fautes Directes</h2>
-                <button onclick="openInfoFaultsModal()" title="Informations" class="flex items-center justify-center h-5 w-5 bg-blue-400 text-white rounded-full hover:bg-blue-600 transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
-                    </svg>
-                </button>
-            </div>
+                        <p id="live-match-hint" class="text-gray-600 my-4">Veuillez d'abord sélectionner un match dans l'onglet "Matchs".</p>
 
-            <div class="flex items-center gap-2">
-                <span class="text-sm font-medium text-gray-700">Suivi Détaillé</span>
-                <label class="toggle-label">
-                    <input type="checkbox" id="fault-mode-toggle" class="toggle-input">
-                    <span class="toggle-slider"></span>
-                </label>
-            </div>
+                        <div id="live-content" class="hidden">
+                            <div id="set-selector-live" class="flex justify-center gap-1 mb-4 rounded-lg bg-gray-200 p-1">
+                                </div>
 
-        </div>
-		
-        <div id="live-match-display" class="hidden my-4 p-3 bg-gray-100 rounded-lg sm:flex items-center justify-between gap-4">
-            <div class="text-sm">
-                <span class="font-semibold">Match&nbsp;:</span>
-                <span id="live-match-name"></span>
-            </div>
-            <button onclick="showMainTab('matches')" class="bg-blue-500 text-white text-xs font-semibold py-1 px-3 rounded-lg hover:bg-blue-600 transition-colors flex-shrink-0">Changer</button>
-        </div>
-        
-        <p id="live-match-hint" class="text-gray-600 my-4">Veuillez d'abord sélectionner un match dans l'onglet "Matchs".</p>
-        
-        <div id="live-content" class="hidden">
-            <div id="set-selector-live" class="flex justify-center gap-1 mb-4 rounded-lg bg-gray-200 p-1">
+                            <div class="flex flex-row justify-between items-center my-4">
+                            
+                                <div class="flex-shrink-0">
+                                    <span class="isolate inline-flex rounded-md shadow-sm">
+                                      <button type="button" id="track-mode-faults" class="relative inline-flex items-center rounded-l-md px-3 py-2 text-sm font-semibold ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-10">
+                                        Fautes
+                                      </button>
+                                      <button type="button" id="track-mode-points" class="relative -ml-px inline-flex items-center rounded-r-md px-3 py-2 text-sm font-semibold ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-10">
+                                        Points
+                                      </button>
+                                    </span>
+                                </div>
+
+                                <div class="flex items-center gap-2">
+                                    <span id="detail-toggle-label" class="text-sm font-medium text-gray-700">Fautes Détaillées</span>
+                                    <label class="toggle-label">
+                                        <input type="checkbox" id="detail-mode-toggle" class="toggle-input">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div id="live-court-layout" class="mt-4">
+                                </div>
+                            <div class="mt-4 text-center">
+                                <button id="undo-last-fault" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition text-sm">Annuler la dernière action</button>
+                            </div>
+
+                            <div id="set-faults-summary" class="mt-6 border-t pt-4">
+                                </div>
+                        </div>
+                    </div>
                 </div>
-            
-            <div id="live-court-layout" class="mt-4">
-                </div>
-            <div class="mt-4 text-center">
-                <button id="undo-last-fault" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition text-sm">Annuler la dernière faute</button>
-            </div>
-            
-            <div id="set-faults-summary" class="mt-6 border-t pt-4">
-                </div>
-        </div>
-    </div>
-</div>
-                
                 <div id="main-view-results" class="hidden">
                     <div class="bg-white p-6 rounded-2xl shadow-lg">
                         <h2 class="text-2xl font-bold mb-4 border-b pb-2">Résultats de la Saison</h2>
@@ -222,7 +292,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="results-list-table">
-								</tbody>
+                                </tbody>
 
                             </table>
                         </div>
@@ -266,31 +336,85 @@
                             <table class="w-full text-left table-auto text-sm border-collapse">
                                 <thead class="bg-gray-100">
                                     <tr>
-                                        <th class="p-2 font-semibold">Joueur</th>
-                                        <th class="p-2 font-semibold text-center">Présences</th>
-                                        <th class="p-2 font-semibold text-center">Matchs Joués</th>
-                                        <th class="p-2 font-semibold text-center">Sets Joués</th>
-                                        <th class="p-2 font-semibold text-center">Sets Gagnés</th>
-                                        <th class="p-2 font-semibold text-center text-red-600">F. Service</th>
-                                        <th class="p-2 font-semibold text-center text-red-600">F. Attaque</th>
-                                        <th class="p-2 font-semibold text-center text-red-600">F. Récep.</th>
-                                        <th class="p-2 font-semibold text-center text-red-600">Autres F.</th>
-                                        <th class="p-2 font-semibold text-center">Total Fautes</th>
+                                        <th class="p-2 font-semibold" rowspan="2">Joueur</th>
+                                        <th class="p-2 font-semibold text-center" rowspan="2">Présences</th>
+                                        <th class="p-2 font-semibold text-center" rowspan="2">Matchs Joués</th>
+                                        <th class="p-2 font-semibold text-center" rowspan="2">Sets Joués</th>
+                                        <th class="p-2 font-semibold text-center" rowspan="2">Sets Gagnés</th>
+                                        <th class="p-2 font-semibold text-center text-red-600 border-b" colspan="5">Fautes Directes</th>
+                                        <th class="p-2 font-semibold text-center text-green-600 border-b" colspan="5">Points Marqués</th>
+                                    </tr>
+                                    <tr class="text-xs">
+                                        <th class="p-2 font-semibold text-center text-red-600">Service</th>
+                                        <th class="p-2 font-semibold text-center text-red-600">Attaque</th>
+                                        <th class="p-2 font-semibold text-center text-red-600">Récep.</th>
+                                        <th class="p-2 font-semibold text-center text-red-600">Autres</th>
+                                        <th class="p-2 font-semibold text-center text-red-600 border-r">Total</th>
+                                        <th class="p-2 font-semibold text-center text-green-600">Service</th>
+                                        <th class="p-2 font-semibold text-center text-green-600">Attaque</th>
+                                        <th class="p-2 font-semibold text-center text-green-600">Bloc</th>
+                                        <th class="p-2 font-semibold text-center text-green-600">Autres</th>
+                                        <th class="p-2 font-semibold text-center text-green-600">Total</th>
                                     </tr>
                                 </thead>
                                 <tbody id="statsTableBody">
-                                    </tbody>
+                                </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
             </div>
         </main>
-        <footer class="text-center text-gray-500 text-sm py-8">
+       
+         <footer class="text-center text-gray-500 text-sm py-8">
             <p>© 2025 EasyPlay. Tous droits réservés. Fait par Massi ⵣ. Pour toute question, contactez-moi à contact.easyplayapp@gmail.com.</p>
         </footer>
     </div>
 
+		<div id="authModal" class="modal-backdrop hidden">
+           <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm mx-4 sm:mx-0">
+               <h2 id="auth-title" class="text-2xl font-bold mb-6 text-center">Connexion</h2>
+               <div class="space-y-4">
+
+                    <div id="signup-fields" class="hidden space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="auth-firstname" class="font-semibold mb-1 block">Prénom</label>
+                                <input type="text" id="auth-firstname" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Jean">
+                            </div>
+                            <div>
+                                <label for="auth-lastname" class="font-semibold mb-1 block">Nom</label>
+                                <input type="text" id="auth-lastname" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Dupont">
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                       <label for="auth-email" class="font-semibold mb-1 block">Email</label>
+                       <input type="email" id="auth-email" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="votre@email.com">
+                   </div>
+                   <div>
+                       <label for="auth-password" class="font-semibold mb-1 block">Mot de passe</label>
+                       <input type="password" id="auth-password" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="••••••••">
+                   </div>
+               </div>
+
+               <div class="text-right text-sm mt-2">
+                    <a href="#" id="forgot-password-link" onclick="handlePasswordReset()" class="text-blue-500 hover:underline">Mot de passe oublié ?</a>
+               </div>
+
+               <div class="mt-6 space-y-2">
+                   <button id="auth-action-button" onclick="handleLogIn()" class="w-full bg-blue-500 text-white font-semibold py-3 rounded-lg hover:bg-blue-600 transition">
+                       Se connecter
+                   </button>
+                   <p class="text-center text-sm">
+                       <a href="#" onclick="toggleAuthMode()" id="auth-toggle-link" class="text-blue-500 hover:underline">Pas encore de compte ? S'inscrire</a>
+                   </p>
+               </div>
+               <div class="mt-4 flex justify-end">
+                    <button onclick="closeModal('authModal')" class="text-gray-600 hover:text-gray-800 font-semibold py-2 px-4">Annuler</button>
+               </div>
+           </div>
+       </div>
     <div id="addPlayerModal" class="modal-backdrop hidden">
         <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0">
             <h2 class="text-2xl font-bold mb-4">Ajouter un joueur</h2>
@@ -372,7 +496,7 @@
             </div>
         </div>
     </div>
-    
+
     <div id="editTeamModal" class="modal-backdrop hidden">
         <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0">
             <h2 class="text-2xl font-bold mb-4">Modifier l'équipe</h2>
@@ -430,7 +554,7 @@
             </div>
         </div>
     </div>
-    
+
     <div id="editMatchModal" class="modal-backdrop hidden">
         <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0">
             <h2 class="text-2xl font-bold mb-4">Modifier le match</h2>
@@ -463,22 +587,22 @@
             </div>
         </div>
     </div>
-	
-	<div id="infoFaultsModal" class="modal-backdrop hidden">
+
+     <div id="infoLiveModal" class="modal-backdrop hidden">
         <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md mx-4 sm:mx-0">
             <h2 class="text-2xl font-bold mb-4">Comment ça marche ?</h2>
             <ul class="space-y-4 list-disc list-inside text-gray-700">
                 <li><span class="font-semibold">Remplacer un joueur :</span> Cliquez sur le nom du joueur.</li>
-                <li><span class="font-semibold">Ajouter une faute :</span> Faites un clic simple sur un bouton orange.</li>
-                <li><span class="font-semibold">Retirer une faute :</span> Faites un appui long sur un bouton orange.</li>
+                <li><span class="font-semibold">Ajouter une action :</span> Faites un clic simple sur un bouton.</li>
+                <li><span class="font-semibold">Retirer une action :</span> Faites un appui long sur le même bouton.</li>
             </ul>
             <div class="flex justify-end mt-8">
-                <button onclick="closeModal('infoFaultsModal')" class="bg-blue-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-600">Compris</button>
+                <button onclick="closeModal('infoLiveModal')" class="bg-blue-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-600">Compris</button>
             </div>
         </div>
     </div>
-
-	<script src="script.js"></script>
-
+    <script src="auth.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
+
