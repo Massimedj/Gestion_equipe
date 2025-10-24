@@ -2126,7 +2126,7 @@ function createPlayerCardLiveDetailed_Faults(match, player) {
         // Libero : Titre sur une ligne, compteur dessous, SANS le ":"
         buttonsHtml = `
             <div class="flex flex-col gap-2 mt-4">
-                <button id="fault-btn-${player.id}-reception" class="${faultBtnClass} w-full py-3">
+                <button id="fault-btn-${player.id}-reception" class="${faultBtnClass} py-3 flex flex-col items-center">
                     <span>Réception</span>
                     <span class="fault-count" id="fault-count-${player.id}-reception">${faults.reception}</span>
                 </button>
@@ -2137,7 +2137,8 @@ function createPlayerCardLiveDetailed_Faults(match, player) {
             </div>
         `;
     } else {
-        // Autres joueurs : Titre sur une ligne, compteur dessous, SANS le ":"
+        const nonLiberoBtnClass = `${pointBtnClass} flex flex-col items-center`; 
+		
         buttonsHtml = `
             <div class="fault-grid">
                 <button id="fault-btn-${player.id}-service" class="${faultBtnClass}">
