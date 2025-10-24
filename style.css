@@ -1,4 +1,4 @@
- /* Styles personnalisés */
+/* Styles personnalisés */
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f0f4f8; /* Fond gris très clair */
@@ -239,3 +239,4 @@
         input[type=number] {
             -moz-appearance: textfield; /* Firefox */
         }
+
