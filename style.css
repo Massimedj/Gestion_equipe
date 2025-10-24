@@ -1,4 +1,4 @@
-/* Styles personnalisés */
+ /* Styles personnalisés */
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f0f4f8; /* Fond gris très clair */
@@ -95,13 +95,45 @@
             color: white;
             background-color: #4b5563;
         }
-        .captain-checkbox:checked {
-            background-color: #f59e0b;
-            border-color: #f59e0b;
+        .captain-checkbox { /* Add base styles for better appearance */
+            appearance: none;
+            background-color: #fff;
+            border: 1px solid #d1d5db; /* gray-300 */
+            width: 1.25rem; /* w-5 */
+            height: 1.25rem; /* h-5 */
+            border-radius: 9999px; /* rounded-full */
+            display: inline-block;
+            vertical-align: middle;
+            position: relative;
+            cursor: pointer;
         }
+        .captain-checkbox:checked {
+            background-color: #f59e0b; /* amber-500 */
+            border-color: #f59e0b; /* amber-500 */
+        }
+        .captain-checkbox:checked::after { /* Optional: Add a checkmark or indicator */
+            content: 'C';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.75rem; /* text-xs */
+            font-weight: bold;
+            color: white;
+        }
+        .captain-checkbox:disabled {
+             background-color: #e5e7eb; /* gray-200 */
+             border-color: #d1d5db; /* gray-300 */
+             cursor: not-allowed;
+        }
+        .captain-checkbox:disabled:checked::after {
+            color: #9ca3af; /* gray-400 */
+        }
+
         /* Styles pour la nouvelle vue Suivi en Direct */
         #live-court-layout {
             display: grid;
+            /*grid-template-columns: 1fr 1fr; /* Grille 2x3 */
             grid-template-columns: repeat(2, minmax(0, 1fr)); /* Grille 2x3 robuste */
             gap: 0.75rem;
         }
@@ -196,4 +228,14 @@
         }
         .toggle-input:checked + .toggle-slider::before {
             transform: translateX(20px);
+        }
+
+        /* Ensure number inputs don't show spinners (optional) */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield; /* Firefox */
         }
