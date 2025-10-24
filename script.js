@@ -2137,7 +2137,7 @@ function createPlayerCardLiveDetailed_Faults(match, player) {
             </div>
         `;
     } else {
-        const nonLiberoBtnClass = `${pointBtnClass} flex flex-col items-center`; 
+        const nonLiberoBtnClass = `${faultBtnClass} flex flex-col items-center`; 
 		
         buttonsHtml = `
             <div class="fault-grid">
@@ -2629,4 +2629,5 @@ function renderResults() {
 }
 
 console.log("Main script loaded. Waiting for DOMContentLoaded and Firebase ready.");
+
 
