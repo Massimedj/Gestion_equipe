@@ -2108,7 +2108,8 @@ function renderLiveTrackingView() {
 function createPlayerCardLiveDetailed_Faults(match, player) {
     const card = document.createElement('div');
     const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
-    card.className = `live-player-card ${genderClass}`; // Base class
+    // S'assure que la carte est flex-col
+    card.className = `live-player-card ${genderClass} flex flex-col`; 
 
     const faults = (match.faults && match.faults[currentSet] && match.faults[currentSet][player.id])
                  || { service: 0, attack: 0, reception: 0, net: 0 };
@@ -2117,20 +2118,24 @@ function createPlayerCardLiveDetailed_Faults(match, player) {
 
     let buttonsHtml = '';
 
+    // --- DÉBUT DE LA CORRECTION ---
+    
     // Classe pour les boutons en GRILLE (carrés)
     const gridLayoutClass = "aspect-square flex flex-col items-center justify-center p-1 rounded-md text-sm font-medium w-full";
     
-    // NOUVELLE CLASSE pour les boutons du LIBÉRO (rectangulaires, pleine largeur)
-    // Nous utilisons 'py-4' pour simuler la hauteur des boutons carrés.
-    const liberoLayoutClass = "flex flex-col items-center justify-center p-1 rounded-md text-sm font-medium w-full py-4"; 
+    // CLASSE CORRIGÉE pour le LIBÉRO (Rectangulaire + 'flex-grow')
+    // On retire 'py-5' et on ajoute 'flex-grow' pour que le bouton s'étire
+    const liberoLayoutClass = "flex flex-col items-center justify-center rounded-md text-sm font-medium w-full p-1 flex-grow"; 
 
     // Classes de COULEUR (Orange)
     const colorClass = "bg-orange-400 hover:bg-orange-500 border-orange-400 text-white";
 
     if (isLibero) {
-        // Libero : 2 boutons rectangulaires, pleine largeur
+        // Libero : 2 boutons rectangulaires
+        // Le conteneur a 'flex-grow' et ses enfants (les boutons) ont aussi 'flex-grow'
+        // Ils vont donc se partager l'espace vertical disponible.
         buttonsHtml = `
-            <div class="flex flex-col gap-2 mt-3">
+            <div class="flex flex-col gap-2 mt-3 flex-grow">
                  <button id="fault-btn-${player.id}-reception" class="${liberoLayoutClass} ${colorClass}">
                      <span>Réception</span>
                      <span class="fault-count" id="fault-count-${player.id}-reception">${faults.reception}</span>
@@ -2142,7 +2147,8 @@ function createPlayerCardLiveDetailed_Faults(match, player) {
             </div>`;
     } else {
         // Autres joueurs : grille de 4 boutons carrés
-        const faultGridClass = "grid grid-cols-2 gap-2 mt-3"; 
+        // Le conteneur 'faultGridClass' a 'flex-grow'
+        const faultGridClass = "grid grid-cols-2 gap-2 mt-3 flex-grow"; 
         
         buttonsHtml = `
             <div class="${faultGridClass}">
@@ -2164,6 +2170,7 @@ function createPlayerCardLiveDetailed_Faults(match, player) {
                 </button>
             </div>`;
     }
+    // --- FIN DE LA CORRECTION ---
 
     card.innerHTML = `
         <div class="font-bold cursor-pointer hover:text-blue-600 player-name-display" onclick="openSubstitutionModal(${player.id})">
@@ -2203,7 +2210,8 @@ function createPlayerCardLiveSimple_Faults(match, player) {
 function createPlayerCardLiveDetailed_Points(match, player) {
     const card = document.createElement('div');
     const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
-    card.className = `live-player-card ${genderClass}`;
+    // S'assure que la carte est flex-col
+    card.className = `live-player-card ${genderClass} flex flex-col`;
 
     const points = (match.points && match.points[currentSet] && match.points[currentSet][player.id])
                  || { service: 0, attack: 0, block: 0, net: 0 }; 
@@ -2212,19 +2220,22 @@ function createPlayerCardLiveDetailed_Points(match, player) {
 
     let buttonsHtml = '';
 
+    // --- DÉBUT DE LA CORRECTION ---
+
     // Classe pour les boutons en GRILLE (carrés)
     const gridLayoutClass = "aspect-square flex flex-col items-center justify-center p-1 rounded-md text-sm font-medium w-full";
     
-    // NOUVELLE CLASSE pour les boutons du LIBÉRO (rectangulaires, pleine largeur)
-    const liberoLayoutClass = "flex flex-col items-center justify-center p-1 rounded-md text-sm font-medium w-full py-4"; 
+    // CLASSE CORRIGÉE pour le LIBÉRO (Rectangulaire + 'flex-grow')
+    const liberoLayoutClass = "flex flex-col items-center justify-center rounded-md text-sm font-medium w-full p-1 flex-grow"; 
 
     // Classes de COULEUR (Vert)
     const colorClass = "bg-green-500 hover:bg-green-600 border-green-500 text-white";
 
     if (isLibero) {
-        // Libero : un seul bouton, rectangulaire pleine largeur
+        // Libero : un seul bouton, rectangulaire, qui s'étire
+        // Le conteneur a 'flex-grow' et son enfant (le bouton) a 'flex-grow'
         buttonsHtml = `
-            <div class="flex flex-col gap-2 mt-3">
+            <div class="flex flex-col gap-2 mt-3 flex-grow">
                  <button id="point-btn-${player.id}-net" class="${liberoLayoutClass} ${colorClass}">
                      <span>Autres</span>
                      <span class="point-count" id="point-count-${player.id}-net">${points.net}</span>
@@ -2232,7 +2243,8 @@ function createPlayerCardLiveDetailed_Points(match, player) {
             </div>`;
     } else {
         // Autres joueurs : grille de 4 boutons carrés
-        const pointGridClass = "grid grid-cols-2 gap-2 mt-3"; 
+        // Le conteneur 'pointGridClass' a 'flex-grow'
+        const pointGridClass = "grid grid-cols-2 gap-2 mt-3 flex-grow"; 
         
         buttonsHtml = `
             <div class="${pointGridClass}">
@@ -2254,7 +2266,8 @@ function createPlayerCardLiveDetailed_Points(match, player) {
                 </button>
             </div>`;
     }
-    
+    // --- FIN DE LA CORRECTION ---
+
     card.innerHTML = `
         <div class="font-bold cursor-pointer hover:text-blue-600 player-name-display" onclick="openSubstitutionModal(${player.id})">
             #${player.jerseyNumber || '-'} ${player.name}
