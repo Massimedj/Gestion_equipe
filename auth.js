@@ -181,14 +181,16 @@ async function handleUserLogin(user) {
         await pushDataToFirestore();
     }
 
-    // Lance l'écoute en temps réel pour les futures modifications
+// Lance l'écoute en temps réel pour les futures modifications
     setupRealtimeListener(user);
 
-    // Rafraîchit l'interface SEULEMENT si les données locales ont été modifiées par la synchro
-    if (syncNeeded) {
-        console.log("Rendering UI after data sync.");
-        renderAllForCurrentTeam();
-    }
+    // --- CORRECTION ---
+    // Appelle TOUJOURS le rendu de l'interface à la fin, 
+    // une fois que appData est garanti d'avoir les bonnes données (locales, distantes ou fusionnées).
+    console.log("Rendering UI after login handling complete.");
+    renderAllForCurrentTeam(); 
+    // La condition 'if (syncNeeded)' a été supprimée.
+    // --- FIN CORRECTION ---
 }
 
 /**
