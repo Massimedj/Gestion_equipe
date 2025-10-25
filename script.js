@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+
 /**
  * Attache les écouteurs d'événements principaux aux éléments de l'interface.
  */
@@ -2109,55 +2110,62 @@ function createPlayerCardLiveDetailed_Faults(match, player) {
     const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
     card.className = `live-player-card ${genderClass}`; // Base class
 
-    // Ensure faults structure exists
+    // Renommé "points" en "faults"
     const faults = (match.faults && match.faults[currentSet] && match.faults[currentSet][player.id])
                  || { service: 0, attack: 0, reception: 0, net: 0 };
 
     const isLibero = player.mainPosition === 'Libéro' || player.secondaryPosition === 'Libéro';
 
     let buttonsHtml = '';
-    
+
     // --- DÉBUT DE LA MODIFICATION ---
-    // Ajout de 'flex flex-col' pour forcer le passage à la ligne
-    const faultBtnClass = "fault-grid-btn flex flex-col";
-    
+    // COPIE DE LA STRUCTURE DE _Points pour une uniformité PARFAITE
+
+    // Classe de base pour la MISE EN PAGE (carré, centré, flex-col)
+    // (Identique à _Points)
+    const layoutClass = "aspect-square flex flex-col items-center justify-center p-1 rounded-md text-sm font-medium w-full";
+
+    // Classes de COULEUR (Orange - 400 comme demandé précédemment)
+    const colorClass = "bg-orange-400 hover:bg-orange-500 border-orange-400 text-white"; // Modifié en Orange
+
     if (isLibero) {
-        // Libero : Titre sur une ligne, compteur dessous, SANS le ":"
+        // Libero : 2 boutons, maintenant carrés (py-3 supprimé)
+        // La structure est identique à _Points (mais avec 2 boutons)
         buttonsHtml = `
-            <div class="flex flex-col gap-2 mt-4">
-                <button id="fault-btn-${player.id}-reception" class="${faultBtnClass} py-3 flex flex-col items-center">
-                    <span>Réception</span>
-                    <span class="fault-count" id="fault-count-${player.id}-reception">${faults.reception}</span>
-                </button>
-                <button id="fault-btn-${player.id}-net" class="${faultBtnClass} w-full py-3">
-                    <span>Autres</span>
-                    <span class="fault-count" id="fault-count-${player.id}-net">${faults.net}</span>
-                </button>
-            </div>
-        `;
+            <div class="flex flex-col gap-2 mt-3">
+                 <button id="fault-btn-${player.id}-reception" class="${layoutClass} ${colorClass}">
+                     <span>Réception</span>
+                     <span class="fault-count" id="fault-count-${player.id}-reception">${faults.reception}</span>
+                 </button>
+                 <button id="fault-btn-${player.id}-net" class="${layoutClass} ${colorClass}">
+                     <span>Autres</span>
+                     <span class="fault-count" id="fault-count-${player.id}-net">${faults.net}</span>
+                 </button>
+            </div>`;
     } else {
-        const nonLiberoBtnClass = `${faultBtnClass} flex flex-col items-center`; 
-		
+        // Autres joueurs : grille de 4 boutons carrés
+        // Utilise la classe Tailwind grid (identique à _Points)
+        const faultGridClass = "grid grid-cols-2 gap-2 mt-3"; 
+        
         buttonsHtml = `
-            <div class="fault-grid">
-                <button id="fault-btn-${player.id}-service" class="${faultBtnClass}">
+            <div class="${faultGridClass}">
+                <button id="fault-btn-${player.id}-service" class="${layoutClass} ${colorClass}">
                     <span>Service</span>
                     <span class="fault-count" id="fault-count-${player.id}-service">${faults.service}</span>
                 </button>
-                <button id="fault-btn-${player.id}-attack" class="${faultBtnClass}">
+                <button id="fault-btn-${player.id}-attack" class="${layoutClass} ${colorClass}">
                     <span>Attaque</span>
                     <span class="fault-count" id="fault-count-${player.id}-attack">${faults.attack}</span>
                 </button>
-                <button id="fault-btn-${player.id}-reception" class="${faultBtnClass}">
+                <button id="fault-btn-${player.id}-reception" class="${layoutClass} ${colorClass}">
                     <span>Récep</span>
                     <span class="fault-count" id="fault-count-${player.id}-reception">${faults.reception}</span>
                 </button>
-                <button id="fault-btn-${player.id}-net" class="${faultBtnClass}">
+                <button id="fault-btn-${player.id}-net" class="${layoutClass} ${colorClass}">
                     <span>Autres</span>
                     <span class="fault-count" id="fault-count-${player.id}-net">${faults.net}</span>
                 </button>
-            </div>
-        `;
+            </div>`;
     }
     // --- FIN DE LA MODIFICATION ---
 
@@ -2208,49 +2216,48 @@ function createPlayerCardLiveDetailed_Points(match, player) {
     const isLibero = player.mainPosition === 'Libéro' || player.secondaryPosition === 'Libéro';
 
     let buttonsHtml = '';
-    // Classes CSS de base pour les boutons de points (verts)
-    const pointBtnClass = "point-grid-btn w-full py-2 bg-green-500 hover:bg-green-600 border-green-500 text-white rounded-md text-sm";
-    const pointGridClass = "grid grid-cols-2 gap-2 mt-3"; // Grille pour les boutons
+
+    // Classe de base pour la MISE EN PAGE (carré, centré, flex-col)
+    // On imite le style de .fault-grid-btn (qui est maintenant carré)
+    const layoutClass = "aspect-square flex flex-col items-center justify-center p-1 rounded-md text-sm font-medium w-full";
+
+    // Classes de COULEUR (Vert)
+    const colorClass = "bg-green-500 hover:bg-green-600 border-green-500 text-white";
 
     if (isLibero) {
-        // MODIFIÉ : Le libéro n'a qu'un seul bouton "Autres".
-        // Il conserve le style "Titre: Nombre" sur une ligne.
+        // Libero : un seul bouton, maintenant carré
         buttonsHtml = `
             <div class="flex flex-col gap-2 mt-3">
-                 <button id="point-btn-${player.id}-net" class="${pointBtnClass} py-3 flex flex-col items-center">
+                 <button id="point-btn-${player.id}-net" class="${layoutClass} ${colorClass}">
                      <span>Autres</span>
                      <span class="point-count" id="point-count-${player.id}-net">${points.net}</span>
                  </button>
-            </div>`;		
-				
+            </div>`;
     } else {
-        // MODIFIÉ : Les autres joueurs ont 4 boutons avec le titre sur une ligne
-        // et le nombre sur la ligne du dessous.
-        
-        // Ajout des classes flex-col pour forcer la mise en page sur deux lignes
-        const nonLiberoBtnClass = `${pointBtnClass} flex flex-col items-center`; 
+        // Autres joueurs : grille de 4 boutons carrés
+        const pointGridClass = "grid grid-cols-2 gap-2 mt-3"; 
         
         buttonsHtml = `
             <div class="${pointGridClass}">
-                <button id="point-btn-${player.id}-service" class="${nonLiberoBtnClass}">
+                <button id="point-btn-${player.id}-service" class="${layoutClass} ${colorClass}">
                     <span>Service</span>
                     <span class="point-count" id="point-count-${player.id}-service">${points.service}</span>
                 </button>
-                <button id="point-btn-${player.id}-attack" class="${nonLiberoBtnClass}">
+                <button id="point-btn-${player.id}-attack" class="${layoutClass} ${colorClass}">
                     <span>Attaque</span>
                     <span class="point-count" id="point-count-${player.id}-attack">${points.attack}</span>
                 </button>
-                <button id="point-btn-${player.id}-block" class="${nonLiberoBtnClass}">
+                <button id="point-btn-${player.id}-block" class="${layoutClass} ${colorClass}">
                     <span>Bloc</span>
                     <span class="point-count" id="point-count-${player.id}-block">${points.block}</span>
                 </button>
-                <button id="point-btn-${player.id}-net" class="${nonLiberoBtnClass}">
+                <button id="point-btn-${player.id}-net" class="${layoutClass} ${colorClass}">
                     <span>Autres</span>
                     <span class="point-count" id="point-count-${player.id}-net">${points.net}</span>
                 </button>
             </div>`;
     }
-
+	
     // Construction du HTML de la carte (inchangée)
     card.innerHTML = `
         <div class="font-bold cursor-pointer hover:text-blue-600 player-name-display" onclick="openSubstitutionModal(${player.id})">
@@ -2260,6 +2267,7 @@ function createPlayerCardLiveDetailed_Points(match, player) {
     `;
     return card;
 }
+
 /**
  * Crée la carte simple pour le suivi des POINTS d'un joueur.
  * @param {object} match - L'objet match actuel.
@@ -2628,6 +2636,4 @@ function renderResults() {
 }
 
 console.log("Main script loaded. Waiting for DOMContentLoaded and Firebase ready.");
-
-
 
