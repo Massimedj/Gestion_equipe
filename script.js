@@ -23,24 +23,23 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM loaded. Initializing UI listeners and Auth.");
     
     // 1. Attache les écouteurs d'événements de l'interface (boutons, selecteurs...)
-    //    Ceci est inchangé.
     setupEventListeners(); 
-    
-    // 2. Déclenche l'initialisation de l'authentification (défini dans auth.js)
-    //    C'est LA modification clé.
-    //    La fonction initializeApp() de auth.js va maintenant s'occuper
-    //    de l'état de connexion et du chargement initial des données 
-    //    (locales ou en ligne) avant d'appeler renderAllForCurrentTeam().
+
+    // --- DÉBUT DE LA CORRECTION ---
+    // 2. Remplit les listes déroulantes des postes (dans les modales)
+    // Cet appel manquait, c'est pourquoi les listes étaient vides.
+    populatePositionSelects();
+    // --- FIN DE LA CORRECTION ---
+
+    // 3. Déclenche l'initialisation de l'authentification (défini dans auth.js)
     if (typeof initializeApp === 'function') {
         initializeApp(); 
     } else {
-        // Cette erreur ne devrait jamais se produire si index.html charge auth.js avant script.js
+        // Cette erreur ne devrait jamais se produire si auth.js est chargé
         console.error("Erreur critique: auth.js n'a pas été chargé ou initializeApp() n'est pas définie.");
         alert("Erreur de chargement de l'application (auth.js).");
     }
 });
-
-// NOTE : initializeApp() est maintenant dans auth.js
 
 /**
  * Attache les écouteurs d'événements principaux aux éléments de l'interface.
@@ -2629,5 +2628,6 @@ function renderResults() {
 }
 
 console.log("Main script loaded. Waiting for DOMContentLoaded and Firebase ready.");
+
 
 
