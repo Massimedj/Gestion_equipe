@@ -1,5 +1,5 @@
 // ============================
-// CONSTANTES ET ÉTAT GLOBAL 
+// CONSTANTES ET ÉTAT GLOBAL
 // ============================
 const POSITIONS = ['Passeur', 'Central', 'R\u00e9ceptionneur-Attaquant', 'Pointu', 'Lib\u00e9ro'];
 const SETS = ['set1', 'set2', 'set3', 'set4', 'set5'];
@@ -1991,6 +1991,7 @@ function renderPlayerStats() {
 /**
  * Calcule et affiche les statistiques globales de l'équipe pour la saison.
  * Cible l'élément <tr id="teamStatsRow">.
+ * Approche alternative : Filtre les matchs joués d'abord (Filtre Corrigé).
  */
 function renderTeamStats() {
     const currentTeam = getCurrentTeam();
@@ -2006,83 +2007,84 @@ function renderTeamStats() {
         return;
     }
 
+    // --- DÉBUT DE LA CORRECTION DU FILTRE ---
+
+    // 1. Filtrer les matchs pour ne garder que ceux joués
+    const playedMatches = currentTeam.matches.filter(match => {
+        // Utilise optional chaining (?.) au cas où 'score' n'existe pas
+        // Convertit en nombre (avec || 0 si NaN ou vide)
+        const mySets = parseInt(match.score?.myTeam) || 0; 
+        const oppSets = parseInt(match.score?.opponent) || 0;
+        // Le match a un score réel si au moins une équipe a gagné un set
+        const hasActualScore = mySets > 0 || oppSets > 0; 
+        const isForfeit = match.forfeitStatus !== 'none';
+        
+        // Garde le match SEULEMENT si hasActualScore est vrai OU si c'est un forfait
+        return hasActualScore || isForfeit; 
+    });
+
+    // 2. Le nombre de matchs joués est la taille de la liste filtrée
+    const actuallyPlayedCount = playedMatches.length;
+    console.log("renderTeamStats (Nouvelle Approche - Filtre Corrigé): Nombre de matchs joués trouvés:", actuallyPlayedCount);
+
+    // --- FIN DE LA CORRECTION DU FILTRE ---
+
+
+    // Initialise l'objet stats (inchangé)
     let stats = {
         points: 0, joues: 0, gagnes: 0, perdus: 0,
         g30: 0, g31: 0, g32: 0, p23: 0, p13: 0, p03: 0,
         setsPour: 0, setsContre: 0, ptsPour: 0, ptsContre: 0
     };
 
-    let actuallyPlayedCount = 0;
-    console.log("renderTeamStats: Initialisation, actuallyPlayedCount =", actuallyPlayedCount); // Log initial
+    // 3. Boucler UNIQUEMENT sur les matchs joués (inchangé depuis la version précédente)
+    playedMatches.forEach(match => {
+        // Traitement spécifique pour les forfaits
+        if (match.forfeitStatus === 'win') {
+            stats.points += 3; stats.gagnes++; stats.g30++;
+            stats.setsPour += 3; stats.ptsPour += 75;
+            return; 
+        }
+        if (match.forfeitStatus === 'loss') {
+            stats.perdus++; stats.p03++;
+            stats.setsContre += 3; stats.ptsContre += 75;
+            return; 
+        }
 
-    currentTeam.matches.forEach((match, index) => {
-        const hasScore = match.score && (match.score.myTeam !== '' || match.score.opponent !== '');
-        const isForfeit = match.forfeitStatus !== 'none';
-        const isPlayed = hasScore || isForfeit;
-        // Log pour chaque match AVANT la condition
-        console.log(`renderTeamStats: Match ${index + 1} (ID: ${match.id}) - Vérification isPlayed = ${isPlayed}`);
+        // Traitement pour les matchs avec score (non-forfait)
+        const mySets = parseInt(match.score.myTeam) || 0; // Ici on sait que le score existe
+        const oppSets = parseInt(match.score.opponent) || 0;
 
-        // --- VÉRIFIEZ ATTENTIVEMENT LA STRUCTURE DE CE BLOC 'IF' ---
-        if (isPlayed) {
-            // Log JUSTE AVANT l'incrémentation
-            console.log(`renderTeamStats: Match ${index + 1} (ID: ${match.id}) - Match considéré joué. Incrémentation du compteur.`);
+        stats.setsPour += mySets;
+        stats.setsContre += oppSets;
 
-            // Incrémente le compteur UNIQUEMENT si isPlayed est vrai
-            actuallyPlayedCount++;
-
-            // Traitement spécifique pour les forfaits
-            if (match.forfeitStatus === 'win') {
-                stats.points += 3; stats.gagnes++; stats.g30++;
-                stats.setsPour += 3; stats.ptsPour += 75;
-                return; // Passe au match suivant dans forEach
-            }
-            if (match.forfeitStatus === 'loss') {
-                stats.perdus++; stats.p03++;
-                stats.setsContre += 3; stats.ptsContre += 75;
-                return; // Passe au match suivant dans forEach
-            }
-
-            // Traitement pour les matchs avec score (non-forfait)
-            if (hasScore) {
-                const mySets = parseInt(match.score.myTeam) || 0;
-                const oppSets = parseInt(match.score.opponent) || 0;
-
-                stats.setsPour += mySets;
-                stats.setsContre += oppSets;
-
-                if (match.score.sets) {
-                    match.score.sets.forEach(set => {
-                         if (set && typeof set === 'object') {
-                            stats.ptsPour += parseInt(set.myTeam) || 0;
-                            stats.ptsContre += parseInt(set.opponent) || 0;
-                        }
-                    });
+        if (match.score.sets) {
+            match.score.sets.forEach(set => {
+                 if (set && typeof set === 'object') {
+                    stats.ptsPour += parseInt(set.myTeam) || 0;
+                    stats.ptsContre += parseInt(set.opponent) || 0;
                 }
+            });
+        }
 
-                if (mySets > oppSets) {
-                    stats.gagnes++;
-                    if (mySets === 3 && oppSets === 0) { stats.points += 3; stats.g30++; }
-                    else if (mySets === 3 && oppSets === 1) { stats.points += 3; stats.g31++; }
-                    else if (mySets === 3 && oppSets === 2) { stats.points += 2; stats.g32++; }
-                } else if (oppSets > mySets) {
-                    stats.perdus++;
-                    if (mySets === 2 && oppSets === 3) { stats.points += 1; stats.p23++; }
-                    else if (mySets === 1 && oppSets === 3) { stats.p13++; }
-                    else if (mySets === 0 && oppSets === 3) { stats.p03++; }
-                }
-            }
-        } // <-- ASSUREZ-VOUS QUE CETTE ACCOLADE FERMANTE EST CORRECTEMENT PLACÉE
-        // --- FIN DU BLOC 'IF (isPlayed)' ---
+        if (mySets > oppSets) {
+            stats.gagnes++;
+            if (mySets === 3 && oppSets === 0) { stats.points += 3; stats.g30++; }
+            else if (mySets === 3 && oppSets === 1) { stats.points += 3; stats.g31++; }
+            else if (mySets === 3 && oppSets === 2) { stats.points += 2; stats.g32++; }
+        } else if (oppSets > mySets) {
+            stats.perdus++;
+            if (mySets === 2 && oppSets === 3) { stats.points += 1; stats.p23++; }
+            else if (mySets === 1 && oppSets === 3) { stats.p13++; }
+            else if (mySets === 0 && oppSets === 3) { stats.p03++; }
+        }
+    }); // Fin de la boucle sur playedMatches
 
-        // RIEN d'autre ne doit se trouver ici (dans le forEach mais hors du if)
-        // en rapport avec le comptage ou le calcul des stats.
-    });
-
-    // Affiche les statistiques calculées dans le tableau HTML
+    // Affiche les statistiques calculées dans le tableau HTML (inchangé)
     if (actuallyPlayedCount === 0) {
          statsRow.innerHTML = `<td colspan="15" class="p-4 text-center text-gray-500">Aucun match joué pour le moment.</td>`;
     } else {
-        console.log("renderTeamStats: Valeur finale avant affichage:", actuallyPlayedCount); // Log final
+        console.log("renderTeamStats (Nouvelle Approche - Filtre Corrigé): Valeur finale avant affichage:", actuallyPlayedCount);
         statsRow.innerHTML = `
             <td class="p-2 font-bold">${stats.points}</td>
             <td class="p-2">${actuallyPlayedCount || ''}</td>
@@ -2998,5 +3000,4 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 
 
 console.log("Main script loaded. Waiting for DOMContentLoaded and Firebase ready.");
-
 
