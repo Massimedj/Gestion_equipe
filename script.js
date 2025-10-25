@@ -255,15 +255,65 @@ function showMainTab(tabName) {
     if (tabName === 'roster') renderPlayerList();
 }
 
-function selectSet(setName) {
+/**
+ * Sélectionne un set, affiche les données correspondantes et
+ * reporte la composition du set PRÉCÉDENT (N-1) s'il y a lieu.
+ * @param {string} setName - Le nom du set (ex: 'set1', 'set2'...).
+ */
+async function selectSet(setName) {
+    // --- DÉBUT DE LA CORRECTION (Logique N-1) ---
+    
+    const newSetIndex = SETS.indexOf(setName);
+    const previousSetIndex = newSetIndex - 1;
+
+    // Condition 1: S'assurer qu'on n'est pas sur le Set 1 (index 0)
+    if (previousSetIndex >= 0) {
+        const currentTeam = getCurrentTeam();
+        const matchIdInput = document.getElementById('matchSelector');
+        
+        if (currentTeam && matchIdInput && matchIdInput.value) {
+            const matchId = parseInt(matchIdInput.value);
+            const previousSetName = SETS[previousSetIndex]; // Le set N-1
+
+            // S'assurer que la structure de données existe
+            if (!currentTeam.courtPositions) currentTeam.courtPositions = {};
+            if (!currentTeam.courtPositions[matchId]) currentTeam.courtPositions[matchId] = {};
+            
+            const matchPositions = currentTeam.courtPositions[matchId];
+
+            // Condition 2: Le set actuel (celui sur lequel on a cliqué) est vide
+            const isNewSetEmpty = !matchPositions[setName] || Object.keys(matchPositions[setName]).length === 0;
+            
+            // Condition 3: Le set N-1 (précédent) est rempli
+            const previousSetPositions = matchPositions[previousSetName];
+            const isPreviousSetFilled = previousSetPositions && Object.keys(previousSetPositions).length > 0;
+
+            // Si le set N-1 est rempli ET que le set N est vide, on copie
+            if (isNewSetEmpty && isPreviousSetFilled) {
+                console.log(`Report de la composition du ${previousSetName} vers ${setName}.`);
+                
+                // On fait une copie profonde (deep copy)
+                matchPositions[setName] = JSON.parse(JSON.stringify(previousSetPositions));
+                
+                await saveData(); // On sauvegarde les données copiées
+            }
+        }
+    }
+    // --- FIN DE LA CORRECTION ---
+
+    // Le reste de la fonction est inchangé
     currentSet = setName;
-    appData.lastFaultAction = null; // Réinitialise l'annulation quand on change de set
-    appData.lastPointAction = null; // Idem pour les points
+    if (window.appData) { // Ajout d'une vérification de sécurité
+        window.appData.lastFaultAction = null; 
+        window.appData.lastPointAction = null; 
+    }
+    
     renderSetSelector(); // Met à jour l'apparence des boutons de set
-    renderCourt(); // Met à jour l'affichage du terrain et des joueurs pour ce set
-    renderSubstitutions(); // Met à jour l'affichage des remplacements pour ce set
-    renderLiveTrackingView(); // Met à jour l'onglet Suivi Match pour refléter le nouveau set
+    renderCourt(); // Met à jour l'affichage du terrain (maintenant avec les données copiées)
+    renderSubstitutions(); // Met à jour l'affichage des remplacements
+    renderLiveTrackingView(); // Met à jour l'onglet Suivi
 }
+
 
 // Fonctions simples pour ouvrir les modales
 function openAddPlayerModal() { document.getElementById('addPlayerModal')?.classList.remove('hidden'); }
@@ -865,6 +915,45 @@ async function createMatch() {
     } else { alert('Veuillez sélectionner une date et un adversaire.'); }
 }
 
+/**
+ * Ouvre la modale de modification pour le match actuellement sélectionné
+ * et pré-remplit les champs avec les données du match.
+ */
+function openEditMatchModal() {
+    const currentTeam = getCurrentTeam();
+    if (!currentTeam) return;
+
+    const matchIdInput = document.getElementById('matchSelector');
+    if (!matchIdInput || !matchIdInput.value) {
+        alert("Veuillez d'abord sélectionner un match.");
+        return;
+    }
+
+    const matchId = parseInt(matchIdInput.value);
+    const match = currentTeam.matches.find(m => m.id === matchId);
+    if (!match) {
+        alert("Erreur : Impossible de trouver le match sélectionné.");
+        return;
+    }
+
+    const modal = document.getElementById('editMatchModal');
+    if (!modal) return; // Sécurité
+
+    // Pré-remplir les champs de la modale
+    modal.querySelector('#editMatchId').value = match.id;
+    modal.querySelector('#editMatchDate').value = match.date;
+    modal.querySelector('#editOpponentName').value = match.opponent;
+    
+    // Gérer les boutons radio pour le lieu
+    const locationRadio = modal.querySelector(`input[name="editMatchLocation"][value="${match.location}"]`);
+    if (locationRadio) {
+        locationRadio.checked = true;
+    }
+
+    // Afficher la modale
+    modal.classList.remove('hidden');
+}
+
 async function saveMatchChanges() {
     const currentTeam = getCurrentTeam(); if (!currentTeam) return;
     const modal = document.getElementById('editMatchModal'); const matchId = parseInt(modal.querySelector('#editMatchId').value); const match = currentTeam.matches.find(m => m.id === matchId); if (!match) return;
@@ -1391,6 +1480,42 @@ function renderCourt() {
 }
 
 
+/**
+ * Fonction utilitaire pour comparer deux objets de composition.
+ * (Nécessaire car JSON.stringify n'est pas fiable si l'ordre des clés change).
+ * @param {object} compoA - Le premier objet (ex: { 'pos-1': 1, 'libero': 2 })
+ * @param {object} compoB - Le second objet
+ * @returns {boolean} - Vrai s'ils sont identiques.
+ */
+function areCompositionsEqual(compoA, compoB) {
+    // Gère les cas où un (ou les deux) sont vides/null/undefined
+    if (!compoA && !compoB) return true; // Deux sets vides sont "égaux"
+    if (!compoA || !compoB) return false; // Un vide et un plein ne sont pas égaux
+
+    const keysA = Object.keys(compoA);
+    const keysB = Object.keys(compoB);
+
+    // S'ils n'ont pas le même nombre de joueurs, ils sont différents
+    if (keysA.length !== keysB.length) {
+        return false;
+    }
+
+    // Vérifie que chaque joueur est à la même place
+    for (const key of keysA) {
+        if (compoA[key] !== compoB[key]) {
+            return false;
+        }
+    }
+    
+    // Si toutes les vérifications passent, ils sont égaux
+    return true;
+}
+
+
+/**
+ * Met à jour la position d'un joueur sur le terrain pour le set courant
+ * ET propage ce changement aux sets suivants (cascade "intelligente").
+ */
 async function updatePosition(event) {
     const currentTeam = getCurrentTeam();
     if (!currentTeam) return;
@@ -1398,58 +1523,120 @@ async function updatePosition(event) {
     if (!matchId) return;
 
     const selectElement = event.target;
-    const position = selectElement.dataset.position; // 'pos-1', 'pos-2', ..., 'libero'
+    const position = selectElement.dataset.position; 
     const playerId = selectElement.value ? parseInt(selectElement.value) : null;
 
-    // Ensure structure exists
     if (!currentTeam.courtPositions[matchId]) currentTeam.courtPositions[matchId] = {};
     if (!currentTeam.courtPositions[matchId][currentSet]) currentTeam.courtPositions[matchId][currentSet] = {};
 
-    const setPositions = currentTeam.courtPositions[matchId][currentSet];
+    const matchPositions = currentTeam.courtPositions[matchId];
+    
+    // --- DÉBUT DE LA CORRECTION (Cascade Intelligente) ---
 
-    // --- Conflict Resolution ---
+    // 1. Snapshot de la compo ACTUELLE (AVANT modification)
+    //    Nous utilisons une copie profonde pour l'originale
+    const originalCurrentSetCompo = JSON.parse(JSON.stringify(matchPositions[currentSet] || {}));
+
+    // --- FIN DE L'ÉTAPE 1 ---
+
+    const setPositions = matchPositions[currentSet]; // Référence à la compo actuelle
+
+    // --- Logique de résolution des conflits (inchangée) ---
     if (playerId) {
         if (position === 'libero') {
-            // If setting libero, remove player from any court position in this set
             for (const pos in setPositions) {
                 if (pos.startsWith('pos-') && setPositions[pos] === playerId) {
                     delete setPositions[pos];
-                    console.log(`Removed player ${playerId} from ${pos} because set as libero.`);
                 }
             }
-        } else { // Setting a court position ('pos-X')
-            // If setting player on court, remove them from libero position if they were there
+        } else { 
             if (setPositions.libero === playerId) {
                 delete setPositions.libero;
-                 console.log(`Removed player ${playerId} from libero because set on court.`);
             }
-            // Remove player from any *other* court position they might occupy
              for (const pos in setPositions) {
                 if (pos.startsWith('pos-') && pos !== position && setPositions[pos] === playerId) {
                     delete setPositions[pos];
-                     console.log(`Removed player ${playerId} from ${pos} because set at ${position}.`);
                 }
             }
         }
     }
+    // --- Fin de la résolution des conflits ---
 
-    // --- Update the position ---
+    // --- Mise à jour de la position (inchangée) ---
     if (playerId) {
         setPositions[position] = playerId;
     } else {
-        // If value is empty, remove player from this position
         delete setPositions[position];
     }
+    // 'setPositions' contient maintenant la NOUVELLE composition
 
-    recalculatePlayedStatus(matchId); // Recalculate based on the new composition
-    await saveData(); // Save the changes
+    // --- DÉBUT DE L'ÉTAPE 2 : Cascade (corrigée) ---
+    const currentSetIndex = SETS.indexOf(currentSet);
 
-    // --- Re-render relevant UI parts ---
-    // Re-render court is crucial to update dropdown options based on new conflicts
+    // Boucle sur tous les sets SUIVANTS (N+1, N+2...)
+    for (let i = currentSetIndex + 1; i < SETS.length; i++) {
+        const subsequentSetName = SETS[i]; // ex: 'set3'
+        
+        const subsequentSetCompo = matchPositions[subsequentSetName] || {};
+
+        // 3. VÉRIFICATION DE LA CASCADE (avec la nouvelle fonction helper)
+        // Le set N+1 est-il une copie identique du set N (AVANT modification) ?
+        if (areCompositionsEqual(subsequentSetCompo, originalCurrentSetCompo)) {
+            
+            // OUI : On met à jour le set N+1
+            console.log(`Cascade: Mise à jour de ${subsequentSetName} depuis ${currentSet}.`);
+            // On fait une copie profonde de la *nouvelle* compo
+            matchPositions[subsequentSetName] = JSON.parse(JSON.stringify(setPositions));
+        
+        } else {
+            // NON : L'utilisateur a déjà modifié manuellement ce set.
+            // On casse la chaîne et on arrête la propagation.
+            console.log(`Cascade: Arrêt à ${subsequentSetName} (modification manuelle détectée).`);
+            break; 
+        }
+    }
+    // --- FIN DE LA LOGIQUE DE CASCADE ---
+
+    // --- Sauvegarde et rendu (inchangés) ---
+    recalculatePlayedStatus(matchId); 
+    await saveData(); 
+
     renderCourt();
-    renderAttendanceForSelectedMatch(); // Update set counts
-    renderSubstitutions(); // Update display if needed
-    renderLiveTrackingView(); // Reflect changes in live view
+    renderAttendanceForSelectedMatch(); 
+    renderSubstitutions(); 
+    renderLiveTrackingView(); 
+}
+
+/**
+ * Efface la composition (terrain + libéro) du set actuellement sélectionné.
+ */
+async function clearCurrentSetComposition() {
+    const currentTeam = getCurrentTeam();
+    const matchId = parseInt(document.getElementById('matchSelector').value);
+    
+    if (!currentTeam || !matchId) return;
+
+    if (!confirm(`Voulez-vous vraiment vider toute la composition du ${currentSet.replace('set', 'Set ')} ?`)) {
+        return;
+    }
+
+    // S'assurer que la structure de base existe
+    if (!currentTeam.courtPositions) currentTeam.courtPositions = {};
+    if (!currentTeam.courtPositions[matchId]) currentTeam.courtPositions[matchId] = {};
+
+    // Vider la composition
+    currentTeam.courtPositions[matchId][currentSet] = {};
+    console.log(`Composition du ${currentSet} vidée.`);
+
+    // Recalculer le statut "joué" (car les joueurs ont été retirés)
+    recalculatePlayedStatus(matchId); 
+    
+    // Sauvegarder les changements
+    await saveData();
+
+    // Mettre à jour l'interface
+    renderCourt(); // Affiche les listes déroulantes vides
+    renderAttendanceForSelectedMatch(); // Met à jour les comptages de sets
 }
 
 
@@ -1682,6 +1869,21 @@ function renderPlayerStats() {
 
                  // Calculate sets played and won more accurately
                  SETS.forEach((setName, index) => {
+                     
+                    // --- DÉBUT DE LA CORRECTION ---
+                    // 1. Vérifier si le set a *effectivement* été joué (s'il a un score)
+                    const setScore = match.score?.sets?.[index];
+                    const wasSetPlayed = setScore && setScore.myTeam !== '' && setScore.opponent !== '';
+
+                    // Si le set n'a pas de score (ex: Set 4 ou 5 d'un match en 3 sets),
+                    // on ne le compte pas, même si le joueur y était inscrit.
+                    if (!wasSetPlayed) {
+                        return; // Passe au set suivant
+                    }
+                    // --- FIN DE LA CORRECTION ---
+
+
+                     // 2. Le set a été joué. Vérifier si le joueur y a participé.
                      let playedInSet = false;
                      // Check if started
                      const setPositions = (currentTeam.courtPositions && currentTeam.courtPositions[match.id] && currentTeam.courtPositions[match.id][setName]) || {};
@@ -1693,18 +1895,19 @@ function renderPlayerStats() {
                       if (!playedInSet && setSubs.some(sub => sub.in === player.id)) {
                           playedInSet = true;
                       }
-
+                     
+                     // 3. Si le joueur a participé ET que le set a eu lieu :
                      if (playedInSet) {
                          setCount++;
-                         const setScore = match.score?.sets?.[index];
-                         if (setScore && setScore.myTeam !== '' && setScore.opponent !== '' && parseInt(setScore.myTeam) > parseInt(setScore.opponent)) {
+                         // (La vérification 'setScore' ici est maintenant redondante mais inoffensive)
+                         if (parseInt(setScore.myTeam) > parseInt(setScore.opponent)) {
                              setsWonCount++;
                          }
                      }
                  });
 
 
-                // Aggregate faults
+                // Aggregate faults (inchangé)
                 if (match.faults) {
                     SETS.forEach(setName => {
                         if (match.faults[setName]?.[player.id]) {
@@ -1716,15 +1919,15 @@ function renderPlayerStats() {
                         }
                     });
                  }
-                 // *** ADDED: Aggregate points ***
+                 // Aggregate points (inchangé)
                  if (match.points) {
                     SETS.forEach(setName => {
                         if (match.points[setName]?.[player.id]) {
                             const p = match.points[setName][player.id];
                             pointCounts.service += p.service || 0;
                             pointCounts.attack += p.attack || 0;
-                            pointCounts.block += p.block || 0; // Assuming 'block' is the key
-                            pointCounts.net += p.net || 0;     // Assuming 'net' is used for 'Autres' points
+                            pointCounts.block += p.block || 0; 
+                            pointCounts.net += p.net || 0;     
                         }
                     });
                  }
@@ -1732,11 +1935,11 @@ function renderPlayerStats() {
         }
 
         const totalFaults = Object.values(faultCounts).reduce((a, b) => a + b, 0);
-        const totalPoints = Object.values(pointCounts).reduce((a, b) => a + b, 0); // *** ADDED ***
+        const totalPoints = Object.values(pointCounts).reduce((a, b) => a + b, 0); 
 
         const row = document.createElement('tr');
         row.className = 'border-b';
-        // *** ADDED point columns ***
+        // HTML de la ligne (inchangé)
         row.innerHTML = `
             <td class="p-3">${player.name}</td>
             <td class="p-3 text-center">${presenceCount || ''}</td>
@@ -1757,7 +1960,6 @@ function renderPlayerStats() {
         statsBody.appendChild(row);
     });
 }
-
 function renderTeamStats() {
     const currentTeam = getCurrentTeam();
     const statsRow = document.getElementById('teamStatsRow');
