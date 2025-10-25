@@ -2110,7 +2110,6 @@ function createPlayerCardLiveDetailed_Faults(match, player) {
     const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
     card.className = `live-player-card ${genderClass}`; // Base class
 
-    // Renommé "points" en "faults"
     const faults = (match.faults && match.faults[currentSet] && match.faults[currentSet][player.id])
                  || { service: 0, attack: 0, reception: 0, net: 0 };
 
@@ -2118,56 +2117,53 @@ function createPlayerCardLiveDetailed_Faults(match, player) {
 
     let buttonsHtml = '';
 
-    // --- DÉBUT DE LA MODIFICATION ---
-    // COPIE DE LA STRUCTURE DE _Points pour une uniformité PARFAITE
+    // Classe pour les boutons en GRILLE (carrés)
+    const gridLayoutClass = "aspect-square flex flex-col items-center justify-center p-1 rounded-md text-sm font-medium w-full";
+    
+    // NOUVELLE CLASSE pour les boutons du LIBÉRO (rectangulaires, pleine largeur)
+    // Nous utilisons 'py-4' pour simuler la hauteur des boutons carrés.
+    const liberoLayoutClass = "flex flex-col items-center justify-center p-1 rounded-md text-sm font-medium w-full py-4"; 
 
-    // Classe de base pour la MISE EN PAGE (carré, centré, flex-col)
-    // (Identique à _Points)
-    const layoutClass = "aspect-square flex flex-col items-center justify-center p-1 rounded-md text-sm font-medium w-full";
-
-    // Classes de COULEUR (Orange - 400 comme demandé précédemment)
-    const colorClass = "bg-orange-400 hover:bg-orange-500 border-orange-400 text-white"; // Modifié en Orange
+    // Classes de COULEUR (Orange)
+    const colorClass = "bg-orange-400 hover:bg-orange-500 border-orange-400 text-white";
 
     if (isLibero) {
-        // Libero : 2 boutons, maintenant carrés (py-3 supprimé)
-        // La structure est identique à _Points (mais avec 2 boutons)
+        // Libero : 2 boutons rectangulaires, pleine largeur
         buttonsHtml = `
             <div class="flex flex-col gap-2 mt-3">
-                 <button id="fault-btn-${player.id}-reception" class="${layoutClass} ${colorClass}">
+                 <button id="fault-btn-${player.id}-reception" class="${liberoLayoutClass} ${colorClass}">
                      <span>Réception</span>
                      <span class="fault-count" id="fault-count-${player.id}-reception">${faults.reception}</span>
                  </button>
-                 <button id="fault-btn-${player.id}-net" class="${layoutClass} ${colorClass}">
+                 <button id="fault-btn-${player.id}-net" class="${liberoLayoutClass} ${colorClass}">
                      <span>Autres</span>
                      <span class="fault-count" id="fault-count-${player.id}-net">${faults.net}</span>
                  </button>
             </div>`;
     } else {
         // Autres joueurs : grille de 4 boutons carrés
-        // Utilise la classe Tailwind grid (identique à _Points)
         const faultGridClass = "grid grid-cols-2 gap-2 mt-3"; 
         
         buttonsHtml = `
             <div class="${faultGridClass}">
-                <button id="fault-btn-${player.id}-service" class="${layoutClass} ${colorClass}">
+                <button id="fault-btn-${player.id}-service" class="${gridLayoutClass} ${colorClass}">
                     <span>Service</span>
                     <span class="fault-count" id="fault-count-${player.id}-service">${faults.service}</span>
                 </button>
-                <button id="fault-btn-${player.id}-attack" class="${layoutClass} ${colorClass}">
+                <button id="fault-btn-${player.id}-attack" class="${gridLayoutClass} ${colorClass}">
                     <span>Attaque</span>
                     <span class="fault-count" id="fault-count-${player.id}-attack">${faults.attack}</span>
                 </button>
-                <button id="fault-btn-${player.id}-reception" class="${layoutClass} ${colorClass}">
+                <button id="fault-btn-${player.id}-reception" class="${gridLayoutClass} ${colorClass}">
                     <span>Récep</span>
                     <span class="fault-count" id="fault-count-${player.id}-reception">${faults.reception}</span>
                 </button>
-                <button id="fault-btn-${player.id}-net" class="${layoutClass} ${colorClass}">
+                <button id="fault-btn-${player.id}-net" class="${gridLayoutClass} ${colorClass}">
                     <span>Autres</span>
                     <span class="fault-count" id="fault-count-${player.id}-net">${faults.net}</span>
                 </button>
             </div>`;
     }
-    // --- FIN DE LA MODIFICATION ---
 
     card.innerHTML = `
         <div class="font-bold cursor-pointer hover:text-blue-600 player-name-display" onclick="openSubstitutionModal(${player.id})">
@@ -2209,26 +2205,27 @@ function createPlayerCardLiveDetailed_Points(match, player) {
     const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
     card.className = `live-player-card ${genderClass}`;
 
-    // Récupère les points existants ou initialise à 0
     const points = (match.points && match.points[currentSet] && match.points[currentSet][player.id])
-                 || { service: 0, attack: 0, block: 0, net: 0 }; // 'net' représente 'Autres'
+                 || { service: 0, attack: 0, block: 0, net: 0 }; 
 
     const isLibero = player.mainPosition === 'Libéro' || player.secondaryPosition === 'Libéro';
 
     let buttonsHtml = '';
 
-    // Classe de base pour la MISE EN PAGE (carré, centré, flex-col)
-    // On imite le style de .fault-grid-btn (qui est maintenant carré)
-    const layoutClass = "aspect-square flex flex-col items-center justify-center p-1 rounded-md text-sm font-medium w-full";
+    // Classe pour les boutons en GRILLE (carrés)
+    const gridLayoutClass = "aspect-square flex flex-col items-center justify-center p-1 rounded-md text-sm font-medium w-full";
+    
+    // NOUVELLE CLASSE pour les boutons du LIBÉRO (rectangulaires, pleine largeur)
+    const liberoLayoutClass = "flex flex-col items-center justify-center p-1 rounded-md text-sm font-medium w-full py-4"; 
 
     // Classes de COULEUR (Vert)
     const colorClass = "bg-green-500 hover:bg-green-600 border-green-500 text-white";
 
     if (isLibero) {
-        // Libero : un seul bouton, maintenant carré
+        // Libero : un seul bouton, rectangulaire pleine largeur
         buttonsHtml = `
             <div class="flex flex-col gap-2 mt-3">
-                 <button id="point-btn-${player.id}-net" class="${layoutClass} ${colorClass}">
+                 <button id="point-btn-${player.id}-net" class="${liberoLayoutClass} ${colorClass}">
                      <span>Autres</span>
                      <span class="point-count" id="point-count-${player.id}-net">${points.net}</span>
                  </button>
@@ -2239,26 +2236,25 @@ function createPlayerCardLiveDetailed_Points(match, player) {
         
         buttonsHtml = `
             <div class="${pointGridClass}">
-                <button id="point-btn-${player.id}-service" class="${layoutClass} ${colorClass}">
+                <button id="point-btn-${player.id}-service" class="${gridLayoutClass} ${colorClass}">
                     <span>Service</span>
                     <span class="point-count" id="point-count-${player.id}-service">${points.service}</span>
                 </button>
-                <button id="point-btn-${player.id}-attack" class="${layoutClass} ${colorClass}">
+                <button id="point-btn-${player.id}-attack" class="${gridLayoutClass} ${colorClass}">
                     <span>Attaque</span>
                     <span class="point-count" id="point-count-${player.id}-attack">${points.attack}</span>
                 </button>
-                <button id="point-btn-${player.id}-block" class="${layoutClass} ${colorClass}">
+                <button id="point-btn-${player.id}-block" class="${gridLayoutClass} ${colorClass}">
                     <span>Bloc</span>
                     <span class="point-count" id="point-count-${player.id}-block">${points.block}</span>
                 </button>
-                <button id="point-btn-${player.id}-net" class="${layoutClass} ${colorClass}">
+                <button id="point-btn-${player.id}-net" class="${gridLayoutClass} ${colorClass}">
                     <span>Autres</span>
                     <span class="point-count" id="point-count-${player.id}-net">${points.net}</span>
                 </button>
             </div>`;
     }
-	
-    // Construction du HTML de la carte (inchangée)
+    
     card.innerHTML = `
         <div class="font-bold cursor-pointer hover:text-blue-600 player-name-display" onclick="openSubstitutionModal(${player.id})">
             #${player.jerseyNumber || '-'} ${player.name}
