@@ -22,20 +22,19 @@ let currentDetailMode = true; // true = detailed, false = simple
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM loaded. Initializing UI listeners and Auth.");
     
-    // 1. Attache les écouteurs d'événements de l'interface (boutons, selecteurs...)
+    // 1. Attache les écouteurs d'événements de l'interface
     setupEventListeners(); 
 
-    // --- DÉBUT DE LA CORRECTION ---
-    // 2. Remplit les listes déroulantes des postes (dans les modales)
-    // Cet appel manquait, c'est pourquoi les listes étaient vides.
+    // 2. Remplit les listes déroulantes des postes
     populatePositionSelects();
-    // --- FIN DE LA CORRECTION ---
-
-    // 3. Déclenche l'initialisation de l'authentification (défini dans auth.js)
+    
+    // 3. Demande le verrouillage de l'écran une première fois
+    requestWakeLock();
+   
+    // 4. Déclenche l'initialisation de l'authentification (défini dans auth.js)
     if (typeof initializeApp === 'function') {
         initializeApp(); 
     } else {
-        // Cette erreur ne devrait jamais se produire si auth.js est chargé
         console.error("Erreur critique: auth.js n'a pas été chargé ou initializeApp() n'est pas définie.");
         alert("Erreur de chargement de l'application (auth.js).");
     }
@@ -212,8 +211,13 @@ async function saveDetailModePreference() {
 // GESTION DES ONGLETS & MODALES
 // ============================
 
+/**
+ * Affiche l'onglet principal demandé et met à jour le contenu associé.
+ * @param {string} tabName - L'identifiant de l'onglet ('roster', 'matches', 'stats', 'live', 'results').
+ */
 function showMainTab(tabName) {
-    localStorage.setItem('lastActiveTab', tabName); // Sauvegarde le dernier onglet visité
+    // Sauvegarde l'onglet actif dans le localStorage pour le restaurer au prochain chargement
+    localStorage.setItem('lastActiveTab', tabName); 
 
     // Cache toutes les vues principales
     document.getElementById('main-view-roster')?.classList.add('hidden');
@@ -222,38 +226,61 @@ function showMainTab(tabName) {
     document.getElementById('main-view-live')?.classList.add('hidden');
     document.getElementById('main-view-results')?.classList.add('hidden');
 
-    // Met à jour le style des boutons d'onglet
+    // Met à jour le style des boutons d'onglet (retire le style actif de tous)
     const tabs = ['roster', 'matches', 'stats', 'live', 'results'];
     tabs.forEach(t => {
         const tabButton = document.getElementById(`main-tab-${t}`);
         if (tabButton) {
+            // Classes pour un onglet inactif
             tabButton.classList.remove('border-indigo-500', 'text-indigo-600');
             tabButton.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
         }
     });
 
-    // Affiche la vue demandée et met en évidence le bouton correspondant
+    // Affiche la vue correspondant à l'onglet cliqué
     const view = document.getElementById(`main-view-${tabName}`);
+    // Met en évidence le bouton de l'onglet cliqué
     const button = document.getElementById(`main-tab-${tabName}`);
-    if(view) view.classList.remove('hidden');
+    if(view) {
+        view.classList.remove('hidden');
+    }
     if(button) {
+        // Classes pour l'onglet actif
         button.classList.add('border-indigo-500', 'text-indigo-600');
         button.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
     }
 
-    // Rafraîchit les données spécifiques à l'onglet si nécessaire
-    if (tabName === 'stats') renderStats();
-    if (tabName === 'live') renderLiveTrackingView();
-    if (tabName === 'results') renderResults();
-    // Pour l'onglet Matchs, on s'assure que la liste est à jour et que les détails s'affichent si un match est sélectionné
+    // Rafraîchit les données spécifiques à l'onglet qui vient d'être affiché
+    if (tabName === 'stats') {
+        // L'onglet Stats n'affiche plus que les stats joueurs
+        renderPlayerStats(); 
+    }
+    if (tabName === 'live') {
+        // Met à jour l'affichage du suivi en direct
+        renderLiveTrackingView();
+    }
+    if (tabName === 'results') {
+        // Met à jour la liste des matchs (calendrier)
+        renderResults();       
+        // Met à jour le tableau des résultats de l'équipe
+        renderTeamStats();     
+    }
+    // Pour l'onglet Matchs (gestion de la feuille de match, composition...)
     if (tabName === 'matches') {
-        renderMatchSelector(); // Assure que la liste déroulante est à jour
+        // S'assure que la liste déroulante des matchs est à jour
+        renderMatchSelector(); 
+        // Si un match est sélectionné dans la liste, rafraîchit son affichage
         if (document.getElementById('matchSelector').value) {
-            renderAttendanceForSelectedMatch(); // Rafraîchit les détails si un match est sélectionné
+            renderAttendanceForSelectedMatch(); 
         }
     }
-    if (tabName === 'roster') renderPlayerList();
+    // Pour l'onglet Effectif
+    if (tabName === 'roster') {
+        // Met à jour la liste des joueurs
+        renderPlayerList();
+    }
 }
+
 
 /**
  * Sélectionne un set, affiche les données correspondantes et
@@ -1960,14 +1987,22 @@ function renderPlayerStats() {
         statsBody.appendChild(row);
     });
 }
+
+/**
+ * Calcule et affiche les statistiques globales de l'équipe pour la saison.
+ * Cible l'élément <tr id="teamStatsRow">.
+ */
 function renderTeamStats() {
     const currentTeam = getCurrentTeam();
     const statsRow = document.getElementById('teamStatsRow');
-    if (!statsRow) return;
-    statsRow.innerHTML = ''; // Clear previous stats
+    if (!statsRow) {
+        console.error("Élément 'teamStatsRow' introuvable.");
+        return;
+    }
+    statsRow.innerHTML = '';
 
     if (!currentTeam || !currentTeam.matches || currentTeam.matches.length === 0) {
-        statsRow.innerHTML = `<td colspan="15" class="p-4 text-center text-gray-500">Aucun match joué pour le moment.</td>`;
+        statsRow.innerHTML = `<td colspan="15" class="p-4 text-center text-gray-500">Aucun match enregistré.</td>`;
         return;
     }
 
@@ -1977,79 +2012,95 @@ function renderTeamStats() {
         setsPour: 0, setsContre: 0, ptsPour: 0, ptsContre: 0
     };
 
-    currentTeam.matches.forEach(match => {
-         // Check if match has a score OR a forfeit status to be counted
-         const hasScore = match.score && (match.score.myTeam !== '' || match.score.opponent !== '');
-         const isForfeit = match.forfeitStatus !== 'none';
+    let actuallyPlayedCount = 0;
+    console.log("renderTeamStats: Initialisation, actuallyPlayedCount =", actuallyPlayedCount); // Log initial
 
-         if (!hasScore && !isForfeit) return; // Skip if match has no result yet
+    currentTeam.matches.forEach((match, index) => {
+        const hasScore = match.score && (match.score.myTeam !== '' || match.score.opponent !== '');
+        const isForfeit = match.forfeitStatus !== 'none';
+        const isPlayed = hasScore || isForfeit;
+        // Log pour chaque match AVANT la condition
+        console.log(`renderTeamStats: Match ${index + 1} (ID: ${match.id}) - Vérification isPlayed = ${isPlayed}`);
 
-        stats.joues++;
+        // --- VÉRIFIEZ ATTENTIVEMENT LA STRUCTURE DE CE BLOC 'IF' ---
+        if (isPlayed) {
+            // Log JUSTE AVANT l'incrémentation
+            console.log(`renderTeamStats: Match ${index + 1} (ID: ${match.id}) - Match considéré joué. Incrémentation du compteur.`);
 
-        if (match.forfeitStatus === 'win') {
-            stats.points += 3; stats.gagnes++; stats.g30++;
-            stats.setsPour += 3; stats.ptsPour += 75; // Standard forfeit points
-            return;
-        }
-        if (match.forfeitStatus === 'loss') {
-            stats.points -= 1; stats.perdus++; stats.p03++;
-            stats.setsContre += 3; stats.ptsContre += 75; // Standard forfeit points
-            return;
-        }
+            // Incrémente le compteur UNIQUEMENT si isPlayed est vrai
+            actuallyPlayedCount++;
 
-        // Only proceed if there's a non-forfeit score
-        if (hasScore) {
-            const mySets = parseInt(match.score.myTeam) || 0;
-            const oppSets = parseInt(match.score.opponent) || 0;
-
-            stats.setsPour += mySets;
-            stats.setsContre += oppSets;
-
-            if (match.score.sets) {
-                match.score.sets.forEach(set => {
-                     if (set && typeof set === 'object') {
-                        stats.ptsPour += parseInt(set.myTeam) || 0;
-                        stats.ptsContre += parseInt(set.opponent) || 0;
-                    }
-                });
+            // Traitement spécifique pour les forfaits
+            if (match.forfeitStatus === 'win') {
+                stats.points += 3; stats.gagnes++; stats.g30++;
+                stats.setsPour += 3; stats.ptsPour += 75;
+                return; // Passe au match suivant dans forEach
+            }
+            if (match.forfeitStatus === 'loss') {
+                stats.perdus++; stats.p03++;
+                stats.setsContre += 3; stats.ptsContre += 75;
+                return; // Passe au match suivant dans forEach
             }
 
-            if (mySets > oppSets) {
-                stats.gagnes++;
-                if (mySets === 3 && oppSets === 0) { stats.points += 3; stats.g30++; }
-                else if (mySets === 3 && oppSets === 1) { stats.points += 3; stats.g31++; }
-                else if (mySets === 3 && oppSets === 2) { stats.points += 2; stats.g32++; }
-                 // Add cases for potential different set formats if needed
-            } else if (oppSets > mySets) {
-                stats.perdus++;
-                if (mySets === 2 && oppSets === 3) { stats.points += 1; stats.p23++; }
-                else if (mySets === 1 && oppSets === 3) { stats.p13++; } // 0 points
-                else if (mySets === 0 && oppSets === 3) { stats.p03++; } // 0 points
-                // Add cases for potential different set formats if needed
+            // Traitement pour les matchs avec score (non-forfait)
+            if (hasScore) {
+                const mySets = parseInt(match.score.myTeam) || 0;
+                const oppSets = parseInt(match.score.opponent) || 0;
+
+                stats.setsPour += mySets;
+                stats.setsContre += oppSets;
+
+                if (match.score.sets) {
+                    match.score.sets.forEach(set => {
+                         if (set && typeof set === 'object') {
+                            stats.ptsPour += parseInt(set.myTeam) || 0;
+                            stats.ptsContre += parseInt(set.opponent) || 0;
+                        }
+                    });
+                }
+
+                if (mySets > oppSets) {
+                    stats.gagnes++;
+                    if (mySets === 3 && oppSets === 0) { stats.points += 3; stats.g30++; }
+                    else if (mySets === 3 && oppSets === 1) { stats.points += 3; stats.g31++; }
+                    else if (mySets === 3 && oppSets === 2) { stats.points += 2; stats.g32++; }
+                } else if (oppSets > mySets) {
+                    stats.perdus++;
+                    if (mySets === 2 && oppSets === 3) { stats.points += 1; stats.p23++; }
+                    else if (mySets === 1 && oppSets === 3) { stats.p13++; }
+                    else if (mySets === 0 && oppSets === 3) { stats.p03++; }
+                }
             }
-             // Note: Draws are not possible in standard volleyball scoring reflected here.
-        }
+        } // <-- ASSUREZ-VOUS QUE CETTE ACCOLADE FERMANTE EST CORRECTEMENT PLACÉE
+        // --- FIN DU BLOC 'IF (isPlayed)' ---
+
+        // RIEN d'autre ne doit se trouver ici (dans le forEach mais hors du if)
+        // en rapport avec le comptage ou le calcul des stats.
     });
 
-    // Use || '' to show empty cell instead of 0
-    statsRow.innerHTML = `
-        <td class="p-2 font-bold">${stats.points}</td>
-        <td class="p-2">${stats.joues || ''}</td>
-        <td class="p-2">${stats.gagnes || ''}</td>
-        <td class="p-2">${stats.perdus || ''}</td>
-        <td class="p-2">${stats.g30 || ''}</td>
-        <td class="p-2">${stats.g31 || ''}</td>
-        <td class="p-2">${stats.g32 || ''}</td>
-        <td class="p-2">${stats.p23 || ''}</td>
-        <td class="p-2">${stats.p13 || ''}</td>
-        <td class="p-2">${stats.p03 || ''}</td>
-        <td class="p-2">${stats.setsPour || ''}</td>
-        <td class="p-2">${stats.setsContre || ''}</td>
-        <td class="p-2">${stats.ptsPour || ''}</td>
-        <td class="p-2">${stats.ptsContre || ''}</td>
-    `;
+    // Affiche les statistiques calculées dans le tableau HTML
+    if (actuallyPlayedCount === 0) {
+         statsRow.innerHTML = `<td colspan="15" class="p-4 text-center text-gray-500">Aucun match joué pour le moment.</td>`;
+    } else {
+        console.log("renderTeamStats: Valeur finale avant affichage:", actuallyPlayedCount); // Log final
+        statsRow.innerHTML = `
+            <td class="p-2 font-bold">${stats.points}</td>
+            <td class="p-2">${actuallyPlayedCount || ''}</td>
+            <td class="p-2">${stats.gagnes || ''}</td>
+            <td class="p-2">${stats.perdus || ''}</td>
+            <td class="p-2">${stats.g30 || ''}</td>
+            <td class="p-2">${stats.g31 || ''}</td>
+            <td class="p-2">${stats.g32 || ''}</td>
+            <td class="p-2">${stats.p23 || ''}</td>
+            <td class="p-2">${stats.p13 || ''}</td>
+            <td class="p-2">${stats.p03 || ''}</td>
+            <td class="p-2">${stats.setsPour || ''}</td>
+            <td class="p-2">${stats.setsContre || ''}</td>
+            <td class="p-2">${stats.ptsPour || ''}</td>
+            <td class="p-2">${stats.ptsContre || ''}</td>
+        `;
+    }
 }
-
 
 // ============================
 // SUIVI MATCH (LIVE - FAUTES ET POINTS)
@@ -2762,89 +2813,189 @@ function renderSetPointsSummary() {
 // RÉSULTATS & STATS (Read-only rendering)
 // ============================
 function renderResults() {
+    console.log("renderResults: Début de l'exécution."); // Log 1: Vérifie si la fonction est appelée
+
     const currentTeam = getCurrentTeam();
     const resultsTableBody = document.getElementById('results-list-table');
-    const summaryDiv = document.getElementById('results-summary');
+    // const summaryDiv = document.getElementById('results-summary'); // Cet ID n'existe plus
 
-    if (!resultsTableBody || !summaryDiv) return; // Exit if elements not found
+    // Vérifie si l'élément tbody existe
+    if (!resultsTableBody) {
+        console.error("renderResults: ERREUR CRITIQUE - Élément 'results-list-table' (tbody) introuvable !");
+        return; 
+    }
 
-    resultsTableBody.innerHTML = ''; // Clear previous results
-    summaryDiv.innerHTML = ''; // Clear previous summary
+    // Vide le contenu précédent
+    resultsTableBody.innerHTML = ''; 
+    console.log("renderResults: Tableau (tbody) vidé."); // Log 2: Confirme le vidage
 
+    // Vérifie si l'équipe et les matchs existent
     if (!currentTeam || !currentTeam.matches || currentTeam.matches.length === 0) {
+        console.warn("renderResults: Aucune équipe ou aucun match trouvé. Affichage du message 'Aucun match'."); // Log 3: Cas où il n'y a pas de matchs
         resultsTableBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">Aucun match enregistré pour cette équipe.</td></tr>';
-        summaryDiv.innerHTML = `<h3 class="text-xl font-bold">Synthèse : 0 victoires sur 0 matchs joués</h3>`;
         return;
     }
 
-    // Sort matches chronologically
+    console.log(`renderResults: ${currentTeam.matches.length} match(s) trouvé(s) pour l'équipe.`); // Log 4: Confirme le nombre de matchs
+
+    // Trie les matchs par date (ordre chronologique)
     const sortedMatches = [...currentTeam.matches].sort((a, b) => new Date(a.date.replace(/-/g, '/')) - new Date(b.date.replace(/-/g, '/')));
 
-    let totalPlayed = 0;
-    let totalWins = 0;
+    let rowsAdded = 0; // Compteur pour vérifier si des lignes sont ajoutées
 
-    sortedMatches.forEach(match => {
-        // Ensure score object and sets exist
-         const score = match.score || { myTeam: '', opponent: '', sets: [] };
-         const sets = score.sets || [];
-         const mySets = parseInt(score.myTeam) || 0; // Use 0 if NaN/empty
-         const oppSets = parseInt(score.opponent) || 0; // Use 0 if NaN/empty
+    // Boucle sur chaque match trié
+    sortedMatches.forEach((match, index) => {
+        console.log(`renderResults: Traitement du match ${index + 1}/${sortedMatches.length} (ID: ${match.id}, Adversaire: ${match.opponent})`); // Log 5: Suit chaque match
 
-        // A match is considered played if it has a forfeit status or if the main score is calculated (mySets > 0 or oppSets > 0)
+        // S'assure que la structure score/sets existe
+        const score = match.score || { myTeam: '', opponent: '', sets: [] };
+        const sets = score.sets || [];
+        // Récupère les scores finaux (sets gagnés), utilise 0 si vide ou invalide
+        const mySets = parseInt(score.myTeam) || 0; 
+        const oppSets = parseInt(score.opponent) || 0; 
+
+        // Détermine si le match est considéré comme "joué" (a un score final ou un statut de forfait)
         const isPlayed = match.forfeitStatus !== 'none' || (mySets > 0 || oppSets > 0);
+        console.log(`renderResults: Match ID ${match.id} - est joué ? ${isPlayed} (Forfait: ${match.forfeitStatus}, Score: ${score.myTeam}-${score.opponent})`); // Log 6: Vérifie la condition 'isPlayed'
 
-        let resultText = ''; // No default text, derive from outcome
-        let resultColor = 'text-gray-500';
-        let isWin = false;
-
+        // Variables pour l'affichage du résultat
+        let resultText = ''; 
+        let resultColor = 'text-gray-500'; // Gris par défaut
+        
         if (isPlayed) {
-            totalPlayed++;
+            // Traitement pour les matchs joués
             if (match.forfeitStatus === 'win') {
-                isWin = true; resultText = '(F)'; resultColor = 'text-green-600';
+                resultText = '(F)'; resultColor = 'text-green-600';
             } else if (match.forfeitStatus === 'loss') {
-                isWin = false; resultText = '(F)'; resultColor = 'text-red-600';
-            } else { // Regular score
-                isWin = mySets > oppSets;
-                resultColor = isWin ? 'text-green-600' : 'text-red-600';
-                 // resultText remains empty for regular results
+                resultText = '(F)'; resultColor = 'text-red-600';
+            } else { // Score normal
+                resultColor = mySets > oppSets ? 'text-green-600' : (oppSets > mySets ? 'text-red-600' : 'text-gray-500');
+                // resultText reste vide pour les scores normaux
             }
-            if (isWin) totalWins++;
-
         } else {
-             resultText = 'N/J'; // Indicate Not Played
+             // Affichage pour les matchs non joués
+             resultText = 'N/J'; // Non Joué
              resultColor = 'text-gray-400';
         }
 
+        // Construit le HTML pour les scores des sets
         let setScoresHtml = '';
-        if (isPlayed && sets.length > 0) { // Only show scores if played
-             sets.forEach((set) => {
-                 if (set && (set.myTeam !== '' || set.opponent !== '')) { // Check if set object exists and has scores
+        // Affiche les scores des sets uniquement si le match est considéré comme joué
+        if (isPlayed && sets.length > 0) { 
+             sets.forEach((set, setIndex) => {
+                 // S'assure que le set existe et a des scores valides
+                 if (set && (set.myTeam !== '' || set.opponent !== '')) { 
                      setScoresHtml += `<span class="whitespace-nowrap text-xs px-2 py-1 bg-gray-200 rounded">${set.myTeam}-${set.opponent}</span>`;
+                 } else {
+                     console.log(`renderResults: Match ID ${match.id}, Set ${setIndex + 1} ignoré (scores vides).`); // Log 7: Si un set est vide
                  }
              });
         }
+        // Si aucun score de set n'a été ajouté mais que le match est joué (ex: forfait saisi avant les sets)
+        if (isPlayed && setScoresHtml === '' && match.forfeitStatus !== 'none') {
+             setScoresHtml = '<span class="text-xs text-gray-400">Forfait</span>';
+        } else if (isPlayed && setScoresHtml === '') {
+             setScoresHtml = '<span class="text-xs text-gray-400">N/A</span>';
+        }
 
+        // Crée l'élément de ligne du tableau
         const row = document.createElement('tr');
-        row.className = 'border-b hover:bg-gray-50'; // Add hover effect
-        
-        // contenant un <div> "flex flex-row overflow-x-auto"
+        row.className = 'border-b hover:bg-gray-50'; 
+        // Remplit la ligne avec les cellules (td)
         row.innerHTML = `
             <td class="p-3 text-sm text-gray-600 whitespace-nowrap">${new Date(match.date.replace(/-/g, '/')).toLocaleDateString('fr-FR')}</td>
-            <td class="p-3 font-medium">${match.opponent}</td>
+            <td class="p-3 text-sm">${match.opponent}</td>
             <td class="p-3 text-center text-sm">${match.location === 'domicile' ? 'Dom.' : 'Ext.'}</td>
             <td class="p-3 text-center font-bold ${resultColor}">${mySets}-${oppSets} ${resultText}</td>
             <td class="p-3">
                 <div class="flex flex-row gap-1 overflow-x-auto whitespace-nowrap">
-                    ${setScoresHtml || (isPlayed ? '<span class="text-xs text-gray-400">N/A</span>' : '')}
+                    ${setScoresHtml || ''} 
                 </div>
             </td>
         `;
-            
+        // Ajoute la ligne au corps du tableau
         resultsTableBody.appendChild(row);
+        rowsAdded++; // Incrémente le compteur de lignes ajoutées
     });
 
-    summaryDiv.innerHTML = `<h3 class="text-xl font-bold">Synthèse : <span class="${totalWins > 0 ? 'text-green-600' : 'text-gray-700'}">${totalWins}</span> victoire(s) sur <span class="font-bold">${totalPlayed}</span> match(s) joué(s)</h3>`;
+    console.log(`renderResults: Terminé. ${rowsAdded} ligne(s) ajoutée(s) au tableau.`); // Log 8: Nombre final de lignes
+    
+    // La partie summaryDiv a été supprimée car déplacée vers renderTeamStats
 }
+
+
+// ============================
+// GESTION DU VERROUILLAGE ÉCRAN (Screen Wake Lock API)
+// ============================
+
+let wakeLock = null; // Variable pour garder une référence au verrou
+
+/**
+ * Demande un verrou pour empêcher la mise en veille de l'écran.
+ */
+const requestWakeLock = async () => {
+  // Vérifie si l'API est supportée par le navigateur
+  if ('wakeLock' in navigator) {
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      
+      // Écoute si le verrou est libéré par le système
+      wakeLock.addEventListener('release', () => {
+        console.log('Screen Wake Lock a été libéré par le système.');
+        wakeLock = null; // Réinitialise la variable
+      });
+      
+      console.log('Screen Wake Lock activé.');
+    } catch (err) {
+      // L'erreur peut survenir si le document n'est pas visible, etc.
+      console.error(`${err.name}, ${err.message}`);
+      wakeLock = null; // Assure que wakeLock est null en cas d'erreur
+    }
+  } else {
+    console.warn("L'API Screen Wake Lock n'est pas supportée par ce navigateur.");
+  }
+};
+
+/**
+ * Libère le verrou d'écran s'il est actif.
+ */
+const releaseWakeLock = async () => {
+  if (wakeLock !== null) {
+    try {
+      await wakeLock.release();
+      wakeLock = null;
+      console.log('Screen Wake Lock libéré manuellement.');
+    } catch (err) {
+      console.error(`Erreur lors de la libération du Wake Lock: ${err.name}, ${err.message}`);
+    }
+  }
+};
+
+/**
+ * Gère les changements de visibilité de l'onglet/application.
+ * Ré-acquiert le verrou si l'onglet redevient visible.
+ */
+const handleVisibilityChange = () => {
+  if (wakeLock !== null && document.visibilityState === 'visible') {
+    // Si on a une référence mais que l'onglet redevient visible,
+    // cela peut signifier que le verrou a été libéré entre temps.
+    // On essaie de le réactiver.
+    console.log("L'onglet est redevenu visible, tentative de réactivation du Wake Lock.");
+    requestWakeLock();
+  } else if (wakeLock !== null && document.visibilityState === 'hidden') {
+    // Optionnel: On pourrait libérer le verrou quand l'onglet passe en fond,
+    // mais le navigateur le fait souvent déjà. Pour l'instant, on ne fait rien.
+    // releaseWakeLock(); 
+  } else if (wakeLock === null && document.visibilityState === 'visible') {
+     // Si l'onglet redevient visible et qu'on n'a pas de verrou (peut-être libéré avant)
+     console.log("L'onglet est visible et pas de verrou, tentative d'activation.");
+     requestWakeLock();
+  }
+};
+
+// Écoute les changements de visibilité
+document.addEventListener('visibilitychange', handleVisibilityChange);
+
 
 console.log("Main script loaded. Waiting for DOMContentLoaded and Firebase ready.");
 
