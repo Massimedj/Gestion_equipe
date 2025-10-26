@@ -22,16 +22,11 @@ let currentDetailMode = true; // true = detailed, false = simple
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM loaded. Initializing UI listeners and Auth.");
     
-    // 1. Attache les écouteurs d'événements de l'interface
     setupEventListeners(); 
-
-    // 2. Remplit les listes déroulantes des postes
     populatePositionSelects();
     
-    // 3. Demande le verrouillage de l'écran une première fois
-    requestWakeLock();
-   
-    // 4. Déclenche l'initialisation de l'authentification (défini dans auth.js)
+    // L'appel initial à requestWakeLock() a été supprimé.
+    
     if (typeof initializeApp === 'function') {
         initializeApp(); 
     } else {
@@ -276,10 +271,20 @@ function showMainTab(tabName) {
     }
     // Pour l'onglet Effectif
     if (tabName === 'roster') {
-        // Met à jour la liste des joueurs
         renderPlayerList();
     }
-}
+    
+    // Demande le verrou si on va sur l'onglet 'Suivi', le libère sinon
+    if (tabName === 'live') {
+        console.log("Onglet 'Suivi' activé, demande du Screen Wake Lock.");
+        requestWakeLock(); // Demande le verrouillage
+    } else {
+        console.log(`Onglet '${tabName}' activé, libération du Screen Wake Lock (s'il était actif).`);
+        releaseWakeLock(); // Libère le verrouillage
+    }
+   
+} 
+
 
 
 /**
@@ -2975,24 +2980,24 @@ const releaseWakeLock = async () => {
 
 /**
  * Gère les changements de visibilité de l'onglet/application.
- * Ré-acquiert le verrou si l'onglet redevient visible.
+ * Ré-acquiert le verrou SEULEMENT si l'onglet 'Suivi' était actif.
  */
 const handleVisibilityChange = () => {
-  if (wakeLock !== null && document.visibilityState === 'visible') {
-    // Si on a une référence mais que l'onglet redevient visible,
-    // cela peut signifier que le verrou a été libéré entre temps.
-    // On essaie de le réactiver.
-    console.log("L'onglet est redevenu visible, tentative de réactivation du Wake Lock.");
-    requestWakeLock();
-  } else if (wakeLock !== null && document.visibilityState === 'hidden') {
-    // Optionnel: On pourrait libérer le verrou quand l'onglet passe en fond,
-    // mais le navigateur le fait souvent déjà. Pour l'instant, on ne fait rien.
-    // releaseWakeLock(); 
-  } else if (wakeLock === null && document.visibilityState === 'visible') {
-     // Si l'onglet redevient visible et qu'on n'a pas de verrou (peut-être libéré avant)
-     console.log("L'onglet est visible et pas de verrou, tentative d'activation.");
-     requestWakeLock();
-  }
+  // Vérifie si l'onglet redevient visible
+  if (document.visibilityState === 'visible') {
+    // Récupère le dernier onglet actif depuis le localStorage
+    const lastActiveTab = localStorage.getItem('lastActiveTab');
+    
+    // Si le dernier onglet était 'live', on tente de réactiver le verrou
+    if (lastActiveTab === 'live') {
+      console.log("L'onglet est redevenu visible ET l'onglet 'Suivi' était actif. Tentative de réactivation du Wake Lock.");
+      requestWakeLock(); 
+    } else {
+      console.log("L'onglet est redevenu visible, mais l'onglet 'Suivi' n'était pas le dernier actif. Pas de réactivation du Wake Lock.");
+    }
+  } 
+  // On ne fait rien de spécial si l'onglet devient caché (hidden), 
+  // car releaseWakeLock est déjà appelé en quittant l'onglet 'live'.
 };
 
 // Écoute les changements de visibilité
