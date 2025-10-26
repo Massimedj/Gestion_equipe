@@ -99,46 +99,48 @@ function loadLocalData() {
 
 /**
  * Gère la logique de synchronisation des données lorsqu'un utilisateur se connecte.
- * Compare les données locales et celles de Firestore et propose une action à l'utilisateur si besoin.
+ * PRIORITÉ AUX DONNÉES EN LIGNE en cas de conflit.
  * @param {object} user - L'objet utilisateur Firebase.
  */
 async function handleUserLogin(user) {
     
-    // 1. Tenter de récupérer le profil (Prénom/Nom) AVANT tout
+    // 1. Tenter de récupérer le profil (Prénom/Nom)
     let profileData = null;
     try {
-        const profileDocRef = window.doc(window.db, `users/${user.uid}/profile`, 'data');
+        const profileDocRef = window.doc(window.db, `users/${user.uid}/profile`, 'data'); 
         const profileDocSnap = await window.getDoc(profileDocRef);
         if (profileDocSnap.exists()) {
             profileData = profileDocSnap.data();
         }
     } catch (profileError) {
         console.warn("Could not fetch user profile:", profileError);
-        // Ce n'est pas grave, on utilisera l'email comme fallback
     }
 
     // 2. Mettre à jour l'interface avec les infos du profil (ou l'email)
     updateAuthUI(user, profileData); 
-   
-    const userDocRef = window.doc(window.db, `users/${user.uid}/appData`, 'data');
+
+    // 3. Récupérer les données de l'application (appData)
+    const appDataDocRef = window.doc(window.db, `users/${user.uid}/appData`, 'data');
     let remoteData = null;
     let remoteDataExists = false;
-    let syncNeeded = false; // Flag pour savoir si un re-rendu est nécessaire
+    // La variable syncNeeded n'est plus utile ici, mais on la garde pour la logique de rendu finale
+    let syncNeeded = false; 
 
     // Tente de lire les données stockées en ligne
     try {
-        const docSnap = await window.getDoc(userDocRef);
+        const docSnap = await window.getDoc(appDataDocRef);
         if (docSnap.exists()) {
             remoteData = docSnap.data();
             remoteDataExists = true;
-            console.log("Remote data found for user.");
+            console.log("Remote appData found for user.");
         } else {
-            console.log("No remote data found for user.");
+            console.log("No remote appData found for user.");
         }
     } catch (error) {
-        console.error("Error fetching remote data:", error);
+        console.error("Error fetching remote appData:", error);
         alert("Impossible de récupérer les données en ligne. L'application continue en mode local.");
         setupRealtimeListener(user); // Tente quand même de lancer l'écouteur
+        renderAllForCurrentTeam(); // Affiche l'UI avec les données locales actuelles
         return; // Stoppe la logique de synchronisation
     }
 
@@ -146,52 +148,52 @@ async function handleUserLogin(user) {
     const localDataString = localStorage.getItem('volleyAppData'); // Pour comparaison
     const localDataExists = !!localDataString;
 
-    // --- Logique de synchronisation ---
-    if (remoteDataExists && localDataExists) {
-        // CAS 1 : Données locales ET en ligne existent
-        if (localDataString !== JSON.stringify(remoteData)) {
-            console.log("Conflict detected: Local and remote data differ.");
-            if (confirm("Des données différentes existent en local et en ligne.\n\n- OK : Utiliser les données EN LIGNE (écrase le local).\n- Annuler : Utiliser les données LOCALES (écrase la sauvegarde en ligne).")) {
-                await pullDataFromFirestore(remoteData); // Remplacer local par en ligne
-                syncNeeded = true; // Indique qu'il faut rafraîchir l'UI
-            } else {
-                await pushDataToFirestore(); // Remplacer en ligne par local
-                // Pas besoin de syncNeeded=true car les données en mémoire sont déjà les bonnes
-            }
+    // --- NOUVELLE Logique de synchronisation (Priorité en ligne) ---
+    
+    if (remoteDataExists) {
+        // CAS 1 & 3 combinés : Données en ligne existent (peut-être locales aussi)
+        // On vérifie si les données locales sont DIFFÉRENTES des données en ligne
+        if (localDataExists && localDataString !== JSON.stringify(remoteData)) {
+             console.log("Conflict detected: Local and remote data differ. PRIORITIZING REMOTE DATA.");
+             // On écrase les données locales par les données en ligne
+             await pullDataFromFirestore(remoteData); 
+             syncNeeded = true; // Indique qu'il faut rafraîchir l'UI avec les nouvelles données
+        } else if (!localDataExists) {
+             console.log("Remote data found, no local data. Pulling remote data.");
+             // Pas de données locales, on charge celles en ligne
+             await pullDataFromFirestore(remoteData);
+             syncNeeded = true; // Indique qu'il faut rafraîchir l'UI
         } else {
-            console.log("Local and remote data are identical.");
-            // Assure que appData est bien la version correcte (au cas où remoteData a une structure plus récente)
-            if (remoteData) { // Vérifie que remoteData n'est pas null
-               appData = remoteData;
-               migrateDataStructure(); // Applique les migrations locales si besoin
-            }
+             console.log("Remote and local data are identical (or only remote exists and local is same). No action needed.");
+             // Les données sont identiques OU les données locales étaient déjà à jour.
+             // On s'assure que appData est bien la version correcte (au cas où la structure a migré)
+             appData = remoteData; // Assure que la variable en mémoire est la version distante
+             migrateDataStructure(); // Applique migrations si besoin
+             // syncNeeded reste false, car les données en mémoire n'ont pas fondamentalement changé
         }
+        
     } else if (localDataExists) {
-        // CAS 2 : Données locales uniquement -> On les pousse en ligne
-        console.log("Local data found, pushing to Firestore.");
+        // CAS 2 : Données locales uniquement -> On les pousse en ligne (Première connexion)
+        console.log("Local data found, no remote data. Pushing local data to Firestore.");
         await pushDataToFirestore();
-    } else if (remoteDataExists) {
-        // CAS 3 : Données en ligne uniquement -> On les charge en local
-        console.log("Remote data found, pulling to local.");
-        await pullDataFromFirestore(remoteData);
-        syncNeeded = true; // Indique qu'il faut rafraîchir l'UI
+        // Pas besoin de syncNeeded = true, les données en mémoire sont déjà les bonnes
+        
     } else {
-        // CAS 4 : Aucune donnée nulle part -> On pousse la structure locale vide en ligne
+        // CAS 4 : Aucune donnée nulle part -> On pousse la structure locale vide par défaut en ligne
         console.log("No local or remote data. Saving default structure online.");
         await pushDataToFirestore();
+        // Pas besoin de syncNeeded = true
     }
 
-// Lance l'écoute en temps réel pour les futures modifications
+    // Lance l'écoute en temps réel pour les futures modifications
     setupRealtimeListener(user);
 
-    // --- CORRECTION ---
     // Appelle TOUJOURS le rendu de l'interface à la fin, 
-    // une fois que appData est garanti d'avoir les bonnes données (locales, distantes ou fusionnées).
+    // une fois que appData est garanti d'avoir les bonnes données
     console.log("Rendering UI after login handling complete.");
     renderAllForCurrentTeam(); 
-    // La condition 'if (syncNeeded)' a été supprimée.
-    // --- FIN CORRECTION ---
 }
+
 
 /**
  * Sauvegarde les données locales actuelles (`appData`) dans Firestore.
@@ -421,17 +423,18 @@ async function handleLogIn() {
     }
 }
 
-/** Gère la déconnexion de l'utilisateur. */
+/** Gère la déconnexion de l'utilisateur (SANS confirmation). */
 async function handleLogOut() {
-    if (confirm("Voulez-vous vous déconnecter ? Les données locales seront conservées mais ne seront plus synchronisées avec votre compte en ligne.")) {
-        try {
-            await window.signOut(window.auth);
-            // Le onAuthStateChanged va détecter la déconnexion et s'occuper du reste
-        } catch (error) {
-            console.error("Log out error:", error);
-            alert("Erreur de déconnexion : " + error.message);
-        }
+    // La condition if(confirm(...)) a été supprimée.
+    try {
+        await window.signOut(window.auth);
+        // Le onAuthStateChanged va détecter la déconnexion et s'occuper du reste
+        console.log("User logged out successfully."); // Log ajouté pour confirmation
+    } catch (error) {
+        console.error("Log out error:", error);
+        alert("Erreur de déconnexion : " + error.message);
     }
+    // L'accolade fermante du 'if' a aussi été supprimée.
 }
 
 /**
