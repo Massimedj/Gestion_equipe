@@ -1,5 +1,5 @@
 // ============================
-// AUTHENTIFICATION ET GESTION DES DONNÉES EN LIGNE
+// AUTHENTIFICATION ET GESTION DES DONNÉES EN LIGNE 
 // ============================
 
 window.appData = { teams: [], currentTeamId: null, lastFaultAction: null, lastPointAction: null };
@@ -608,4 +608,5 @@ function migrateDataStructure() {
         appData.currentTeamId = appData.teams && appData.teams.length > 0 ? appData.teams[0].id : null;
     }
 }
+
 
