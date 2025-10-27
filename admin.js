@@ -1,4 +1,3 @@
-// La liste ADMIN_UIDS est supprimée.
 
 let currentAdminUser = null; 
 
@@ -327,4 +326,5 @@ function toggleProfileEdit(showEdit) {
         editButton.classList.remove('hidden');
         editView.classList.add('hidden');
     }
+
 }
