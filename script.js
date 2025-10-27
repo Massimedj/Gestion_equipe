@@ -1,5 +1,5 @@
 // ============================
-// CONSTANTES ET ÉTAT GLOBAL 
+// CONSTANTES ET ÉTAT GLOBAL
 // ============================
 const POSITIONS = ['Passeur', 'Central', 'R\u00e9ceptionneur-Attaquant', 'Pointu', 'Lib\u00e9ro'];
 const SETS = ['set1', 'set2', 'set3', 'set4', 'set5'];
@@ -396,6 +396,12 @@ function toggleAttendanceList() {
  */
 function renderAllForCurrentTeam() {
     console.log("Rendering UI for current team:", appData.currentTeamId);
+	
+	console.log("renderAllForCurrentTeam: Starting render. Checking window.appData state:");
+    // Loggue le nombre d'équipes DANS appData AU MOMENT où le rendu commence
+    console.log("renderAllForCurrentTeam: window.appData.teams contains:", window.appData?.teams?.length || 0, "team(s)");
+    console.log("renderAllForCurrentTeam: window.appData.currentTeamId is:", window.appData?.currentTeamId);
+    // --- FIN AJOUT LOG ---
     const teamExists = !!getCurrentTeam(); // Vérifie si une équipe est sélectionnée
     const teamContent = document.getElementById('team-content'); // La section principale de l'appli
     const teamActions = document.getElementById('teamActions'); // Boutons Modifier/Supprimer équipe
@@ -506,13 +512,28 @@ function populatePositionSelects() {
 // ============================
 
 /**
- * Retourne l'objet de l'équipe actuellement sélectionnée.
- * @returns {object | null} L'objet équipe ou null si aucune équipe n'est sélectionnée ou trouvée.
+ * Retourne l'objet de l'équipe actuellement sélectionnée
+ * en se basant sur window.appData.
+ * @returns {object | null} L'objet équipe ou null.
  */
 function getCurrentTeam() {
-    // Vérifie si appData et appData.teams existent avant de chercher
-    if (!appData || !appData.teams || appData.currentTeamId === null) return null;
-    return appData.teams.find(t => t.id === appData.currentTeamId);
+    // La vérification !currentUser a été SUPPRIMÉE d'ici.
+
+    // Logs existants
+    console.log("getCurrentTeam: Checking window.appData:", window.appData?.teams?.length || 0, "teams, currentId:", window.appData?.currentTeamId);
+
+    // Vérifications sur appData
+    if (!window.appData || !window.appData.teams || window.appData.currentTeamId === null) {
+        console.log("getCurrentTeam: appData is invalid or no team selected. Returning null.");
+        return null;
+    }
+
+    // Recherche de l'équipe
+    const team = window.appData.teams.find(t => t.id === window.appData.currentTeamId);
+    if (!team) {
+        console.log("getCurrentTeam: currentTeamId not found in appData.teams. Returning null.");
+    }
+    return team || null; // Retourne l'équipe trouvée ou null
 }
 
 /** Ajoute une nouvelle équipe à la liste et la sélectionne. */
@@ -3005,5 +3026,4 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 
 
 console.log("Main script loaded. Waiting for DOMContentLoaded and Firebase ready.");
-
 
