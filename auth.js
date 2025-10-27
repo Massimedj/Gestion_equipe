@@ -14,34 +14,37 @@ function initializeApp() {
     console.log("Setting up auth state listener...");
     window.onAuthStateChanged(window.auth, (user) => {
         if (user) {
-            // Un utilisateur s'est connecté (ou était déjà connecté)
+            // Partie connexion (inchangée)
             console.log("User is signed in:", user.uid, user.email);
-            currentUser = user; // Stocke l'utilisateur courant globalement
-
-            // Gérer la synchronisation des données APRÈS que le DOM soit prêt ET que les données locales soient chargées
+            currentUser = user;
             ensureDOMLoaded(() => handleUserLogin(user));
 
         } else {
-            // L'utilisateur s'est déconnecté ou n'était pas connecté au démarrage
-            console.log("User is signed out.");
-            currentUser = null; // Réinitialise l'utilisateur courant
-            if (firestoreListener) {
-                console.log("Unsubscribing from Firestore listener.");
-                firestoreListener(); // Arrête l'écoute des données en ligne
-                firestoreListener = null;
-            }
-            // Mettre à jour l'interface pour afficher le bouton "Connexion / Inscription"
+           
+            console.log("onAuthStateChanged detected sign out OR initial load as logged out.");
+            currentUser = null;
             updateAuthUI(null);
 
-             // S'assurer que l'application utilise les données locales après déconnexion
-             // Attendre que le DOM soit prêt pour manipuler les données et l'UI.
-             ensureDOMLoaded(() => {
-                 loadLocalData(); // Recharge explicitement les données locales
-                 renderAllForCurrentTeam(); // Rafraîchit l'UI avec les données locales
-             });
+            // Sécurité: re-vérifie si l'écouteur doit être détaché
+            if (firestoreListener) {
+                console.warn("onAuthStateChanged: Firestore listener was still active. Detaching now.");
+                firestoreListener();
+                firestoreListener = null;
+            }
+
+            // Charge et affiche les données locales
+            console.log("onAuthStateChanged (logged out): ===> STEP 1: Calling loadLocalData().");
+            loadLocalData(); // Met à jour window.appData
+            // Log DANS loadLocalData va indiquer si des données ont été trouvées
+
+            console.log("onAuthStateChanged (logged out): ===> STEP 2: Calling renderAllForCurrentTeam().");
+            renderAllForCurrentTeam(); // Affiche l'interface basée sur window.appData
+            console.log("onAuthStateChanged (logged out): ===> STEP 3: Render complete.");
+           
         }
     });
 }
+
 
 /**
  * Sauvegarde les données globales `appData`.
@@ -73,29 +76,41 @@ async function saveData() {
 
 /**
  * Charge les données depuis localStorage.
- * Appelée au démarrage de l'application (via DOMContentLoaded) et après déconnexion.
+ * Appelée au démarrage (si déconnecté) et après déconnexion.
  */
 function loadLocalData() {
-    console.log("Loading local data...");
+    console.log("loadLocalData: Attempting to load data from localStorage key 'volleyAppData'.");
+    // Réinitialise d'abord pour être sûr
+    window.appData = { teams: [], currentTeamId: null, lastFaultAction: null, lastPointAction: null };
+    
     const savedData = localStorage.getItem('volleyAppData');
+    
     if (savedData) {
+        console.log("loadLocalData: Found data in localStorage. Attempting to parse...");
+        // Loggue les premières centaines de caractères pour voir si ça ressemble aux données
+        console.log("loadLocalData: Raw data starts with:", savedData.substring(0, 200)); 
         try {
-            appData = JSON.parse(savedData);
-            migrateDataStructure(); // Vérifie et met à jour la structure des données
-            console.log("Data loaded from localStorage.");
+            window.appData = JSON.parse(savedData);
+            migrateDataStructure(); // Vérifie et met à jour la structure
+            console.log("loadLocalData: SUCCESS - Data parsed and loaded into window.appData.");
+            // Loggue le nombre d'équipes chargées
+            console.log("loadLocalData: Number of teams loaded:", window.appData?.teams?.length || 0);
         } catch (e) {
-            console.error("Error parsing local data:", e);
-            appData = { teams: [], currentTeamId: null, lastFaultAction: null, lastPointAction: null };
+            console.error("loadLocalData: ERROR parsing local data:", e);
+            console.log("loadLocalData: Resetting window.appData due to parsing error.");
+            window.appData = { teams: [], currentTeamId: null, lastFaultAction: null, lastPointAction: null };
         }
     } else {
-        appData = { teams: [], currentTeamId: null, lastFaultAction: null, lastPointAction: null };
-        console.log("No local data found. Initializing new structure.");
+        console.log("loadLocalData: No data found in localStorage. Initializing empty structure in window.appData.");
+        window.appData = { teams: [], currentTeamId: null, lastFaultAction: null, lastPointAction: null };
     }
-    // Assure que currentTeamId est valide ou null
-    if (appData.currentTeamId && (!appData.teams || !appData.teams.find(t => t.id === appData.currentTeamId))) {
-        appData.currentTeamId = appData.teams && appData.teams.length > 0 ? appData.teams[0].id : null;
+    // Assure que currentTeamId est valide (inchangé)
+    if (window.appData.currentTeamId && (!window.appData.teams || !window.appData.teams.find(t => t.id === window.appData.currentTeamId))) {
+        window.appData.currentTeamId = window.appData.teams && window.appData.teams.length > 0 ? window.appData.teams[0].id : null;
     }
+    console.log("loadLocalData: Function finished. Current team ID:", window.appData.currentTeamId);
 }
+
 
 /**
  * Gère la logique de synchronisation des données lorsqu'un utilisateur se connecte.
@@ -103,97 +118,97 @@ function loadLocalData() {
  * @param {object} user - L'objet utilisateur Firebase.
  */
 async function handleUserLogin(user) {
-    
-    // 1. Tenter de récupérer le profil (Prénom/Nom)
+
+    // 1. Tenter de récupérer le profil (Prénom/Nom ET statut admin)
     let profileData = null;
+    let isAdmin = false; // Par défaut, non admin
+    console.log(`handleUserLogin: Attempting to fetch profile for user ${user.uid}...`); // Log ajouté
     try {
-        const profileDocRef = window.doc(window.db, `users/${user.uid}/profile`, 'data'); 
-        const profileDocSnap = await window.getDoc(profileDocRef);
-        if (profileDocSnap.exists()) {
-            profileData = profileDocSnap.data();
+        const profileDocRef = window.doc(window.db, `users/${user.uid}/profile`, 'data');
+        const profileDocSnap = await window.getDoc(profileDocRef); // Attend que getDoc finisse
+
+        // CE BLOC EST IMPORTANT
+        if (profileDocSnap.exists()) { // Vérifie SI le document existe AVANT d'accéder aux données
+            profileData = profileDocSnap.data(); // Récupère les données
+            // Vérifie si le champ isAdmin existe et est Boolean true
+            isAdmin = profileData.isAdmin === true;
+            console.log(`handleUserLogin: User profile loaded. isAdmin status: ${isAdmin}`);
+        } else {
+             // S'exécute si le document profil n'existe pas
+             console.log("handleUserLogin: User profile document does not exist.");
+             // profileData reste null, isAdmin reste false
         }
+        // FIN DU BLOC IMPORTANT
+
     } catch (profileError) {
-        console.warn("Could not fetch user profile:", profileError);
+        // S'exécute si getDoc échoue (ex: règles Firestore incorrectes, réseau...)
+        console.warn("handleUserLogin: Could not fetch user profile:", profileError);
+        // profileData reste null, isAdmin reste false
+        // On loggue l'erreur mais on continue, l'UI affichera l'email et pas le bouton admin.
     }
 
-    // 2. Mettre à jour l'interface avec les infos du profil (ou l'email)
-    updateAuthUI(user, profileData); 
+    // 2. Mettre à jour l'interface avec les infos du profil ET le statut admin
+    // Appelée MÊME SI la récupération du profil a échoué (avec isAdmin=false)
+    updateAuthUI(user, profileData, isAdmin);
 
     // 3. Récupérer les données de l'application (appData)
     const appDataDocRef = window.doc(window.db, `users/${user.uid}/appData`, 'data');
     let remoteData = null;
     let remoteDataExists = false;
-    // La variable syncNeeded n'est plus utile ici, mais on la garde pour la logique de rendu finale
-    let syncNeeded = false; 
+    let syncNeeded = false; // Gardé pour la clarté, même si non utilisé pour le rendu
 
-    // Tente de lire les données stockées en ligne
+    console.log("handleUserLogin: Attempting to fetch appData..."); // Log ajouté
     try {
         const docSnap = await window.getDoc(appDataDocRef);
         if (docSnap.exists()) {
             remoteData = docSnap.data();
             remoteDataExists = true;
-            console.log("Remote appData found for user.");
+            console.log("handleUserLogin: Remote appData found.");
         } else {
-            console.log("No remote appData found for user.");
+            console.log("handleUserLogin: No remote appData found.");
         }
     } catch (error) {
-        console.error("Error fetching remote appData:", error);
+        console.error("handleUserLogin: FATAL Error fetching remote appData:", error);
         alert("Impossible de récupérer les données en ligne. L'application continue en mode local.");
-        setupRealtimeListener(user); // Tente quand même de lancer l'écouteur
-        renderAllForCurrentTeam(); // Affiche l'UI avec les données locales actuelles
-        return; // Stoppe la logique de synchronisation
+        setupRealtimeListener(user);
+        renderAllForCurrentTeam();
+        return; // Stoppe ici si les données principales ne peuvent être lues
     }
 
-    // Récupère les données locales actuelles (déjà dans appData)
-    const localDataString = localStorage.getItem('volleyAppData'); // Pour comparaison
+    // Récupère les données locales actuelles (inchangé)
+    const localDataString = localStorage.getItem('volleyAppData');
     const localDataExists = !!localDataString;
 
-    // --- NOUVELLE Logique de synchronisation (Priorité en ligne) ---
-    
+    // Logique de synchronisation (Priorité en ligne - inchangée)
     if (remoteDataExists) {
-        // CAS 1 & 3 combinés : Données en ligne existent (peut-être locales aussi)
-        // On vérifie si les données locales sont DIFFÉRENTES des données en ligne
         if (localDataExists && localDataString !== JSON.stringify(remoteData)) {
-             console.log("Conflict detected: Local and remote data differ. PRIORITIZING REMOTE DATA.");
-             // On écrase les données locales par les données en ligne
-             await pullDataFromFirestore(remoteData); 
-             syncNeeded = true; // Indique qu'il faut rafraîchir l'UI avec les nouvelles données
-        } else if (!localDataExists) {
-             console.log("Remote data found, no local data. Pulling remote data.");
-             // Pas de données locales, on charge celles en ligne
+             console.log("handleUserLogin: Conflict detected. Prioritizing remote data.");
              await pullDataFromFirestore(remoteData);
-             syncNeeded = true; // Indique qu'il faut rafraîchir l'UI
+             // syncNeeded = true; // Non utilisé
+        } else if (!localDataExists) {
+             console.log("handleUserLogin: Remote data found, no local data. Pulling.");
+             await pullDataFromFirestore(remoteData);
+             // syncNeeded = true; // Non utilisé
         } else {
-             console.log("Remote and local data are identical (or only remote exists and local is same). No action needed.");
-             // Les données sont identiques OU les données locales étaient déjà à jour.
-             // On s'assure que appData est bien la version correcte (au cas où la structure a migré)
-             appData = remoteData; // Assure que la variable en mémoire est la version distante
-             migrateDataStructure(); // Applique migrations si besoin
-             // syncNeeded reste false, car les données en mémoire n'ont pas fondamentalement changé
+             console.log("handleUserLogin: Remote and local data identical. Using remote in memory.");
+             window.appData = remoteData;
+             migrateDataStructure();
         }
-        
     } else if (localDataExists) {
-        // CAS 2 : Données locales uniquement -> On les pousse en ligne (Première connexion)
-        console.log("Local data found, no remote data. Pushing local data to Firestore.");
+        console.log("handleUserLogin: Local data found, no remote data. Pushing local.");
         await pushDataToFirestore();
-        // Pas besoin de syncNeeded = true, les données en mémoire sont déjà les bonnes
-        
     } else {
-        // CAS 4 : Aucune donnée nulle part -> On pousse la structure locale vide par défaut en ligne
-        console.log("No local or remote data. Saving default structure online.");
+        console.log("handleUserLogin: No local or remote data. Pushing default structure.");
         await pushDataToFirestore();
-        // Pas besoin de syncNeeded = true
     }
 
-    // Lance l'écoute en temps réel pour les futures modifications
+    // Lance l'écoute en temps réel (inchangé)
     setupRealtimeListener(user);
 
-    // Appelle TOUJOURS le rendu de l'interface à la fin, 
-    // une fois que appData est garanti d'avoir les bonnes données
-    console.log("Rendering UI after login handling complete.");
-    renderAllForCurrentTeam(); 
+    // Appelle le rendu (inchangé)
+    console.log("handleUserLogin: Rendering UI after login handling complete.");
+    renderAllForCurrentTeam();
 }
-
 
 /**
  * Sauvegarde les données locales actuelles (`appData`) dans Firestore.
@@ -211,20 +226,16 @@ async function pushDataToFirestore() {
 }
 
 /**
- * Met à jour la variable globale `appData` et `localStorage` avec les données venues de Firestore.
+ * Met à jour la variable globale `window.appData` avec les données venues de Firestore.
+ * NE DOIT PAS toucher à localStorage.
  * @param {object} remoteData - Les données récupérées de Firestore.
  */
 async function pullDataFromFirestore(remoteData) {
-    console.log("Pulling data from Firestore...");
-    appData = remoteData; // Remplace les données locales en mémoire
+    console.log("Pulling data from Firestore into memory (window.appData)...");
+    window.appData = remoteData; // Remplace les données en mémoire
     migrateDataStructure(); // Applique les migrations si nécessaire sur les données tirées
-    try {
-        // Met à jour la copie locale dans localStorage
-        localStorage.setItem('volleyAppData', JSON.stringify(appData));
-        console.log("Local storage updated with Firestore data.");
-    } catch (e) {
-        console.error("Error updating localStorage after pull:", e);
-    }
+    console.log("window.appData updated with Firestore data.");
+   
 }
 
 /**
@@ -239,75 +250,112 @@ function setupRealtimeListener(user) {
     const userDocRef = window.doc(window.db, `users/${user.uid}/appData`, 'data');
     console.log("Setting up Firestore real-time listener for user:", user.uid);
     firestoreListener = window.onSnapshot(userDocRef, (docSnap) => {
-        if (!currentUser || currentUser.uid !== user.uid) {
-            console.log("Snapshot received but user changed or logged out. Ignoring.");
-            if (firestoreListener) firestoreListener();
-            firestoreListener = null;
-            return;
+        
+        // --- NOUVELLE SÉCURITÉ ---
+        // Si currentUser est null (l'utilisateur vient de se déconnecter),
+        // on ignore TOUTE mise à jour venant de l'écouteur.
+        if (!currentUser) {
+            console.log("Snapshot received, but currentUser is null (logged out). IGNORING.");
+            // Optionnel : on pourrait détacher l'écouteur ici aussi, mais c'est déjà fait dans onAuthStateChanged
+            // if (firestoreListener) firestoreListener();
+            // firestoreListener = null;
+            return; 
         }
+        // Vérifie aussi si l'UID a changé (sécurité supplémentaire)
+        if (currentUser.uid !== user.uid) {
+             console.log("Snapshot received for previous user. IGNORING.");
+             return;
+        }
+        // --- FIN NOUVELLE SÉCURITÉ ---
 
         if (docSnap.exists()) {
             const firestoreData = docSnap.data();
-            if (JSON.stringify(appData) !== JSON.stringify(firestoreData)) {
+            // Utilise la comparaison globale window.appData
+            if (JSON.stringify(window.appData) !== JSON.stringify(firestoreData)) {
                 console.log("Realtime update received. Updating local state.");
-                appData = JSON.parse(JSON.stringify(firestoreData));
-                migrateDataStructure();
-                localStorage.setItem('volleyAppData', JSON.stringify(appData));
+                window.appData = JSON.parse(JSON.stringify(firestoreData)); // Met à jour la variable globale
+                migrateDataStructure(); // Applique migrations si besoin
+                localStorage.setItem('volleyAppData', JSON.stringify(window.appData)); // Met à jour le stockage local
                 renderAllForCurrentTeam(); // Rafraîchit toute l'interface
+            } else {
+                 console.log("Realtime update received, but data is identical to current state. No UI update needed.");
             }
         } else {
              console.warn("Firestore document deleted externally. Resetting local data.");
-             appData = { teams: [], currentTeamId: null, lastFaultAction: null, lastPointAction: null };
+             // Assure de mettre à jour la variable globale
+             window.appData = { teams: [], currentTeamId: null, lastFaultAction: null, lastPointAction: null };
              localStorage.removeItem('volleyAppData');
              renderAllForCurrentTeam();
         }
     }, (error) => {
         console.error("Error in Firestore listener:", error);
+        // Gérer l'erreur, par exemple détacher l'écouteur pour éviter des erreurs répétées
+         if (firestoreListener) {
+             console.log("Detaching listener due to error.");
+             firestoreListener();
+             firestoreListener = null;
+         }
     });
 }
 
 /**
- * Met à jour l'interface utilisateur pour afficher l'état de connexion.
+ * Met à jour l'interface utilisateur pour afficher l'état de connexion,
+ * le nom de l'utilisateur (si disponible) et le bouton admin (si applicable).
  * @param {object|null} user - L'objet utilisateur Firebase ou null si déconnecté.
+ * @param {object|null} profileData - Les données du profil Firestore (peut contenir 'firstname').
+ * @param {boolean} isAdmin - Indique si l'utilisateur connecté est un administrateur.
  */
-function updateAuthUI(user, profileData = null) { // Signature modifiée
+function updateAuthUI(user, profileData = null, isAdmin = false) { // Nouvelle signature
+    // Récupère les éléments HTML nécessaires
     const loggedInDiv = document.getElementById('auth-logged-in');
     const loggedOutDiv = document.getElementById('auth-logged-out');
     const userEmailDisplay = document.getElementById('user-email-display');
-    const greetingLabel = document.getElementById('auth-greeting-label'); // Récupération du label
+    const greetingLabel = document.getElementById('auth-greeting-label');
+    const adminButton = document.getElementById('admin-link-button'); // Récupère le bouton admin
 
-    if (!loggedInDiv || !loggedOutDiv || !userEmailDisplay || !greetingLabel) {
-        // Tenter de le faire plus tard si le DOM n'est pas prêt
+    // Vérification que tous les éléments existent
+    if (!loggedInDiv || !loggedOutDiv || !userEmailDisplay || !greetingLabel || !adminButton) {
+        // Si les éléments ne sont pas encore prêts (chargement initial),
+        // réessaie une fois que le DOM est complètement chargé.
         if (document.readyState === 'loading') {
-            // On doit wrapper l'appel pour inclure profileData
-            document.addEventListener('DOMContentLoaded', () => updateAuthUI(user, profileData), { once: true });
+            document.addEventListener('DOMContentLoaded', () => updateAuthUI(user, profileData, isAdmin), { once: true });
         } else {
-            console.warn("Auth UI elements not found.");
+            // Si le DOM est chargé mais les éléments manquent, loggue une erreur.
+            console.warn("Auth UI elements (including admin button) not found.");
         }
-        return;
+        return; // Stoppe l'exécution si les éléments manquent
     }
 
+    // Gère l'affichage si l'utilisateur est connecté
     if (user) {
+        // Affiche la section "connecté", cache la section "déconnecté"
         loggedInDiv.classList.remove('hidden');
         loggedOutDiv.classList.add('hidden');
 
-        // NOUVELLE LOGIQUE D'AFFICHAGE
+        // Affiche "Bonjour [Prénom]" si le prénom est disponible dans profileData,
+        // sinon affiche l'email et le label "Connecté en tant que :".
         if (profileData && profileData.firstname) {
-            // Cas 1: On a le prénom
             userEmailDisplay.textContent = `Bonjour ${profileData.firstname}`;
             greetingLabel.classList.add('hidden'); // Cache "Connecté en tant que :"
         } else {
-            // Cas 2: Fallback sur l'email (vieux comptes)
             userEmailDisplay.textContent = user.email;
             greetingLabel.classList.remove('hidden'); // Montre "Connecté en tant que :"
         }
 
+        // Affiche ou cache le bouton "Administration" en fonction du statut isAdmin
+        if (isAdmin) {
+            adminButton.classList.remove('hidden'); // Montre le bouton si admin
+        } else {
+            adminButton.classList.add('hidden'); // Cache le bouton si non admin
+        }
+
     } else {
-        // Cas déconnecté (inchangé)
-        loggedInDiv.classList.add('hidden');
-        loggedOutDiv.classList.remove('hidden');
-        userEmailDisplay.textContent = '';
-        greetingLabel.classList.remove('hidden'); // Ré-affiche le label pour la prochaine connexion
+        // Gère l'affichage si l'utilisateur est déconnecté
+        loggedInDiv.classList.add('hidden');  // Cache la section "connecté"
+        loggedOutDiv.classList.remove('hidden'); // Affiche la section "déconnecté"
+        userEmailDisplay.textContent = ''; // Vide le champ du nom/email
+        greetingLabel.classList.remove('hidden'); // Ré-affiche "Connecté en tant que :" (sera caché si besoin à la prochaine connexion)
+        adminButton.classList.add('hidden'); // Cache toujours le bouton si déconnecté
     }
 }
 
@@ -383,12 +431,27 @@ async function handleSignUp() {
         const userCredential = await window.createUserWithEmailAndPassword(window.auth, email, password);
         const user = userCredential.user;
         
-        // 2. Sauvegarder le profil (Prénom/Nom) dans un document séparé
+        // 2. Créer le document parent users/{userId} AVEC des champs
+        //    (Ceci est NÉCESSAIRE pour que la requête list() de l'admin le trouve)
+        try {
+            const userDocRef = window.doc(window.db, `users/${user.uid}`);
+            await window.setDoc(userDocRef, {
+                email: email, // Stocke l'email pour référence facile
+                createdAt: new Date() // Ajoute une date de création
+            });
+        } catch (userDocError) {
+             console.error("Error creating parent user document:", userDocError);
+             // On continue même si cette étape échoue, mais l'admin ne verra pas l'utilisateur
+        }
+
+
+        // 3. Sauvegarder le profil (Prénom/Nom) dans un document séparé
         try {
             const profileDocRef = window.doc(window.db, `users/${user.uid}/profile`, 'data');
             await window.setDoc(profileDocRef, { 
                 firstname: firstname, 
-                lastname: lastname 
+                lastname: lastname,
+                isAdmin: false // Ajoute le champ isAdmin par défaut
             });
             console.log("User profile created in Firestore.");
         } catch (profileError) {
@@ -404,6 +467,7 @@ async function handleSignUp() {
         alert("Erreur d'inscription : " + mapFirebaseAuthError(error));
     }
 }
+
 
 /** Gère la tentative de connexion. */
 async function handleLogIn() {
@@ -423,18 +487,39 @@ async function handleLogIn() {
     }
 }
 
-/** Gère la déconnexion de l'utilisateur (SANS confirmation). */
+/**
+ * Gère la déconnexion de l'utilisateur :
+ * 1. Détache l'écouteur Firestore IMMÉDIATEMENT.
+ * 2. Déconnecte l'utilisateur.
+ */
 async function handleLogOut() {
-    // La condition if(confirm(...)) a été supprimée.
-    try {
-        await window.signOut(window.auth);
-        // Le onAuthStateChanged va détecter la déconnexion et s'occuper du reste
-        console.log("User logged out successfully."); // Log ajouté pour confirmation
-    } catch (error) {
-        console.error("Log out error:", error);
-        alert("Erreur de déconnexion : " + error.message);
+    console.log("handleLogOut: Starting logout process...");
+
+    // 1. Détacher l'écouteur Firestore AVANT TOUT
+    if (firestoreListener) {
+        console.log("handleLogOut: Detaching Firestore listener *before* sign out.");
+        firestoreListener();
+        firestoreListener = null;
+    } else {
+        console.log("handleLogOut: No active Firestore listener to detach.");
     }
-    // L'accolade fermante du 'if' a aussi été supprimée.
+
+    try {
+        // 2. Déconnecter l'utilisateur
+        console.log("handleLogOut: Calling signOut...");
+        await window.signOut(window.auth);
+        console.log("handleLogOut: Sign out successful. onAuthStateChanged will handle UI refresh.");
+        // onAuthStateChanged va s'exécuter et gérer loadLocalData + renderAllForCurrentTeam.
+
+    } catch (error) {
+        console.error("Log out error during signOut:", error);
+        alert("Erreur de déconnexion : " + error.message);
+        // En cas d'erreur, on force quand même l'état déconnecté localement
+        // et on laisse onAuthStateChanged tenter de nettoyer.
+        currentUser = null;
+        updateAuthUI(null);
+        // On ne recharge PAS les données ici, on laisse onAuthStateChanged le faire.
+    }
 }
 
 /**
