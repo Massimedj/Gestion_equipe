@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -474,15 +474,8 @@
             <h2 class="text-2xl font-bold mb-4">Ajouter une rencontre</h2>
             <div class="space-y-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div class="flex flex-col">
-                        <label for="matchDate" class="font-semibold mb-1">Date du match</label>
-                        <input type="date" id="matchDate" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                    </div>
-                    
-                    <div class="flex flex-col">
-                        <label for="opponentName" class="font-semibold mb-1">Adversaire</label>
-                        <input type="text" id="opponentName" placeholder="Nom de l'adversaire" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                    </div>
+                    <input type="date" id="matchDate" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <input type="text" id="opponentName" placeholder="Nom de l'adversaire" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
                 </div>
                 <div class="flex flex-col">
                     <label class="font-semibold mb-1">Lieu du match</label>
@@ -622,25 +615,6 @@
             </div>
         </div>
     </div>
-	
-	<div id="positionSelectModal" class="modal-backdrop hidden">
-        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm mx-4 sm:mx-0">
-            <h2 id="positionSelectModalTitle" class="text-xl font-bold mb-4">Choisir un joueur</h2>
-            
-            <button onclick="updatePosition(null, null, true)" class="w-full text-left p-3 bg-gray-200 rounded-lg hover:bg-red-100 transition text-red-600 font-semibold">
-                -- Vider la position --
-            </button>
-
-            <hr class="my-3">
-
-            <div id="positionSelectModalList" class="space-y-2 max-h-60 overflow-y-auto">
-                </div>
-            <div class="flex justify-end gap-4 mt-6">
-                <button onclick="closeModal('positionSelectModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-400">Annuler</button>
-            </div>
-        </div>
-    </div>
-	
     <script src="auth.js"></script>
     <script src="script.js"></script>
 </body>
