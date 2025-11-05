@@ -1,4 +1,4 @@
-// ============================
+// ============================ 
 // CONSTANTES ET ÉTAT GLOBAL
 // ============================
 const POSITIONS = ['Passeur', 'Central', 'R\u00e9ceptionneur-Attaquant', 'Pointu', 'Lib\u00e9ro'];
@@ -3173,4 +3173,5 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 
 
 console.log("Main script loaded. Waiting for DOMContentLoaded and Firebase ready.");
+
 
