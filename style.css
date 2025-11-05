@@ -1,3 +1,4 @@
+ /* Styles personnalisés */
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f0f4f8; /* Fond gris très clair */
@@ -95,31 +96,34 @@
             background-color: #4b5563;
         }
         .captain-checkbox { /* Add base styles for better appearance */
-            appearance: none;
-            background-color: #fff;
-            border: 1px solid #d1d5db; /* gray-300 */
-            width: 1.25rem; /* w-5 */
-            height: 1.25rem; /* h-5 */
-            border-radius: 9999px; /* rounded-full */
-            display: inline-block;
-            vertical-align: middle;
-            position: relative;
-            cursor: pointer;
+			appearance: none;
+			background-color: #fff;
+			border: 1px solid #d1d5db; /* gray-300 */
+			width: 1.25rem; /* w-5 */
+			height: 1.25rem; /* h-5 */
+			border-radius: 9999px; /* rounded-full */
+			display: inline-block;
+			vertical-align: middle;
+			position: relative;
+			cursor: pointer;
         }
-        .captain-checkbox:checked {
-            background-color: #f59e0b; /* amber-500 */
-            border-color: #f59e0b; /* amber-500 */
-        }
-        .captain-checkbox:checked::after { /* Optional: Add a checkmark or indicator */
-            content: 'C';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 0.75rem; /* text-xs */
-            font-weight: bold;
-            color: white;
-        }
+		.captain-checkbox:checked {
+			background-color: #f59e0b; /* amber-500 */
+			border-color: #f59e0b; /* amber-500 */
+		}
+		.captain-checkbox:checked::after {
+			color: white; /* "C" blanc sur fond orange */
+		}
+		.captain-checkbox::after {
+			content: 'C';
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			font-size: 0.75rem; /* text-xs */
+			font-weight: bold;
+			color: #9ca3af; /* Un gris (Tailwind gray-400) */
+		}
         .captain-checkbox:disabled {
              background-color: #e5e7eb; /* gray-200 */
              border-color: #d1d5db; /* gray-300 */
@@ -169,8 +173,13 @@
             border: 1px solid #fb923c;
         }
         .fault-grid-btn {
-             padding: 0.5rem 0.25rem;
-             font-size: 0.8rem;
+             aspect-ratio: 1 / 1;         /* Force le bouton à être carré */
+             display: flex;               /* Nécessaire pour flexbox */
+             flex-direction: column;    /* (Déjà appliqué via script.js, mais bon en base) */
+             align-items: center;       /* Centre horizontalement */
+             justify-content: center;   /* Centre verticalement */
+             padding: 0.25rem;            /* Ajoute un petit padding interne */
+             font-size: 0.875rem;         /* Uniformise la police (équivalent text-sm) */
         }
         .simple-fault-btn {
             flex-grow: 1;
