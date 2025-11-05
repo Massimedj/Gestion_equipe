@@ -1516,7 +1516,7 @@ function renderCourt() {
     const createPlayerButton = (positionKey, playerId) => {
         const player = playerId ? presentPlayers.find(p => p.id === playerId) : null;
         const button = document.createElement('button');
-        button.className = 'player-select-button w-full p-2 rounded border text-left truncate text-sm';
+        button.className = 'player-select-button w-full p-2 rounded border text-left truncate text-xs';
         
         if (player) {
             button.textContent = `${player.jerseyNumber || '#'}.${player.name}`;
@@ -3173,5 +3173,6 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 
 
 console.log("Main script loaded. Waiting for DOMContentLoaded and Firebase ready.");
+
 
 
