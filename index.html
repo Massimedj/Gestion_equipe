@@ -11,6 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+	
 
     <!-- Firebase SDK (inchangé) -->
 	<script type="module">
@@ -87,13 +88,15 @@
 				</div>
             </div>
 
-            <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+			<div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
                 <h2 class="text-2xl font-bold mb-4 border-b pb-2">Gestion des Équipes</h2>
                 
                 <div class="flex flex-col lg:flex-row items-center gap-4">
                     
-                    <select id="teamSelector" class="py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none w-full lg:w-auto lg:flex-grow text-m">
-                        </select>
+                    <select id="teamSelector" class="hidden"></select> 
+                    
+                    <button id="teamSelectButton" onclick="openTeamSelectModal()" class="py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none w-full lg:w-auto lg:flex-grow text-m text-left truncate">
+                        </button>
                     
                     <div class="flex gap-2 w-full lg:w-auto">
                         <button onclick="openAddTeamModal()" class="flex-1 bg-indigo-500 text-white font-semibold py-2 px-3 rounded-lg hover:bg-indigo-600 transition">Nouvelle</button>
@@ -143,8 +146,12 @@
                         <button onclick="openAddMatchModal()" class="w-full bg-green-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-green-600 transition duration-300 shadow mb-6">Ajouter une rencontre</button>
 
                         <h3 class="text-xl font-semibold mb-3 border-t pt-6">Sélectionner un match</h3>
-                        <select id="matchSelector" class="w-full p-3 border border-gray-300 rounded-lg mb-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                            </select>
+                        
+                        <select id="matchSelector" class="hidden"></select>
+                        
+                        <button id="matchSelectButton" onclick="openMatchSelectModal()" class="w-full p-3 border border-gray-300 rounded-lg mb-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-left truncate">
+                            </button>
+                        
                         <p id="match-hint" class="text-sm text-gray-500 -mt-1 mb-2">Sélectionnez un match pour le gérer.</p>
                         <div id="matchActions" class="hidden flex gap-2 mb-4">
                             <button onclick="openEditMatchModal()" class="flex-1 bg-yellow-500 text-white text-sm font-semibold py-2 px-4 rounded-lg hover:bg-yellow-600 transition">Modifier</button>
@@ -170,7 +177,7 @@
                              </div>
 							
                             <div class="court-container relative">
-                               <div class="court">
+                               <div class="court grid grid-cols-3 grid-rows-2">
                                    <div class="net"></div>
                                    <div id="pos-4" class="position"><span class="position-label">P4</span></div>
                                    <div id="pos-3" class="position"><span class="position-label">P3</span></div>
@@ -474,8 +481,15 @@
             <h2 class="text-2xl font-bold mb-4">Ajouter une rencontre</h2>
             <div class="space-y-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <input type="date" id="matchDate" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                    <input type="text" id="opponentName" placeholder="Nom de l'adversaire" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <div class="flex flex-col">
+                        <label for="matchDate" class="font-semibold mb-1">Date du match</label>
+                        <input type="date" id="matchDate" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                    
+                    <div class="flex flex-col">
+                        <label for="opponentName" class="font-semibold mb-1">Adversaire</label>
+                        <input type="text" id="opponentName" placeholder="Nom de l'adversaire" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
                 </div>
                 <div class="flex flex-col">
                     <label class="font-semibold mb-1">Lieu du match</label>
@@ -615,9 +629,30 @@
             </div>
         </div>
     </div>
+	
+	<div id="genericSelectModal" class="modal-backdrop hidden">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 sm:mx-0 flex flex-col max-h-[90vh]">
+            
+            <h2 id="genericModalTitle" class="p-6 pb-4 text-xl font-bold">Sélectionner</h2>
+            
+            <div id="genericModalClearButton" class="px-6 pb-2 hidden">
+                <button onclick="updatePosition(null, null, true)" class="w-full text-left p-3 bg-gray-200 rounded-lg hover:bg-red-100 transition text-red-600 font-semibold">
+                    -- Vider la position --
+                </button>
+                <hr class="my-2">
+            </div>
+            
+            <div id="genericModalList" class="overflow-y-auto px-6 space-y-2">
+                </div>
+            
+            <div class="flex justify-end gap-4 p-6 pt-4">
+                <button onclick="closeModal('genericSelectModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-400">Annuler</button>
+            </div>
+        </div>
+    </div>
+	
     <script src="auth.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
-
 
