@@ -1453,67 +1453,82 @@ function renderCourt() {
     const matchId = parseInt(document.getElementById('matchSelector').value);
     const liberoContainer = document.getElementById('libero-selector-container');
 
-    // D'abord, vide les anciens éléments (plus de <select>)
+    // Clear everything first
     for (let i = 1; i <= 6; i++) {
         const posDiv = document.getElementById(`pos-${i}`);
         if (posDiv) {
-            const oldButton = posDiv.querySelector('.player-select-button');
-            if (oldButton) posDiv.removeChild(oldButton);
+            const oldSelect = posDiv.querySelector('select');
+            if (oldSelect) posDiv.removeChild(oldSelect);
         }
     }
     if (liberoContainer) liberoContainer.innerHTML = '';
 
     if (!matchId || !currentTeam || !currentTeam.players) {
-        return; // Sort si pas de match, équipe, ou joueurs
+        return; // Exit if no match, team, or players
     }
 
     const match = currentTeam.matches.find(m => m.id === matchId);
-    if (!match) return; // Sort si le match n'est pas trouvé
+    if (!match) return; // Exit if match not found
 
-    // Assure que la structure courtPositions existe
+    // Ensure courtPositions structure exists
     if (!currentTeam.courtPositions) currentTeam.courtPositions = {};
     if (!currentTeam.courtPositions[matchId]) currentTeam.courtPositions[matchId] = {};
     if (!currentTeam.courtPositions[matchId][currentSet]) currentTeam.courtPositions[matchId][currentSet] = {};
 
     const setPositions = currentTeam.courtPositions[matchId][currentSet];
+    const onCourtPlayerIds = Object.keys(setPositions)
+                                .filter(pos => pos.startsWith('pos-'))
+                                .map(pos => setPositions[pos]);
+    const liberoId = setPositions.libero;
     const presentPlayers = currentTeam.players.filter(p => match.present.includes(p.id));
 
-    // Fonction interne pour créer le bouton de sélection
-    const createPlayerButton = (positionKey, playerId) => {
-        const player = playerId ? presentPlayers.find(p => p.id === playerId) : null;
-        const button = document.createElement('button');
-        button.className = 'player-select-button w-full p-2 rounded border text-left truncate';
-        
-        if (player) {
-            button.textContent = `${player.jerseyNumber || '#'}.${player.name}`;
-        } else {
-            button.textContent = positionKey === 'libero' ? '-- Choisir un libéro --' : '-- Choisir --';
-            button.classList.add('text-gray-500');
-        }
-        
-        button.onclick = () => openPositionSelectModal(positionKey);
-        
-        // Applique la couleur (rose/bleu/blanc)
-        setCourtPositionColor(button, playerId); // setCourtPositionColor fonctionne aussi sur les boutons
-        return button;
-    };
-
-    // Rendu des 6 positions du terrain
+    // Render 6 court positions
     for (let i = 1; i <= 6; i++) {
         const posDiv = document.getElementById(`pos-${i}`);
         const positionKey = `pos-${i}`;
-        if (!posDiv) continue;
+        if (!posDiv) continue; // Skip if element doesn't exist
+
+        const select = document.createElement('select');
+        select.className = 'player-select w-full p-1'; // Adjusted styles
+        select.dataset.position = positionKey;
+        select.innerHTML = '<option value="">-- Choisir --</option>';
 
         const currentPlayerIdForThisPos = setPositions[positionKey];
-        const button = createPlayerButton(positionKey, currentPlayerIdForThisPos);
-        posDiv.appendChild(button);
+
+        presentPlayers.forEach(player => {
+            // Available if not libero AND (is current player OR not on court elsewhere)
+            if (player.id !== liberoId && (player.id === currentPlayerIdForThisPos || !onCourtPlayerIds.includes(player.id))) {
+                select.innerHTML += `<option value="${player.id}">${player.jerseyNumber || '#'}.${player.name}</option>`;
+            }
+        });
+
+        if (currentPlayerIdForThisPos) select.value = currentPlayerIdForThisPos;
+
+        select.addEventListener('change', updatePosition); // Use async version
+        posDiv.appendChild(select);
+        setCourtPositionColor(select, select.value);
     }
 
-    // Rendu du sélecteur de Libéro
+    // Render Libero selector
     if (liberoContainer) {
-        const liberoId = setPositions.libero;
-        const button = createPlayerButton('libero', liberoId);
-        liberoContainer.appendChild(button);
+        const liberoSelect = document.createElement('select');
+        liberoSelect.className = 'player-select w-full p-2'; // Added padding
+        liberoSelect.dataset.position = 'libero';
+        liberoSelect.innerHTML = '<option value="">-- Choisir un libéro --</option>';
+
+        presentPlayers.forEach(player => {
+            const isLiberoPlayer = player.mainPosition === 'Libéro' || player.secondaryPosition === 'Libéro';
+            // Available if IS a libero AND (is current libero OR not on court)
+            if (isLiberoPlayer && (player.id === liberoId || !onCourtPlayerIds.includes(player.id))) {
+                liberoSelect.innerHTML += `<option value="${player.id}">${player.jerseyNumber || '#'}.${player.name}</option>`;
+            }
+        });
+
+        if (liberoId) liberoSelect.value = liberoId;
+
+        liberoSelect.addEventListener('change', updatePosition); // Use async version
+        liberoContainer.appendChild(liberoSelect);
+        setCourtPositionColor(liberoSelect, liberoSelect.value);
     }
 }
 
@@ -1553,30 +1568,29 @@ function areCompositionsEqual(compoA, compoB) {
 /**
  * Met à jour la position d'un joueur sur le terrain pour le set courant
  * ET propage ce changement aux sets suivants (cascade "intelligente").
- * @param {string} position - La position à mettre à jour (ex: 'pos-1' ou 'libero').
- * @param {number | null} playerId - L'ID du joueur, ou null pour vider.
- * @param {boolean} [forceCloseModal=false] - Si true, ferme la modale de sélection.
  */
-async function updatePosition(position, playerId, forceCloseModal = false) {
+async function updatePosition(event) {
     const currentTeam = getCurrentTeam();
     if (!currentTeam) return;
     const matchId = parseInt(document.getElementById('matchSelector').value);
     if (!matchId) return;
 
-    // Si on a cliqué sur "Vider", le playerId est null, c'est géré
-    
-    // Ferme la modale IMMÉDIATEMENT si demandé (pour une meilleure réactivité)
-    if (forceCloseModal) {
-        closeModal('positionSelectModal');
-    }
+    const selectElement = event.target;
+    const position = selectElement.dataset.position; 
+    const playerId = selectElement.value ? parseInt(selectElement.value) : null;
 
     if (!currentTeam.courtPositions[matchId]) currentTeam.courtPositions[matchId] = {};
     if (!currentTeam.courtPositions[matchId][currentSet]) currentTeam.courtPositions[matchId][currentSet] = {};
 
     const matchPositions = currentTeam.courtPositions[matchId];
     
+    // --- DÉBUT DE LA CORRECTION (Cascade Intelligente) ---
+
     // 1. Snapshot de la compo ACTUELLE (AVANT modification)
+    //    Nous utilisons une copie profonde pour l'originale
     const originalCurrentSetCompo = JSON.parse(JSON.stringify(matchPositions[currentSet] || {}));
+
+    // --- FIN DE L'ÉTAPE 1 ---
 
     const setPositions = matchPositions[currentSet]; // Référence à la compo actuelle
 
@@ -1599,27 +1613,37 @@ async function updatePosition(position, playerId, forceCloseModal = false) {
             }
         }
     }
+    // --- Fin de la résolution des conflits ---
 
     // --- Mise à jour de la position (inchangée) ---
     if (playerId) {
         setPositions[position] = playerId;
     } else {
-        // S'assure de supprimer la clé si le playerId est null (cas "Vider")
         delete setPositions[position];
     }
     // 'setPositions' contient maintenant la NOUVELLE composition
 
-    // --- Logique de Cascade (inchangée) ---
+    // --- DÉBUT DE L'ÉTAPE 2 : Cascade (corrigée) ---
     const currentSetIndex = SETS.indexOf(currentSet);
 
+    // Boucle sur tous les sets SUIVANTS (N+1, N+2...)
     for (let i = currentSetIndex + 1; i < SETS.length; i++) {
-        const subsequentSetName = SETS[i]; 
+        const subsequentSetName = SETS[i]; // ex: 'set3'
+        
         const subsequentSetCompo = matchPositions[subsequentSetName] || {};
 
+        // 3. VÉRIFICATION DE LA CASCADE (avec la nouvelle fonction helper)
+        // Le set N+1 est-il une copie identique du set N (AVANT modification) ?
         if (areCompositionsEqual(subsequentSetCompo, originalCurrentSetCompo)) {
+            
+            // OUI : On met à jour le set N+1
             console.log(`Cascade: Mise à jour de ${subsequentSetName} depuis ${currentSet}.`);
+            // On fait une copie profonde de la *nouvelle* compo
             matchPositions[subsequentSetName] = JSON.parse(JSON.stringify(setPositions));
+        
         } else {
+            // NON : L'utilisateur a déjà modifié manuellement ce set.
+            // On casse la chaîne et on arrête la propagation.
             console.log(`Cascade: Arrêt à ${subsequentSetName} (modification manuelle détectée).`);
             break; 
         }
@@ -1635,7 +1659,6 @@ async function updatePosition(position, playerId, forceCloseModal = false) {
     renderSubstitutions(); 
     renderLiveTrackingView(); 
 }
-
 
 /**
  * Efface la composition (terrain + libéro) du set actuellement sélectionné.
@@ -1794,80 +1817,6 @@ function openSubstitutionModal(playerIdToReplace) {
     document.getElementById('substitutionModal').classList.remove('hidden');
 }
 
-/**
- * Ouvre la modale personnalisée pour sélectionner un joueur pour une position.
- * @param {string} positionKey - La position à remplir ('pos-1', 'pos-2', ... 'libero').
- */
-function openPositionSelectModal(positionKey) {
-    const currentTeam = getCurrentTeam();
-    if (!currentTeam || !currentTeam.players) return;
-    const matchId = parseInt(document.getElementById('matchSelector').value);
-    const match = currentTeam.matches.find(m => m.id === matchId);
-    if (!match) return;
-
-    const modalTitle = document.getElementById('positionSelectModalTitle');
-    const modalListDiv = document.getElementById('positionSelectModalList');
-    if (!modalTitle || !modalListDiv) return;
-
-    // Définit le titre de la modale
-    if (positionKey === 'libero') {
-        modalTitle.textContent = 'Choisir le Libéro';
-    } else {
-        modalTitle.textContent = `Choisir le joueur en P${positionKey.replace('pos-', '')}`;
-    }
-    
-    // Stocke la position dans le bouton "Vider"
-    const clearButton = document.getElementById('positionSelectModal').querySelector('button[onclick*="updatePosition"]');
-    if (clearButton) clearButton.onclick = () => updatePosition(positionKey, null, true); // true = forceCloseModal
-
-
-    modalListDiv.innerHTML = ''; // Vide la liste précédente
-
-    // Récupère les positions actuelles
-    const setPositions = (currentTeam.courtPositions && currentTeam.courtPositions[matchId] && currentTeam.courtPositions[matchId][currentSet]) || {};
-    const onCourtPlayerIds = Object.keys(setPositions)
-                                .filter(pos => pos.startsWith('pos-'))
-                                .map(pos => setPositions[pos]);
-    const liberoId = setPositions.libero;
-    const presentPlayers = currentTeam.players.filter(p => match.present.includes(p.id));
-    
-    let availablePlayers = [];
-
-    if (positionKey === 'libero') {
-        // Liste pour le libéro : joueurs présents qui ont le poste de Libéro ET qui ne sont pas sur le 6 de départ
-        availablePlayers = presentPlayers.filter(p =>
-            (p.mainPosition === 'Libéro' || p.secondaryPosition === 'Libéro') &&
-            !onCourtPlayerIds.includes(p.id)
-        );
-    } else {
-        // Liste pour une position de terrain : joueurs présents qui ne sont PAS le libéro désigné
-        availablePlayers = presentPlayers.filter(p => p.id !== liberoId);
-    }
-    
-    if (availablePlayers.length === 0) {
-        modalListDiv.innerHTML = `<p class="text-gray-500">Aucun joueur éligible disponible.</p>`;
-    } else {
-        availablePlayers.forEach(player => {
-            const isAlreadyOnCourt = onCourtPlayerIds.includes(player.id) && setPositions[positionKey] !== player.id;
-            
-            const playerButton = document.createElement('button');
-            playerButton.className = 'w-full text-left p-3 bg-gray-100 rounded-lg hover:bg-blue-100 transition disabled:opacity-50 disabled:hover:bg-gray-100';
-            playerButton.innerHTML = `<span class="font-bold">#${player.jerseyNumber || '-'}</span> ${player.name}`;
-            
-            // Grise le joueur s'il est déjà sur une *autre* position
-            if (isAlreadyOnCourt) {
-                playerButton.disabled = true;
-                playerButton.title = "Déjà sur le terrain";
-            } else {
-                // 'true' à la fin pour forcer la fermeture de la modale
-                playerButton.onclick = () => updatePosition(positionKey, player.id, true); 
-            }
-            modalListDiv.appendChild(playerButton);
-        });
-    }
-
-    document.getElementById('positionSelectModal').classList.remove('hidden');
-}
 
 async function executeSubstitution(playerOutId, playerInId) {
     const currentTeam = getCurrentTeam();
@@ -2282,7 +2231,6 @@ function addLiveButtonListeners(button, matchId, playerId, type, mode) {
 /**
  * Affiche l'interface de suivi en direct (fautes ou points) pour le match et le set sélectionnés.
  */
-
 function renderLiveTrackingView() {
     const currentTeam = getCurrentTeam();
     const liveContent = document.getElementById('live-content');
@@ -2322,30 +2270,48 @@ function renderLiveTrackingView() {
     if (typeof match.detailMode === 'undefined') match.detailMode = true; 
     detailToggle.checked = currentDetailMode; 
 
-    // --- (Logique des boutons Fautes/Points inchangée) ---
+    // --- DÉBUT DE LA MODIFICATION (Couleurs 400) ---
+    // Met à jour les styles des boutons Fautes/Points avec la NOUVELLE logique
     const faultBtn = document.getElementById('track-mode-faults');
     const pointBtn = document.getElementById('track-mode-points');
     
     if (faultBtn && pointBtn) {
+        // Style INACTIF (Blanc/Gris)
         const inactiveClasses = ['bg-white', 'text-gray-700', 'hover:bg-gray-50'];
+        
+        // Style ACTIF pour FAUTES (Orange) - VOTRE MODIFICATION
         const faultActiveClasses = ['bg-orange-400', 'text-white', 'hover:bg-orange-500'];
+        
+        // Style ACTIF pour POINTS (Vert) - VOTRE MODIFICATION
         const pointActiveClasses = ['bg-green-400', 'text-white', 'hover:bg-green-500'];
+
+        // Liste de TOUTES les classes de style à nettoyer
         const allClassesToRemove = [
-            ...inactiveClasses, ...faultActiveClasses, ...pointActiveClasses,
-            'bg-blue-500', 'hover:bg-blue-600', 'bg-orange-500', 
-            'hover:bg-orange-600', 'bg-green-500', 'hover:bg-green-600'
+            ...inactiveClasses, 
+            ...faultActiveClasses, 
+            ...pointActiveClasses,
+            'bg-blue-500',
+            'hover:bg-blue-600',
+            'bg-orange-500', // Ajout des anciens styles pour un nettoyage complet
+            'hover:bg-orange-600',
+            'bg-green-500',
+            'hover:bg-green-600'
         ];
+
+        // 1. Nettoyer les deux boutons
         faultBtn.classList.remove(...allClassesToRemove);
         pointBtn.classList.remove(...allClassesToRemove);
+
+        // 2. Appliquer les bons styles
         if (currentTrackingMode === 'faults') {
-            faultBtn.classList.add(...faultActiveClasses);
-            pointBtn.classList.add(...inactiveClasses);
-        } else {
-            faultBtn.classList.add(...inactiveClasses);
-            pointBtn.classList.add(...pointActiveClasses);
+            faultBtn.classList.add(...faultActiveClasses); // Actif (Orange)
+            pointBtn.classList.add(...inactiveClasses);    // Inactif (Blanc)
+        } else { // mode === 'points'
+            faultBtn.classList.add(...inactiveClasses);    // Inactif (Blanc)
+            pointBtn.classList.add(...pointActiveClasses); // Actif (Vert)
         }
     }
-    // --- (Fin de la logique des boutons) ---
+    // --- FIN DE LA MODIFICATION ---
 
     const detailLabel = document.getElementById('detail-toggle-label');
     if (detailLabel) detailLabel.textContent = currentDetailMode ? (currentTrackingMode === 'faults' ? "Fautes Détaillées" : "Points Détaillés") : (currentTrackingMode === 'faults' ? "Fautes Simples" : "Points Simples");
@@ -2358,11 +2324,7 @@ function renderLiveTrackingView() {
     const onCourtPlayerIds = Object.keys(setPositions)
         .filter(pos => pos.startsWith('pos-'))
         .map(pos => setPositions[pos]).filter(Boolean); 
-    
-    // --- DÉBUT DE LA MODIFICATION ---
-    // On récupère l'ID du libéro DÉSIGNÉ pour ce set
     const liberoId = setPositions.libero; 
-    // --- FIN DE LA MODIFICATION ---
 
     const participatingPlayerIds = new Set([...onCourtPlayerIds, liberoId].filter(Boolean));
 
@@ -2372,21 +2334,17 @@ function renderLiveTrackingView() {
         return;
     }
 
-    // Fonction interne pour créer et ajouter une carte joueur
+    // Fonction interne pour créer et ajouter une carte joueur (faute ou point)
     const createAndAppendCard = (playerId) => {
         const player = currentTeam.players.find(p => p.id === playerId);
         if (!player) return null; 
 
         let card; 
-        // Note : 'isLibero' ici vérifie le RÔLE, mais n'est plus utilisé pour le 'if'
         const isLibero = player.mainPosition === 'Libéro' || player.secondaryPosition === 'Libéro';
 
         if (currentTrackingMode === 'faults') {
             if (currentDetailMode) {
-                // --- MODIFICATION ---
-                // On passe l'ID du libéro désigné à la fonction
-                card = createPlayerCardLiveDetailed_Faults(match, player, liberoId);
-                // --- FIN MODIFICATION ---
+                card = createPlayerCardLiveDetailed_Faults(match, player);
                 courtLayout.appendChild(card);
                 ['service', 'attack', 'reception', 'net'].forEach(type => {
                     const button = card.querySelector(`#fault-btn-${player.id}-${type}`);
@@ -2400,10 +2358,7 @@ function renderLiveTrackingView() {
             }
         } else { // Mode Points
             if (currentDetailMode) {
-                // --- MODIFICATION ---
-                // On passe l'ID du libéro désigné à la fonction
-                card = createPlayerCardLiveDetailed_Points(match, player, liberoId);
-                // --- FIN MODIFICATION ---
+                card = createPlayerCardLiveDetailed_Points(match, player);
                 courtLayout.appendChild(card);
                 ['service', 'attack', 'block', 'net'].forEach(type => {
                     const button = card.querySelector(`#point-btn-${player.id}-${type}`);
@@ -2430,7 +2385,8 @@ function renderLiveTrackingView() {
     renderSummary(); 
 }
 
-function createPlayerCardLiveDetailed_Faults(match, player, designatedLiberoId) {
+
+function createPlayerCardLiveDetailed_Faults(match, player) {
     const card = document.createElement('div');
     const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
     // S'assure que la carte est flex-col
@@ -2439,26 +2395,26 @@ function createPlayerCardLiveDetailed_Faults(match, player, designatedLiberoId) 
     const faults = (match.faults && match.faults[currentSet] && match.faults[currentSet][player.id])
                  || { service: 0, attack: 0, reception: 0, net: 0 };
 
-    // --- DÉBUT DE LA MODIFICATION ---
-    // La logique vérifie maintenant si ce joueur EST le libéro DÉSIGNÉ pour ce set
-    const isDesignatedLibero = player.id === designatedLiberoId;
-    // --- FIN DE LA MODIFICATION ---
+    const isLibero = player.mainPosition === 'Libéro' || player.secondaryPosition === 'Libéro';
 
     let buttonsHtml = '';
 
+    // --- DÉBUT DE LA CORRECTION ---
+    
     // Classe pour les boutons en GRILLE (carrés)
-    const gridLayoutClass = "aspect-square flex flex-col items-center justify-center p-1 rounded-md text-sm font-medium w-full select-none";
+    const gridLayoutClass = "aspect-square flex flex-col items-center justify-center p-1 rounded-md text-sm font-medium w-full";
     
     // CLASSE CORRIGÉE pour le LIBÉRO (Rectangulaire + 'flex-grow')
-    const liberoLayoutClass = "flex flex-col items-center justify-center rounded-md text-sm font-medium w-full p-1 flex-grow select-none"; 
+    // On retire 'py-5' et on ajoute 'flex-grow' pour que le bouton s'étire
+    const liberoLayoutClass = "flex flex-col items-center justify-center rounded-md text-sm font-medium w-full p-1 flex-grow"; 
 
     // Classes de COULEUR (Orange)
     const colorClass = "bg-orange-400 hover:bg-orange-500 border-orange-400 text-white";
 
-    // --- MODIFICATION ---
-    if (isDesignatedLibero) { // Utilise la nouvelle variable
-    // --- FIN MODIFICATION ---
+    if (isLibero) {
         // Libero : 2 boutons rectangulaires
+        // Le conteneur a 'flex-grow' et ses enfants (les boutons) ont aussi 'flex-grow'
+        // Ils vont donc se partager l'espace vertical disponible.
         buttonsHtml = `
             <div class="flex flex-col gap-2 mt-3 flex-grow">
                  <button id="fault-btn-${player.id}-reception" class="${liberoLayoutClass} ${colorClass}">
@@ -2471,7 +2427,8 @@ function createPlayerCardLiveDetailed_Faults(match, player, designatedLiberoId) 
                  </button>
             </div>`;
     } else {
-        // Autres joueurs (ou libéro sur le terrain) : grille de 4 boutons carrés
+        // Autres joueurs : grille de 4 boutons carrés
+        // Le conteneur 'faultGridClass' a 'flex-grow'
         const faultGridClass = "grid grid-cols-2 gap-2 mt-3 flex-grow"; 
         
         buttonsHtml = `
@@ -2494,6 +2451,7 @@ function createPlayerCardLiveDetailed_Faults(match, player, designatedLiberoId) 
                 </button>
             </div>`;
     }
+    // --- FIN DE LA CORRECTION ---
 
     card.innerHTML = `
         <div class="font-bold cursor-pointer hover:text-blue-600 player-name-display" onclick="openSubstitutionModal(${player.id})">
@@ -2503,7 +2461,6 @@ function createPlayerCardLiveDetailed_Faults(match, player, designatedLiberoId) 
     `;
     return card;
 }
-
 
 function createPlayerCardLiveSimple_Faults(match, player) {
     const card = document.createElement('div');
@@ -2529,10 +2486,9 @@ function createPlayerCardLiveSimple_Faults(match, player) {
  * Crée la carte détaillée pour le suivi des POINTS d'un joueur.
  * @param {object} match - L'objet match actuel.
  * @param {object} player - L'objet joueur.
- * @param {number} designatedLiberoId - L'ID du joueur désigné comme Libéro pour ce set.
  * @returns {HTMLElement} L'élément div représentant la carte.
  */
-function createPlayerCardLiveDetailed_Points(match, player, designatedLiberoId) {
+function createPlayerCardLiveDetailed_Points(match, player) {
     const card = document.createElement('div');
     const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
     // S'assure que la carte est flex-col
@@ -2541,26 +2497,24 @@ function createPlayerCardLiveDetailed_Points(match, player, designatedLiberoId) 
     const points = (match.points && match.points[currentSet] && match.points[currentSet][player.id])
                  || { service: 0, attack: 0, block: 0, net: 0 }; 
 
-    // --- DÉBUT DE LA MODIFICATION ---
-    // La logique vérifie maintenant si ce joueur EST le libéro DÉSIGNÉ pour ce set
-    const isDesignatedLibero = player.id === designatedLiberoId;
-    // --- FIN DE LA MODIFICATION ---
+    const isLibero = player.mainPosition === 'Libéro' || player.secondaryPosition === 'Libéro';
 
     let buttonsHtml = '';
 
+    // --- DÉBUT DE LA CORRECTION ---
+
     // Classe pour les boutons en GRILLE (carrés)
-    const gridLayoutClass = "aspect-square flex flex-col items-center justify-center p-1 rounded-md text-sm font-medium w-full select-none";
+    const gridLayoutClass = "aspect-square flex flex-col items-center justify-center p-1 rounded-md text-sm font-medium w-full";
     
     // CLASSE CORRIGÉE pour le LIBÉRO (Rectangulaire + 'flex-grow')
-    const liberoLayoutClass = "flex flex-col items-center justify-center rounded-md text-sm font-medium w-full p-1 flex-grow select-none"; 
+    const liberoLayoutClass = "flex flex-col items-center justify-center rounded-md text-sm font-medium w-full p-1 flex-grow"; 
 
     // Classes de COULEUR (Vert)
     const colorClass = "bg-green-500 hover:bg-green-600 border-green-500 text-white";
 
-    // --- MODIFICATION ---
-    if (isDesignatedLibero) { // Utilise la nouvelle variable
-    // --- FIN MODIFICATION ---
+    if (isLibero) {
         // Libero : un seul bouton, rectangulaire, qui s'étire
+        // Le conteneur a 'flex-grow' et son enfant (le bouton) a 'flex-grow'
         buttonsHtml = `
             <div class="flex flex-col gap-2 mt-3 flex-grow">
                  <button id="point-btn-${player.id}-net" class="${liberoLayoutClass} ${colorClass}">
@@ -2569,7 +2523,8 @@ function createPlayerCardLiveDetailed_Points(match, player, designatedLiberoId) 
                  </button>
             </div>`;
     } else {
-        // Autres joueurs (ou libéro sur le terrain) : grille de 4 boutons carrés
+        // Autres joueurs : grille de 4 boutons carrés
+        // Le conteneur 'pointGridClass' a 'flex-grow'
         const pointGridClass = "grid grid-cols-2 gap-2 mt-3 flex-grow"; 
         
         buttonsHtml = `
@@ -2592,6 +2547,7 @@ function createPlayerCardLiveDetailed_Points(match, player, designatedLiberoId) 
                 </button>
             </div>`;
     }
+    // --- FIN DE LA CORRECTION ---
 
     card.innerHTML = `
         <div class="font-bold cursor-pointer hover:text-blue-600 player-name-display" onclick="openSubstitutionModal(${player.id})">
@@ -2601,7 +2557,6 @@ function createPlayerCardLiveDetailed_Points(match, player, designatedLiberoId) 
     `;
     return card;
 }
-
 
 /**
  * Crée la carte simple pour le suivi des POINTS d'un joueur.
@@ -2621,7 +2576,7 @@ function createPlayerCardLiveSimple_Points(match, player) {
     const totalPoints = Object.values(points).reduce((a, b) => a + b, 0);
 
     // Classes CSS pour le bouton simple (vert)
-   const simplePointBtnClass = "simple-point-btn flex-grow mt-3 text-4xl font-bold leading-none flex items-center justify-center aspect-square bg-green-500 hover:bg-green-600 border-green-500 text-white rounded-lg select-none";
+    const simplePointBtnClass = "simple-point-btn flex-grow mt-3 text-4xl font-bold leading-none flex items-center justify-center aspect-square bg-green-500 hover:bg-green-600 border-green-500 text-white rounded-lg";
 
     // Construction du HTML de la carte
     card.innerHTML = `
@@ -3071,4 +3026,3 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 
 
 console.log("Main script loaded. Waiting for DOMContentLoaded and Firebase ready.");
-
