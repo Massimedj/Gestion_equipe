@@ -53,7 +53,7 @@
 </head>
 <body class="text-gray-800">
 
-    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+    <div class="container mx-auto p-0 sm:p-4 md:p-8 max-w-7xl">
         <!-- ... (header reste inchangé) ... -->
          <header class="text-center mb-8">
             <img src="Images/Logo_EsayPlay.png" alt="Logo EasyPlay" class="mx-auto h-20 w-auto mb-4">
@@ -303,7 +303,10 @@
                     <div class="bg-white p-6 rounded-2xl shadow-lg">
                         <h2 class="text-2xl font-bold mb-4 border-b pb-2">Résultats de la Saison</h2>
 
-                        <h3 class="text-xl font-bold mb-4 border-b pb-2">Résultats de l'équipe</h3> 
+                        <a id="ranking-link-button" href="#" target="_blank" rel="noopener noreferrer" class="hidden inline-block bg-blue-600 text-white font-semibold py-2 px-3 rounded-lg hover:bg-blue-700 transition duration-300 shadow mb-4 text-sm">
+							Voir le classement officiel (FFVB)
+						</a>
+                        <h3 class="text-xl font-bold mb-4 border-b pb-2">Résultats de l'équipe</h3>
                         <div class="overflow-x-auto mb-8"> <table class="w-full text-left table-auto text-sm">
                                 <thead class="bg-gray-100">
                                     <tr>
@@ -506,26 +509,36 @@
         </div>
     </div>
     <div id="addTeamModal" class="modal-backdrop hidden">
-        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0">
-            <h2 class="text-2xl font-bold mb-4">Ajouter une nouvelle équipe</h2>
-            <div class="space-y-4">
+    <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0">
+    <h2 class="text-2xl font-bold mb-4">Ajouter une nouvelle équipe</h2>
+    <div class="space-y-4">
+    
                 <div>
-                    <label for="newTeamName" class="font-semibold mb-1 block">Nom de l'équipe</label>
-                    <input type="text" id="newTeamName" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Ex: Régional Senior Masculin">
-                </div>
+    <label for="newTeamName" class="font-semibold mb-1 block">Nom de l'équipe</label>
+    <input type="text" id="newTeamName" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Ex: Régional Senior Masculin">
+    </div>
+    
                 <div>
-                    <label for="newTeamSeason" class="font-semibold mb-1 block">Saison</label>
-                    <input type="text" id="newTeamSeason" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Ex: 2025/2026">
+    <label for="newTeamSeason" class="font-semibold mb-1 block">Saison</label>
+    <input type="text" id="newTeamSeason" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Ex: 2025/2026">
+    </div>
+                
+                <div>
+                    <label for="newTeamRankingUrl" class="font-semibold mb-1 block">URL du Calendrier FFVB pour Suivre le Classement</label>
+                    <input type="text" id="newTeamRankingUrl" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="https://www.ffvbbeach.org/...">
                 </div>
-            </div>
+
+    </div>
+    
             <div class="flex justify-end gap-4 mt-6">
-                <button onclick="closeModal('addTeamModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-400">Annuler</button>
-                <button onclick="addTeam()" class="bg-blue-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-600">Créer</button>
-            </div>
-        </div>
+    <button onclick="closeModal('addTeamModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-400">Annuler</button>
+    <button onclick="addTeam()" class="bg-blue-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-600">Créer</button>
+    </div>
+    </div>
     </div>
 
-    <div id="editTeamModal" class="modal-backdrop hidden">
+    
+	<div id="editTeamModal" class="modal-backdrop hidden">
         <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0">
             <h2 class="text-2xl font-bold mb-4">Modifier l'équipe</h2>
              <div class="space-y-4">
@@ -537,7 +550,12 @@
                     <label for="editTeamSeason" class="font-semibold mb-1 block">Saison</label>
                     <input type="text" id="editTeamSeason" class="w-full p-3 border border-gray-300 rounded-lg">
                 </div>
-            </div>
+
+                <div>
+                    <label for="editTeamRankingUrl" class="font-semibold mb-1 block">URL du Calendrier FFVB pour Suivre le Classement</label>
+                    <input type="text" id="editTeamRankingUrl" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="https://www.ffvbbeach.org/...">
+                </div>
+                </div>
             <div class="flex justify-end gap-4 mt-6">
                 <button onclick="closeModal('editTeamModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-400">Annuler</button>
                 <button onclick="saveTeamChanges()" class="bg-blue-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-600">Sauvegarder</button>
