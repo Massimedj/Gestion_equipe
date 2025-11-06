@@ -3119,11 +3119,14 @@ function selectTeamFromModal(teamId) {
 
 /** Gère le clic dans la modale de sélection de match */
 function selectMatchFromModal(matchId) {
-    const selector = document.getElementById('matchSelector');
-    selector.value = matchId;
-    // Déclenche manuellement l'événement 'change'
-    selector.dispatchEvent(new Event('change'));
-    closeModal('genericSelectModal');
+	const selector = document.getElementById('matchSelector');
+	selector.value = matchId;
+	   
+		renderMatchSelector(); 
+
+	// Déclenche manuellement l'événement 'change'
+	selector.dispatchEvent(new Event('change'));
+	closeModal('genericSelectModal');
 }
 
 // ============================
