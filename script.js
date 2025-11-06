@@ -1,4 +1,4 @@
-// ============================ 
+// ============================
 // CONSTANTES ET ÉTAT GLOBAL
 // ============================
 const POSITIONS = ['Passeur', 'Central', 'R\u00e9ceptionneur-Attaquant', 'Pointu', 'Lib\u00e9ro'];
@@ -258,7 +258,21 @@ function showMainTab(tabName) {
         // Met à jour la liste des matchs (calendrier)
         renderResults();       
         // Met à jour le tableau des résultats de l'équipe
-        renderTeamStats();     
+        renderTeamStats();    
+		const rankingButton = document.getElementById('ranking-link-button');
+        const currentTeam = getCurrentTeam();
+        
+        if (rankingButton && currentTeam && currentTeam.rankingUrl) {
+            // Assure que l'URL est valide (ajoute https:// si besoin)
+            let url = currentTeam.rankingUrl;
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'https://' + url;
+            }
+            rankingButton.href = url;
+            rankingButton.classList.remove('hidden');
+        } else if (rankingButton) {
+            rankingButton.classList.add('hidden');
+        }
     }
     // Pour l'onglet Matchs (gestion de la feuille de match, composition...)
     if (tabName === 'matches') {
@@ -365,8 +379,12 @@ function openEditTeamModal() {
     if (!currentTeam) return;
     const nameInput = document.getElementById('editTeamName');
     const seasonInput = document.getElementById('editTeamSeason');
+    const urlInput = document.getElementById('editTeamRankingUrl'); // <-- AJOUT
+
     if (nameInput) nameInput.value = currentTeam.name;
     if (seasonInput) seasonInput.value = currentTeam.season || '';
+    if (urlInput) urlInput.value = currentTeam.rankingUrl || ''; // <-- AJOUT
+
     document.getElementById('editTeamModal')?.classList.remove('hidden');
 }
 // Fonction générique pour fermer n'importe quelle modale
@@ -538,10 +556,13 @@ function getCurrentTeam() {
 
 /** Ajoute une nouvelle équipe à la liste et la sélectionne. */
 async function addTeam() {
-    const teamNameInput = document.getElementById('newTeamName');
+	const teamNameInput = document.getElementById('newTeamName');
     const teamSeasonInput = document.getElementById('newTeamSeason');
+    const teamRankingUrlInput = document.getElementById('newTeamRankingUrl');
+
     const teamName = teamNameInput.value.trim();
     const teamSeason = teamSeasonInput.value.trim();
+    const teamRankingUrl = teamRankingUrlInput.value.trim();
 
     if (!teamName) {
         alert("Veuillez entrer un nom d'équipe.");
@@ -550,12 +571,14 @@ async function addTeam() {
 
     // Crée le nouvel objet équipe
     const newTeam = {
-        id: Date.now(), // Utilise un timestamp comme ID simple et unique
+        id: Date.now(),
         name: teamName,
         season: teamSeason,
+        rankingUrl: teamRankingUrl,
         players: [],
         matches: [],
-        courtPositions: {} // Initialise vide
+        courtPositions: {}
+		
     };
 
     if (!appData.teams) appData.teams = []; // Initialise le tableau s'il n'existe pas
@@ -569,30 +592,34 @@ async function addTeam() {
     // Vide les champs du formulaire (optionnel)
     teamNameInput.value = '';
     teamSeasonInput.value = '';
+	teamRankingUrlInput.value = '';
 }
 
 /** Sauvegarde les modifications apportées au nom/saison de l'équipe actuelle. */
 async function saveTeamChanges() {
     const currentTeam = getCurrentTeam();
-    if (!currentTeam) return; // Ne rien faire si aucune équipe n'est sélectionnée
+    if (!currentTeam) return;
 
     const editTeamNameInput = document.getElementById('editTeamName');
     const editTeamSeasonInput = document.getElementById('editTeamSeason');
+    const editUrlInput = document.getElementById('editTeamRankingUrl'); 
+
     const newName = editTeamNameInput.value.trim();
     const newSeason = editTeamSeasonInput.value.trim();
+    const newRankingUrl = editUrlInput.value.trim(); 
 
     if (!newName) {
          alert("Le nom de l'équipe ne peut pas être vide.");
          return;
     }
 
-    // Met à jour les données de l'équipe dans appData
     currentTeam.name = newName;
     currentTeam.season = newSeason;
+    currentTeam.rankingUrl = newRankingUrl; 
 
-    await saveData(); // Sauvegarde les changements
-    renderTeamSelector(); // Met à jour le texte dans la liste déroulante
-    closeModal('editTeamModal'); // Ferme la modale
+    await saveData(); 
+    renderTeamSelector(); 
+    closeModal('editTeamModal'); 
 }
 
 /** Supprime l'équipe actuellement sélectionnée après confirmation. */
@@ -3173,6 +3200,4 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 
 
 console.log("Main script loaded. Waiting for DOMContentLoaded and Firebase ready.");
-
-
 
