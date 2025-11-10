@@ -247,8 +247,8 @@ function showMainTab(tabName) {
 
     // Rafraîchit les données spécifiques à l'onglet qui vient d'être affiché
     if (tabName === 'stats') {
-        // L'onglet Stats n'affiche plus que les stats joueurs
-        renderPlayerStats(); 
+        // L'onglet Stats n'affiche plus que les stats joueurs       
+		renderPlayerStats(); 
     }
     if (tabName === 'live') {
         // Met à jour l'affichage du suivi en direct
@@ -1934,13 +1934,18 @@ function renderStats() {
     renderPlayerStats();
     renderTeamStats();
 }
-function renderPlayerStats() {
+
+/**
+ * Affiche les statistiques des joueurs, potentiellement filtrées par match.
+ * @param {number[] | null} [matchIdsToRender=null] - Liste d'ID de matchs à inclure. Si null, inclut tous les matchs.
+ */
+function renderPlayerStats(matchIdsToRender = null) { 
     const currentTeam = getCurrentTeam();
     const statsBody = document.getElementById('statsTableBody');
     if (!statsBody) return;
-    statsBody.innerHTML = ''; // Clear previous stats
+    statsBody.innerHTML = ''; 
     if (!currentTeam || !currentTeam.players || currentTeam.players.length === 0) {
-         statsBody.innerHTML = '<tr><td colspan="15" class="p-4 text-center text-gray-500">Aucun joueur dans l\'effectif.</td></tr>'; // Increased colspan
+         statsBody.innerHTML = '<tr><td colspan="15" class="p-4 text-center text-gray-500">Aucun joueur dans l\'effectif.</td></tr>';
         return;
     }
 
@@ -1949,48 +1954,46 @@ function renderPlayerStats() {
     sortedPlayers.forEach(player => {
         let presenceCount = 0; let playedCount = 0; let setCount = 0; let setsWonCount = 0;
         let faultCounts = { service: 0, attack: 0, reception: 0, net: 0 };
-        let pointCounts = { service: 0, attack: 0, block: 0, net: 0 }; // Added points
+        let pointCounts = { service: 0, attack: 0, block: 0, net: 0 };
 
-        if (currentTeam.matches) {
-            currentTeam.matches.forEach(match => {
-                if (!match) return; // Skip if match data is corrupt
+        // --- DÉBUT DE LA LOGIQUE DE FILTRE ---
+        let matchesToProcess = currentTeam.matches;
 
+        // Si un filtre est fourni, filtre la liste des matchs
+        if (Array.isArray(matchIdsToRender) && currentTeam.matches) {
+            matchesToProcess = currentTeam.matches.filter(m => matchIdsToRender.includes(m.id));
+        }
+        // --- FIN DE LA LOGIQUE DE FILTRE ---
+
+
+        if (matchesToProcess) { // S'assure qu'il y a des matchs à traiter
+            matchesToProcess.forEach(match => { 
+                if (!match) return; 
+
+                // Note: La présence et le "joué" sont calculés sur les matchs filtrés
                 if (match.present?.includes(player.id)) presenceCount++;
                 if (match.played?.includes(player.id)) playedCount++;
 
-                 // Calculate sets played and won more accurately
                  SETS.forEach((setName, index) => {
-                     
-                    // --- DÉBUT DE LA CORRECTION ---
-                    // 1. Vérifier si le set a *effectivement* été joué (s'il a un score)
                     const setScore = match.score?.sets?.[index];
                     const wasSetPlayed = setScore && setScore.myTeam !== '' && setScore.opponent !== '';
 
-                    // Si le set n'a pas de score (ex: Set 4 ou 5 d'un match en 3 sets),
-                    // on ne le compte pas, même si le joueur y était inscrit.
                     if (!wasSetPlayed) {
-                        return; // Passe au set suivant
+                        return; 
                     }
-                    // --- FIN DE LA CORRECTION ---
 
-
-                     // 2. Le set a été joué. Vérifier si le joueur y a participé.
                      let playedInSet = false;
-                     // Check if started
                      const setPositions = (currentTeam.courtPositions && currentTeam.courtPositions[match.id] && currentTeam.courtPositions[match.id][setName]) || {};
                      if (Object.values(setPositions).includes(player.id)) {
                          playedInSet = true;
                      }
-                     // Check if subbed in
                      const setSubs = (match.substitutions && match.substitutions[setName]) || [];
                       if (!playedInSet && setSubs.some(sub => sub.in === player.id)) {
                           playedInSet = true;
                       }
                      
-                     // 3. Si le joueur a participé ET que le set a eu lieu :
                      if (playedInSet) {
                          setCount++;
-                         // (La vérification 'setScore' ici est maintenant redondante mais inoffensive)
                          if (parseInt(setScore.myTeam) > parseInt(setScore.opponent)) {
                              setsWonCount++;
                          }
@@ -1998,7 +2001,7 @@ function renderPlayerStats() {
                  });
 
 
-                // Aggregate faults (inchangé)
+                // Agrège les fautes (sur les matchs filtrés)
                 if (match.faults) {
                     SETS.forEach(setName => {
                         if (match.faults[setName]?.[player.id]) {
@@ -2010,7 +2013,7 @@ function renderPlayerStats() {
                         }
                     });
                  }
-                 // Aggregate points (inchangé)
+                 // Agrège les points (sur les matchs filtrés)
                  if (match.points) {
                     SETS.forEach(setName => {
                         if (match.points[setName]?.[player.id]) {
@@ -2166,6 +2169,79 @@ function renderTeamStats() {
             <td class="p-2">${stats.ptsContre || ''}</td>
         `;
     }
+}
+
+/**
+ * Remplit la liste des matchs (cases à cocher) DANS LA MODALE de filtre.
+ */
+function renderStatsFilter() {
+    const currentTeam = getCurrentTeam();
+    const listDiv = document.getElementById('stats-modal-match-list');
+    if (!listDiv) return;
+    listDiv.innerHTML = ''; // Vide la liste
+
+    if (!currentTeam || !currentTeam.matches || currentTeam.matches.length === 0) {
+        listDiv.innerHTML = '<p class="text-gray-500">Aucun match à filtrer.</p>';
+        return;
+    }
+
+    // Trie par date croissante (du premier au dernier)
+    const sortedMatches = [...currentTeam.matches].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    sortedMatches.forEach(match => {
+        const matchLabel = formatMatchTitle(match); // Réutilise la fonction de formatage
+        const matchId = match.id;
+
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'flex items-center';
+        
+        itemDiv.innerHTML = `
+            <input id="match-filter-${matchId}" type="checkbox" value="${matchId}" checked class="stats-match-filter h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+            <label for="match-filter-${matchId}" class="ml-2 block text-sm text-gray-900 truncate" title="${matchLabel}">
+                ${matchLabel}
+            </label>
+        `;
+        listDiv.appendChild(itemDiv);
+    });
+}
+
+/**
+ * Coche ou décoche toutes les cases du filtre de statistiques.
+ * @param {boolean} isChecked - True pour cocher, false pour décocher.
+ */
+function selectAllStatsMatches(isChecked) {
+    document.querySelectorAll('.stats-match-filter').forEach(checkbox => {
+        checkbox.checked = isChecked;
+    });
+}
+
+/**
+ * Récupère les matchs sélectionnés DANS LA MODALE et relance le rendu des statistiques.
+ */
+function applyStatsFilter() {
+    const selectedMatchIds = [];
+    // Cible les checkboxes DANS LA MODALE
+    document.querySelectorAll('#statsFilterModal .stats-match-filter:checked').forEach(checkbox => {
+        selectedMatchIds.push(parseInt(checkbox.value));
+    });
+
+    if (selectedMatchIds.length === 0) {
+        alert("Veuillez sélectionner au moins un match pour afficher les statistiques.");
+        return;
+    }
+
+    // Appelle renderPlayerStats en lui passant la liste des ID sélectionnés
+    renderPlayerStats(selectedMatchIds);
+    
+    closeModal('statsFilterModal'); // Ferme la modale après application
+}
+
+/**
+ * Remplit la liste du filtre et ouvre la modale de filtre des statistiques.
+ */
+function openStatsFilterModal() {
+    renderStatsFilter(); // Remplit la liste
+    document.getElementById('statsFilterModal').classList.remove('hidden'); // Ouvre la modale
 }
 
 // ============================
