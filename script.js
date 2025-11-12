@@ -1,4 +1,4 @@
-// ============================
+// ============================ 
 // CONSTANTES ET ÉTAT GLOBAL
 // ============================
 const POSITIONS = ['Passeur', 'Central', 'R\u00e9ceptionneur-Attaquant', 'Pointu', 'Lib\u00e9ro'];
@@ -3614,3 +3614,4 @@ function collapseAttendanceDrawer() {
         drawer.open = false;
     }
 }
+
