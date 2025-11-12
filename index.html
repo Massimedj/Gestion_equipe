@@ -126,6 +126,9 @@
                         <button id="main-tab-stats" onclick="showMainTab('stats')" class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-lg">
                             Statistiques
                         </button>
+						<button id="main-tab-trainings" onclick="showMainTab('trainings')" class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-lg">
+							Entraînements
+						</button>
                     </nav>
                 </div>
 
@@ -390,8 +393,29 @@
                                 </tbody>
                             </table>
                         </div>
-                    </div>
+                    </div>				       				
+	
                 </div>
+						<div id="main-view-trainings" class="hidden">
+							<div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+								<h2 class="text-2xl font-bold mb-4 border-b pb-2">Planification des Entraînements</h2>
+								<button onclick="openAddTrainingModal()" class="w-full bg-green-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-green-600 transition duration-300 shadow mb-6">
+									Ajouter une séance
+								</button>
+
+                                <h3 class="text-xl font-semibold mt-6 mb-3">Séances à venir</h3>
+                                <div id="upcoming-training-list" class="mt-4 space-y-4">
+                                    </div>
+                        
+                                <details id="past-trainings-drawer" class="mt-6 border-t pt-4 hidden">
+                                    <summary id="past-trainings-summary" class="text-lg font-semibold cursor-pointer text-gray-600 hover:text-gray-900">
+                                        Voir les séances passées
+                                    </summary>
+                                    <div id="past-training-list" class="mt-4 space-y-4 opacity-80">
+                                        </div>
+                                </details>
+                                </div>
+						</div>
             </div>
         </main>
        
@@ -697,6 +721,80 @@
             </div>
         </div>
     </div>
+	
+	<div id="addTrainingModal" class="modal-backdrop hidden">
+		<div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0 flex flex-col max-h-[90vh]">
+			<h2 class="text-2xl font-bold mb-4">Nouvelle Séance</h2>
+			<div class="space-y-4 overflow-y-auto">
+				<div>
+					<label for="newTrainingDate" class="font-semibold mb-1 block">Date</label>
+					<input type="date" id="newTrainingDate" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+				</div>
+				<div>
+					<label for="newTrainingTheme" class="font-semibold mb-1 block">Thème / Objectifs</label>
+					<input type="text" id="newTrainingTheme" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Ex: Service / Réception">
+				</div>
+				<div>
+					<label for="newTrainingPlan" class="font-semibold mb-1 block">Plan d'entraînement</label>
+					<textarea id="newTrainingPlan" rows="15" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Échauffement, ateliers..."></textarea>
+				</div>
+			</div>
+			<div class="flex justify-end gap-4 mt-6 border-t pt-4">
+				<button onclick="closeModal('addTrainingModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-400">Annuler</button>
+				<button onclick="addTrainingSession()" class="bg-blue-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-600">Enregistrer</button>
+			</div>
+		</div>
+	</div>
+	<div id="editTrainingModal" class="modal-backdrop hidden">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0 flex flex-col max-h-[90vh]">
+            <h2 class="text-2xl font-bold mb-4">Gérer la Séance</h2>
+            <input type="hidden" id="editTrainingId">
+            
+            <div class="space-y-6 overflow-y-auto">
+                
+                <details id="attendance-drawer">
+                    <summary class="text-lg font-semibold mb-2 border-b pb-1 cursor-pointer hover:text-blue-600">
+                        Feuille de présence
+                    </summary>
+                    <div id="training-attendance-list" class="space-y-3 max-h-80 overflow-y-auto pr-2">
+                        </div>
+                </details>
+                <div>
+                    <h3 class="text-lg font-semibold mb-2 border-b pb-1">Plan de la séance</h3>
+                    
+                    <div class="mt-4">
+                        <label for="editTrainingDate" class="font-semibold mb-1 block">Date</label>
+                        <input type="date" id="editTrainingDate" onfocus="collapseAttendanceDrawer()" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                    <div class="mt-4">
+                        <label for="editTrainingTheme" class="font-semibold mb-1 block">Thème / Objectifs</label>
+                        <input type="text" id="editTrainingTheme" onfocus="collapseAttendanceDrawer()" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Ex: Service / Réception">
+                    </div>
+                    <div class="mt-4">
+                        <label for="editTrainingPlan" class="font-semibold mb-1 block">Plan d'entraînement</label>
+                        <textarea id="editTrainingPlan" rows="15" onfocus="collapseAttendanceDrawer()" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Échauffement, ateliers..."></textarea>
+                    </div>
+                    </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-3 mt-6 border-t pt-4">
+                <button onclick="saveTrainingChanges()" class="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-600 w-full">
+                    Sauvegarder
+                </button>
+                <button onclick="duplicateTrainingSession()" class="bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-600 w-full">
+                    Dupliquer
+                </button>
+                <button onclick="closeModal('editTrainingModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-400 w-full">
+                    Annuler
+                </button>
+                <button onclick="deleteTrainingSession()" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 w-full">
+                    Supprimer
+                </button>
+            </div>
+
+        </div>
+    </div>
+
 	
     <script src="auth.js"></script>
     <script src="script.js"></script>
