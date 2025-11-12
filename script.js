@@ -1,4 +1,4 @@
-// ============================ 
+// ============================
 // CONSTANTES ET ÉTAT GLOBAL
 // ============================
 const POSITIONS = ['Passeur', 'Central', 'R\u00e9ceptionneur-Attaquant', 'Pointu', 'Lib\u00e9ro'];
@@ -3407,6 +3407,8 @@ async function addTrainingSession() {
         alert("Veuillez sélectionner une date.");
         return;
     }
+    
+    const allPlayerIds = currentTeam.players ? currentTeam.players.map(p => p.id) : [];
 
     const newSession = {
         id: Date.now(),
@@ -3414,7 +3416,7 @@ async function addTrainingSession() {
         theme: theme,
         plan: plan,
         attendance: { // Initialise l'objet de présence
-            present: allPlayerIds,
+            present: allPlayerIds, // Cette ligne est maintenant correcte
             absent: [],
             injured: []
         }
@@ -3614,4 +3616,3 @@ function collapseAttendanceDrawer() {
         drawer.open = false;
     }
 }
-
