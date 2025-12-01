@@ -1878,7 +1878,14 @@ async function executeSubstitution(playerOutId, playerInId) {
          alert("Erreur: Impossible de trouver la composition du set.");
          return;
     }
-    const setPositions = currentTeam.courtPositions[matchId][currentSet];
+
+    const matchPositions = currentTeam.courtPositions[matchId];
+    const setPositions = matchPositions[currentSet];
+    
+    // --- 1. SNAPSHOT AVANT MODIFICATION (Pour la cascade) ---
+    // On sauvegarde l'état de la compo AVANT le remplacement pour comparer avec les sets suivants
+    const compositionBeforeSub = JSON.parse(JSON.stringify(setPositions));
+    
     let positionToUpdate = null;
 
     // Find position of player going out (could be court or libero)
@@ -1893,27 +1900,18 @@ async function executeSubstitution(playerOutId, playerInId) {
         }
     }
 
-
     if (positionToUpdate) {
         // --- Conflict check before applying ---
         const playerComingIn = currentTeam.players.find(p => p.id === playerInId);
         const isPlayerInLibero = playerComingIn?.mainPosition === 'Libéro' || playerComingIn?.secondaryPosition === 'Libéro';
 
-        // Cannot sub a libero into a court position or vice-versa directly here
-        // (Libero replacement rules are complex, this just swaps visually for fault tracking)
-        // Basic check: if replacing libero, ensure player coming in is *also* a libero
         if (positionToUpdate === 'libero' && !isPlayerInLibero) {
             alert("Erreur: Seul un autre libéro peut remplacer le libéro.");
             return;
         }
-        // Basic check: if replacing court player, ensure player coming in is *not* a libero (unless handled by specific libero rules later)
         if (positionToUpdate.startsWith('pos-') && isPlayerInLibero) {
-             // This might be allowed under specific libero replacement rules,
-             // but for basic tracking, we might prevent it or handle it specially.
-             // For now, allow it visually but note it might violate rules.
              console.warn("Substitution: Libero potentially entering a court position.");
         }
-
 
         // --- Apply the change ---
         setPositions[positionToUpdate] = playerInId;
@@ -1922,6 +1920,27 @@ async function executeSubstitution(playerOutId, playerInId) {
         if (!match.substitutions) match.substitutions = {};
         if (!match.substitutions[currentSet]) match.substitutions[currentSet] = [];
         match.substitutions[currentSet].push({ out: playerOutId, in: playerInId });
+
+        // --- 2. LOGIQUE DE CASCADE (Propagation aux sets suivants) ---
+        // Si les sets suivants étaient identiques à la compo d'avant le changement,
+        // on considère qu'ils suivent le set actuel et on les met à jour.
+        const currentSetIndex = SETS.indexOf(currentSet);
+
+        for (let i = currentSetIndex + 1; i < SETS.length; i++) {
+            const subsequentSetName = SETS[i]; 
+            const subsequentSetCompo = matchPositions[subsequentSetName] || {};
+
+            // On compare avec compositionBeforeSub (l'ancienne version)
+            if (areCompositionsEqual(subsequentSetCompo, compositionBeforeSub)) {
+                console.log(`Cascade (Sub): Mise à jour de ${subsequentSetName} suite au remplacement dans ${currentSet}.`);
+                // On applique la NOUVELLE composition (setPositions) au set suivant
+                matchPositions[subsequentSetName] = JSON.parse(JSON.stringify(setPositions));
+            } else {
+                console.log(`Cascade (Sub): Arrêt à ${subsequentSetName} (modification manuelle détectée).`);
+                break; 
+            }
+        }
+        // --- FIN DE LA CASCADE ---
 
         recalculatePlayedStatus(matchId); // Recalculate based on new state
         await saveData(); // Save the updated state
@@ -1936,6 +1955,7 @@ async function executeSubstitution(playerOutId, playerInId) {
         alert("Erreur : Le joueur à remplacer n'a pas été trouvé sur le terrain ou comme libéro.");
     }
 }
+
 
 // ============================
 // STATISTIQUES
@@ -3605,6 +3625,223 @@ async function duplicateTrainingSession() {
     setTimeout(() => {
         openEditTrainingModal(newSession.id);
     }, 100);
+}
+
+// ============================
+// IMPORT / EXPORT EXCEL
+// ============================
+
+/**
+ * Génère et télécharge un modèle Excel vide pour aider l'utilisateur.
+ */
+function downloadPlayerTemplate() {
+    // Définit les colonnes attendues
+    const headers = [
+        ["Nom", "Prénom", "Numéro", "Licence", "Genre (H/F)", "Poste Principal", "Poste Secondaire"]
+    ];
+
+    // Crée un classeur et une feuille
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(headers);
+
+    // Ajoute une ligne d'exemple (optionnel)
+    XLSX.utils.sheet_add_aoa(ws, [
+        ["Dupont", "Jean", "10", "123456", "H", "Passeur", ""]
+    ], { origin: "A2" });
+
+    XLSX.utils.book_append_sheet(wb, ws, "Effectif");
+
+    // Déclenche le téléchargement
+    XLSX.writeFile(wb, "Modele_Import_Joueurs.xlsx");
+}
+
+/**
+ * Déclenche le clic sur l'input de fichier caché.
+ */
+function triggerImportPlayers() {
+    document.getElementById('importPlayerFile').click();
+}
+
+/**
+ * Traite le fichier Excel sélectionné et ajoute les joueurs.
+ */
+async function handlePlayerImport(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            
+            // Prend la première feuille
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            
+            // Convertit en JSON
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+            if (jsonData.length === 0) {
+                alert("Le fichier semble vide.");
+                return;
+            }
+
+            const currentTeam = getCurrentTeam();
+            let addedCount = 0;
+            let duplicateCount = 0;
+
+            jsonData.forEach(row => {
+                // Mapping des colonnes (flexible sur la casse)
+                // On cherche les clés qui ressemblent à nos attentes
+                const getVal = (keyStart) => {
+                    const key = Object.keys(row).find(k => k.trim().toLowerCase().startsWith(keyStart.toLowerCase()));
+                    return key ? row[key] : null;
+                };
+
+                const lastName = getVal("Nom") || "";
+                const firstName = getVal("Prénom") || getVal("Prenom") || "";
+                const fullName = `${firstName} ${lastName}`.trim() || getVal("Nom complet") || "Joueur Inconnu";
+                
+                let jersey = getVal("Numéro") || getVal("Numero") || "";
+                if (jersey) jersey = String(jersey); // Force en chaîne
+
+                const license = getVal("Licence") || "";
+                const genderRaw = getVal("Genre") || getVal("Sexe") || "H";
+                const gender = genderRaw.toString().toUpperCase().includes("F") ? "F" : "H";
+                
+                let mainPos = getVal("Poste P") || "Passeur"; // Défaut
+                let secPos = getVal("Poste S") || "";
+
+                // Validation basique des postes (doit correspondre aux constantes)
+                if (!POSITIONS.includes(mainPos)) mainPos = POSITIONS[0];
+                if (secPos && !POSITIONS.includes(secPos)) secPos = "";
+
+                // Vérification doublon (Nom)
+                const exists = currentTeam.players.some(p => p.name.toLowerCase() === fullName.toLowerCase());
+                
+                if (!exists && fullName !== "Joueur Inconnu") {
+                    currentTeam.players.push({
+                        id: Date.now() + Math.floor(Math.random() * 1000), // ID unique
+                        name: fullName,
+                        licenseNumber: String(license),
+                        jerseyNumber: jersey,
+                        gender: gender,
+                        mainPosition: mainPos,
+                        secondaryPosition: secPos
+                    });
+                    addedCount++;
+                } else {
+                    duplicateCount++;
+                }
+            });
+
+            if (addedCount > 0) {
+                await saveData();
+                renderPlayerList();
+                alert(`${addedCount} joueur(s) importé(s) avec succès !` + (duplicateCount > 0 ? `\n(${duplicateCount} ignorés car déjà existants)` : ""));
+            } else {
+                alert("Aucun nouveau joueur n'a été importé (doublons ou format incorrect).");
+            }
+
+        } catch (error) {
+            console.error("Erreur lors de l'importation:", error);
+            alert("Erreur lors de la lecture du fichier Excel. Vérifiez le format.");
+        } finally {
+            // Reset l'input pour permettre de réimporter le même fichier si besoin
+            event.target.value = ''; 
+        }
+    };
+
+    reader.readAsArrayBuffer(file);
+}
+
+
+/**
+ * Effectue une rotation des joueurs sur le terrain.
+ * @param {string} direction - 'clockwise' (Standard: P2->P1) ou 'counter-clockwise' (Inverse: P1->P2).
+ */
+async function rotateCourt(direction) {
+    const currentTeam = getCurrentTeam();
+    if (!currentTeam) return;
+    const matchId = parseInt(document.getElementById('matchSelector').value);
+    if (!matchId) return;
+
+    // S'assure que la structure existe
+    if (!currentTeam.courtPositions[matchId] || !currentTeam.courtPositions[matchId][currentSet]) {
+        alert("La composition est vide.");
+        return;
+    }
+
+    const matchPositions = currentTeam.courtPositions[matchId];
+    const setPositions = matchPositions[currentSet];
+    
+    // 1. Sauvegarde pour la cascade
+    const compositionBeforeRotation = JSON.parse(JSON.stringify(setPositions));
+
+    // Création de la nouvelle map de positions
+    const newPositions = { ...setPositions }; // Copie incluant le libéro
+
+    // Définition de l'ordre des positions (P1 à P6)
+    // Clockwise (Rotation standard Volley) : Le joueur en P2 va en P1, P1 va en P6, etc.
+    // P1(1) <- P2(2) <- P3(3) <- P4(4) <- P5(5) <- P6(6) <- P1(1)
+    
+    const rotationMap = {
+        'clockwise': {
+            'pos-1': 'pos-2',
+            'pos-6': 'pos-1',
+            'pos-5': 'pos-6',
+            'pos-4': 'pos-5',
+            'pos-3': 'pos-4',
+            'pos-2': 'pos-3'
+        },
+        'counter-clockwise': {
+            'pos-2': 'pos-1',
+            'pos-3': 'pos-2',
+            'pos-4': 'pos-3',
+            'pos-5': 'pos-4',
+            'pos-6': 'pos-5',
+            'pos-1': 'pos-6'
+        }
+    };
+
+    const mapToUse = rotationMap[direction];
+
+    // Applique la rotation
+    for (const [targetPos, sourcePos] of Object.entries(mapToUse)) {
+        if (setPositions[sourcePos]) {
+            newPositions[targetPos] = setPositions[sourcePos];
+        } else {
+            delete newPositions[targetPos]; // Si la source est vide, la cible devient vide
+        }
+    }
+
+    // Met à jour l'objet principal
+    matchPositions[currentSet] = newPositions;
+
+
+    // --- 2. LOGIQUE DE CASCADE (Propagation aux sets suivants) ---
+    const currentSetIndex = SETS.indexOf(currentSet);
+
+    for (let i = currentSetIndex + 1; i < SETS.length; i++) {
+        const subsequentSetName = SETS[i]; 
+        const subsequentSetCompo = matchPositions[subsequentSetName] || {};
+
+        // Si le set suivant était identique à la compo AVANT rotation, on le met à jour
+        if (areCompositionsEqual(subsequentSetCompo, compositionBeforeRotation)) {
+            console.log(`Cascade (Rotation): Mise à jour de ${subsequentSetName} depuis ${currentSet}.`);
+            matchPositions[subsequentSetName] = JSON.parse(JSON.stringify(newPositions));
+        } else {
+            console.log(`Cascade (Rotation): Arrêt à ${subsequentSetName}.`);
+            break; 
+        }
+    }
+    // --- FIN CASCADE ---
+
+    await saveData();
+    renderCourt();
+    // Pas besoin de recalculatePlayedStatus ici car ce sont les mêmes joueurs, juste déplacés.
 }
 
 /**
