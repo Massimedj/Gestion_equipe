@@ -931,8 +931,11 @@ function renderPlayerList() {
     const currentTeam = getCurrentTeam();
     const playerListDiv = document.getElementById('playerList');
     const deleteAllBtn = document.getElementById('deleteAllPlayersBtn');
+	const countBadge = document.getElementById('roster-count-badge');
 
     if (!currentTeam || !playerListDiv) return;
+	
+	if (countBadge) countBadge.textContent = currentTeam.players.length;
 
     deleteAllBtn.classList.toggle('hidden', currentTeam.players.length === 0);
     playerListDiv.innerHTML = currentTeam.players.length ? '' : '<p class="text-gray-500">Aucun joueur dans l\'effectif.</p>';
@@ -1111,7 +1114,10 @@ function renderAttendanceForSelectedMatch() {
     const selectedMatchContentDiv = document.getElementById('selectedMatchContent');
     const attendanceList = document.getElementById('attendanceList');
     const attendanceToggleIcon = document.getElementById('attendance-toggle-icon');
-
+	
+	// AJOUT : Récupère le badge des présents
+    const presentBadge = document.getElementById('match-present-count-badge');
+	
     if (!matchId || !currentTeam || !attendanceList || !selectedMatchContentDiv) {
          if (selectedMatchContentDiv) selectedMatchContentDiv.classList.add('hidden');
          if(attendanceList) attendanceList.innerHTML = ''; // Clear list if no match selected
@@ -1122,6 +1128,7 @@ function renderAttendanceForSelectedMatch() {
          if (attendanceList && !attendanceList.classList.contains('hidden')) {
              attendanceList.classList.add('hidden');
          }
+        if (presentBadge) presentBadge.textContent = '0'; // Remet à 0 si rien
         return;
     }
 
@@ -1136,7 +1143,13 @@ function renderAttendanceForSelectedMatch() {
           if (attendanceList && !attendanceList.classList.contains('hidden')) {
              attendanceList.classList.add('hidden');
          }
+        if (presentBadge) presentBadge.textContent = '0'; // Remet à 0 si pas de match
         return;
+    }
+	
+	// AJOUT : Met à jour le badge avec le nombre d'IDs dans le tableau 'present'
+    if (presentBadge) {
+        presentBadge.textContent = `${match.present.length} présent(s)`;
     }
 
     selectedMatchContentDiv.classList.remove('hidden'); // Ensure container is visible
