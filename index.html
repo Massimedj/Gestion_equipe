@@ -137,7 +137,10 @@
 
                 <div id="main-view-roster">
                     <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
-                        <h2 class="text-2xl font-bold mb-4 border-b pb-2">Effectif de l'équipe</h2>
+                        <h2 class="text-2xl font-bold mb-4 border-b pb-2 flex items-center gap-2">
+						Effectif de l'équipe
+						<span id="roster-count-badge" class="text-sm font-normal bg-gray-200 text-gray-700 px-2 py-1 rounded-full">0</span>
+					</h2>
                         <div class="flex flex-col sm:flex-row gap-2 mb-6">
                         <button onclick="openAddPlayerModal()" class="flex-grow bg-blue-500 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-600 transition shadow">
                             Ajouter un joueur
@@ -188,12 +191,19 @@
 
                     <div id="selectedMatchContent" class="hidden space-y-8">
                          <div class="bg-white p-6 rounded-2xl shadow-lg">
-                            <div onclick="toggleAttendanceList()" class="flex justify-between items-center cursor-pointer">
-                                <h3 class="text-xl font-semibold">Feuille de Match</h3>
-                                <svg id="attendance-toggle-icon" class="w-6 h-6 transition-transform transform -rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                                </svg>
-                            </div>
+                            <div onclick="toggleAttendanceList()" class="flex justify-between items-center cursor-pointer bg-gray-50 p-3 rounded-lg hover:bg-gray-100 transition">
+    
+								<h3 class="text-xl font-semibold flex items-center gap-2">
+									Feuille de Match
+									<span id="match-present-count-badge" class="text-sm font-normal bg-blue-100 text-blue-800 px-2 py-1 rounded-full">0</span>
+								</h3>
+
+								<svg id="attendance-toggle-icon" class="w-6 h-6 transition-transform transform -rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+									<path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+								</svg>
+							</div>		
+
+							
                             <div id="attendanceList" class="space-y-2 mt-4 hidden">
                                </div>
                         </div>
