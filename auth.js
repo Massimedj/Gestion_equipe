@@ -55,7 +55,6 @@ async function saveData() {
     // 1. Sauvegarde systématiquement en local (localStorage)
     try {
         localStorage.setItem('volleyAppData', JSON.stringify(appData));
-        // console.log("Data saved locally.");
     } catch (e) {
         console.error("Error saving data to localStorage:", e);
     }
@@ -63,16 +62,17 @@ async function saveData() {
     // 2. Sauvegarde dans Firestore UNIQUEMENT si un utilisateur est connecté
     if (currentUser) {
         try {
+            // Sauvegarde les données de l'application (équipes, matchs, etc.)
             const userDocRef = window.doc(window.db, `users/${currentUser.uid}/appData`, 'data');
             await window.setDoc(userDocRef, JSON.parse(JSON.stringify(appData)));
-            // console.log("Data saved to Firestore.");
+            
+            
         } catch (error) {
             console.error("Error saving data to Firestore:", error);
         }
-    } else {
-        // console.log("User not logged in, skipping Firestore save.");
     }
 }
+
 
 /**
  * Charge les données depuis localStorage.
@@ -119,45 +119,48 @@ function loadLocalData() {
  */
 async function handleUserLogin(user) {
 
+    // --- NOUVEAUTÉ : Enregistrer la date de dernière connexion dans Firestore ---
+    try {
+        const parentUserRef = window.doc(window.db, `users/${user.uid}`);
+        // L'utilisation de merge: true permet de ne pas écraser l'email ou la date de création
+        await window.setDoc(parentUserRef, { lastLogin: new Date().toISOString() }, { merge: true });
+        console.log("Date de dernière connexion mise à jour dans Firestore.");
+    } catch (error) {
+        console.error("Erreur lors de la mise à jour de la date de connexion:", error);
+    }
+    // --- FIN NOUVEAUTÉ ---
+
     // 1. Tenter de récupérer le profil (Prénom/Nom ET statut admin)
     let profileData = null;
     let isAdmin = false; // Par défaut, non admin
-    console.log(`handleUserLogin: Attempting to fetch profile for user ${user.uid}...`); // Log ajouté
+    console.log(`handleUserLogin: Attempting to fetch profile for user ${user.uid}...`); 
     try {
         const profileDocRef = window.doc(window.db, `users/${user.uid}/profile`, 'data');
-        const profileDocSnap = await window.getDoc(profileDocRef); // Attend que getDoc finisse
+        const profileDocSnap = await window.getDoc(profileDocRef); 
 
         // CE BLOC EST IMPORTANT
-        if (profileDocSnap.exists()) { // Vérifie SI le document existe AVANT d'accéder aux données
-            profileData = profileDocSnap.data(); // Récupère les données
-            // Vérifie si le champ isAdmin existe et est Boolean true
+        if (profileDocSnap.exists()) { 
+            profileData = profileDocSnap.data(); 
             isAdmin = profileData.isAdmin === true;
             console.log(`handleUserLogin: User profile loaded. isAdmin status: ${isAdmin}`);
         } else {
-             // S'exécute si le document profil n'existe pas
              console.log("handleUserLogin: User profile document does not exist.");
-             // profileData reste null, isAdmin reste false
         }
         // FIN DU BLOC IMPORTANT
 
     } catch (profileError) {
-        // S'exécute si getDoc échoue (ex: règles Firestore incorrectes, réseau...)
         console.warn("handleUserLogin: Could not fetch user profile:", profileError);
-        // profileData reste null, isAdmin reste false
-        // On loggue l'erreur mais on continue, l'UI affichera l'email et pas le bouton admin.
     }
 
     // 2. Mettre à jour l'interface avec les infos du profil ET le statut admin
-    // Appelée MÊME SI la récupération du profil a échoué (avec isAdmin=false)
     updateAuthUI(user, profileData, isAdmin);
 
     // 3. Récupérer les données de l'application (appData)
     const appDataDocRef = window.doc(window.db, `users/${user.uid}/appData`, 'data');
     let remoteData = null;
     let remoteDataExists = false;
-    let syncNeeded = false; // Gardé pour la clarté, même si non utilisé pour le rendu
 
-    console.log("handleUserLogin: Attempting to fetch appData..."); // Log ajouté
+    console.log("handleUserLogin: Attempting to fetch appData..."); 
     try {
         const docSnap = await window.getDoc(appDataDocRef);
         if (docSnap.exists()) {
@@ -172,23 +175,21 @@ async function handleUserLogin(user) {
         alert("Impossible de récupérer les données en ligne. L'application continue en mode local.");
         setupRealtimeListener(user);
         renderAllForCurrentTeam();
-        return; // Stoppe ici si les données principales ne peuvent être lues
+        return; 
     }
 
-    // Récupère les données locales actuelles (inchangé)
+    // Récupère les données locales actuelles
     const localDataString = localStorage.getItem('volleyAppData');
     const localDataExists = !!localDataString;
 
-    // Logique de synchronisation (Priorité en ligne - inchangée)
+    // Logique de synchronisation
     if (remoteDataExists) {
         if (localDataExists && localDataString !== JSON.stringify(remoteData)) {
              console.log("handleUserLogin: Conflict detected. Prioritizing remote data.");
              await pullDataFromFirestore(remoteData);
-             // syncNeeded = true; // Non utilisé
         } else if (!localDataExists) {
              console.log("handleUserLogin: Remote data found, no local data. Pulling.");
              await pullDataFromFirestore(remoteData);
-             // syncNeeded = true; // Non utilisé
         } else {
              console.log("handleUserLogin: Remote and local data identical. Using remote in memory.");
              window.appData = remoteData;
@@ -202,10 +203,10 @@ async function handleUserLogin(user) {
         await pushDataToFirestore();
     }
 
-    // Lance l'écoute en temps réel (inchangé)
+    // Lance l'écoute en temps réel
     setupRealtimeListener(user);
 
-    // Appelle le rendu (inchangé)
+    // Appelle le rendu
     console.log("handleUserLogin: Rendering UI after login handling complete.");
     renderAllForCurrentTeam();
 }
@@ -219,6 +220,7 @@ async function pushDataToFirestore() {
     try {
         const userDocRef = window.doc(window.db, `users/${currentUser.uid}/appData`, 'data');
         await window.setDoc(userDocRef, JSON.parse(JSON.stringify(appData)));
+        
         console.log("Push successful.");
     } catch (error) {
         console.error("Error pushing data to Firestore:", error);
