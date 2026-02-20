@@ -1,12 +1,15 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <title>Admin Assistant de Coach</title>
+    
+    <link rel="icon" type="image/png" href="Images/Favicone.png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css"> 
     
-	<script type="module">
+    <script type="module">
         // --- CORRECTION : Utilisation des URL complètes ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -28,8 +31,8 @@
         const auth = getAuth(app);
         // Utilise getFirestore pour v9+
         const db = getFirestore(app); 
-		
-		// --- AJOUT LOG ---
+        
+        // --- AJOUT LOG ---
         console.log("Admin page: Initialized Firestore DB for project:", db.app.options.projectId); 
         // --- FIN AJOUT LOG ---
 
@@ -118,5 +121,4 @@
 
     <script src="admin.js"></script>
 </body>
-
 </html>
