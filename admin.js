@@ -51,74 +51,103 @@ document.addEventListener('firebaseReady', () => {
     });
 });
 
-/** Charge et affiche la liste des utilisateurs */
+/** Charge et affiche la liste des utilisateurs classée par date de création */
 async function loadUserList() {
-    // Cible le div où la liste sera affichée
     const userListDiv = document.getElementById('user-list');
-    // Affiche un message de chargement initial
     userListDiv.innerHTML = '<p>Chargement de la liste...</p>';
 
     try {
-        // Définit la référence à la collection Firestore "users"
-        const usersCollectionRef = window.collection(window.db, "users"); // Vérifiez bien le nom "users" ici
-        console.log("Admin page: Querying collection 'users'..."); // Log avant la requête
-
-        // Exécute la requête pour obtenir tous les documents de la collection
+        const usersCollectionRef = window.collection(window.db, "users");
         const querySnapshot = await window.getDocs(usersCollectionRef);
 
-        // Loggue le résultat de la requête (taille et si elle est vide)
-        console.log(`Admin page: getDocs successful. Snapshot size: ${querySnapshot.size}, Is empty: ${querySnapshot.empty}`);
-
-        // Vide le message de chargement
-        userListDiv.innerHTML = '';
-
-        // Si la requête ne retourne aucun document
         if (querySnapshot.empty) {
-            userListDiv.innerHTML = '<p>Aucun utilisateur trouvé.</p>'; // Affiche le message "Aucun utilisateur"
-            return; // Arrête la fonction ici
+            userListDiv.innerHTML = '<p>Aucun utilisateur trouvé.</p>';
+            return;
         }
 
-        // Si des documents sont trouvés, boucle sur chacun d'eux
-        querySnapshot.forEach(async (userDoc) => {
-            const userId = userDoc.id; // Récupère l'ID du document (qui est l'UID de l'utilisateur)
-            // Initialise des variables pour les informations utilisateur avec des valeurs par défaut
-            let userEmail = `Utilisateur ${userId.substring(0, 6)}...`; // Fallback si le profil n'est pas trouvé
-            let userFirstName = '';
-            let userLastName = '';
+        let usersDataArray = [];
 
-            // Tente de récupérer le document profil associé à cet utilisateur
-            try {
-                const profileRef = window.doc(window.db, `users/${userId}/profile/data`); // Chemin vers le profil
-                const profileSnap = await window.getDoc(profileRef); // Lecture du document profil
-                if (profileSnap.exists()) { // Vérifie si le document profil existe
-                    const profileData = profileSnap.data(); // Récupère les données du profil
-                    userFirstName = profileData.firstname || ''; // Assigne le prénom (ou chaîne vide)
-                    userLastName = profileData.lastname || ''; // Assigne le nom (ou chaîne vide)
-                    // On pourrait aussi récupérer l'email ici si besoin, mais il est stocké dans Auth, pas Firestore par défaut
-                }
-            } catch (profileError) {
-                // Loggue une alerte si la lecture du profil échoue pour cet utilisateur
-                console.warn(`Could not fetch profile for user ${userId}:`, profileError);
+        for (const userDoc of querySnapshot.docs) {
+            const userId = userDoc.id;
+            const parentData = userDoc.data();
+            
+            const userEmail = parentData.email || 'Email inconnu';
+            
+            // Gestion de la date de création
+            let createdAtDate = null;
+            if (parentData.createdAt) {
+                createdAtDate = parentData.createdAt.toDate ? parentData.createdAt.toDate() : new Date(parentData.createdAt);
             }
 
-            // Crée un bouton pour cet utilisateur
+            // Récupération de la date de dernière connexion
+            let lastLoginDate = null;
+            if (parentData.lastLogin) {
+                lastLoginDate = new Date(parentData.lastLogin);
+            }
+
+            let userFirstName = 'Utilisateur';
+            let userLastName = '';
+
+            try {
+                const profileRef = window.doc(window.db, `users/${userId}/profile/data`);
+                const profileSnap = await window.getDoc(profileRef);
+                
+                if (profileSnap.exists()) {
+                    const profileData = profileSnap.data();
+                    userFirstName = profileData.firstname || 'Utilisateur';
+                    userLastName = profileData.lastname || '';
+                }
+            } catch (profileError) {
+                console.warn(`Impossible de charger le profil pour ${userId}:`, profileError);
+            }
+
+            usersDataArray.push({
+                id: userId,
+                firstname: userFirstName,
+                lastname: userLastName,
+                email: userEmail,
+                createdAt: createdAtDate,
+                lastLogin: lastLoginDate
+            });
+        }
+
+        // Tri du plus ancien au plus récent (ordre de création)
+        usersDataArray.sort((a, b) => {
+            if (!a.createdAt && !b.createdAt) return 0;
+            if (!a.createdAt) return 1; 
+            if (!b.createdAt) return -1;
+            return a.createdAt - b.createdAt; 
+        });
+
+        // Génération de l'affichage HTML sobre
+        userListDiv.innerHTML = '';
+
+        usersDataArray.forEach(user => {
             const userButton = document.createElement('button');
-            userButton.className = 'block w-full text-left p-2 bg-white rounded shadow hover:bg-gray-100'; // Style du bouton
-            // Définit le texte du bouton (Prénom Nom (UID))
-            userButton.textContent = `${userFirstName} ${userLastName} (${userId})`;
-            // Associe une action au clic : appeler showUserDetails avec l'ID et le nom de l'utilisateur
-            userButton.onclick = () => showUserDetails(userId, `${userFirstName} ${userLastName}`);
-            // Ajoute le bouton à la liste dans le HTML
+            userButton.className = 'block w-full text-left p-3 mb-2 bg-white rounded shadow hover:bg-gray-100 transition';
+            
+            const dateOptions = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
+            const createdStr = user.createdAt && !isNaN(user.createdAt) ? user.createdAt.toLocaleDateString('fr-FR', dateOptions) : 'Inconnue';
+            
+            const loginStr = user.lastLogin && !isNaN(user.lastLogin) ? user.lastLogin.toLocaleDateString('fr-FR', dateOptions) : 'Jamais connecté';
+
+            userButton.innerHTML = `
+                <div class="font-bold text-gray-800 text-lg">${user.firstname} ${user.lastname}</div>
+                <div class="text-sm text-gray-600 mb-1">${user.email}</div>
+                <div class="text-xs text-gray-400">
+                    Créé le : ${createdStr} &nbsp;|&nbsp; Dernière connexion : ${loginStr}
+                </div>
+            `;
+            
+            userButton.onclick = () => showUserDetails(user.id, `${user.firstname} ${user.lastname}`);
             userListDiv.appendChild(userButton);
         });
 
     } catch (error) {
-        // Gère les erreurs potentielles lors de la lecture de la collection 'users' (ex: permissions)
-        console.error("Error loading user list:", error);
-        userListDiv.innerHTML = '<p class="text-red-600">Erreur lors du chargement des utilisateurs. Vérifiez les règles Firestore.</p>'; // Affiche un message d'erreur
+        console.error("Erreur lors du chargement de la liste :", error);
+        userListDiv.innerHTML = '<p class="text-red-600">Erreur lors du chargement des utilisateurs.</p>';
     }
 }
-
 
 /** Affiche les détails et les données d'un utilisateur sélectionné */
 async function showUserDetails(userId, userName) {
@@ -267,22 +296,26 @@ async function saveProfileChanges() {
     }
 
     try {
+        // Date de la modification
+        const modificationDate = new Date();
+
         // 1. Mettre à jour le document parent (pour l'email)
         const userDocRef = window.doc(window.db, `users/${userId}`);
         await window.updateDoc(userDocRef, {
             email: newEmail
         });
 
-        // 2. Mettre à jour le document profil (pour Prénom/Nom)
+        // 2. Mettre à jour le document profil (pour Prénom/Nom ET la date de modification)
         const profileRef = window.doc(window.db, `users/${userId}/profile/data`);
         await window.updateDoc(profileRef, {
             firstname: newFirstName,
-            lastname: newLastName
+            lastname: newLastName,
+            updatedAt: modificationDate // ENREGISTREMENT DE LA DATE DE MODIFICATION
         });
 
         alert("Profil mis à jour avec succès !");
 
-        // 3. Rafraîchir la liste des utilisateurs (pour le nom)
+        // 3. Rafraîchir la liste des utilisateurs pour voir la nouvelle date
         await loadUserList(); 
         
         // 4. Rafraîchir le titre des détails
