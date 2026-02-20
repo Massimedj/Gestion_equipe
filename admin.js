@@ -1,4 +1,3 @@
-
 let currentAdminUser = null; 
 
 document.addEventListener('firebaseReady', () => {
@@ -361,3 +360,4 @@ function toggleProfileEdit(showEdit) {
     }
 
 }
+
