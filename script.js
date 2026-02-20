@@ -1987,8 +1987,10 @@ function renderPlayerStats(matchIdsToRender = null) {
     const statsBody = document.getElementById('statsTableBody');
     if (!statsBody) return;
     statsBody.innerHTML = ''; 
+    
     if (!currentTeam || !currentTeam.players || currentTeam.players.length === 0) {
-         statsBody.innerHTML = '<tr><td colspan="15" class="p-4 text-center text-gray-500">Aucun joueur dans l\'effectif.</td></tr>';
+        // Le colspan passe à 17 pour correspondre aux 2 nouvelles colonnes de moyennes
+        statsBody.innerHTML = '<tr><td colspan="17" class="p-4 text-center text-gray-500">Aucun joueur dans l\'effectif.</td></tr>';
         return;
     }
 
@@ -2074,9 +2076,20 @@ function renderPlayerStats(matchIdsToRender = null) {
         const totalFaults = Object.values(faultCounts).reduce((a, b) => a + b, 0);
         const totalPoints = Object.values(pointCounts).reduce((a, b) => a + b, 0); 
 
+        // --- NOUVEAU CALCUL ALGORITHMIQUE DES MOYENNES ---
+        let avgFaults = '';
+        let avgPoints = '';
+        
+        // On s'assure de ne pas diviser par zéro si le joueur n'a joué aucun set
+        if (setCount > 0) {
+            avgFaults = (totalFaults / setCount).toFixed(1); // Arrondi à 1 décimale (ex: 1.2)
+            avgPoints = (totalPoints / setCount).toFixed(1);
+        }
+        // ------------------------------------------------
+
         const row = document.createElement('tr');
-        row.className = 'border-b';
-        // HTML de la ligne (inchangé)
+        row.className = 'border-b hover:bg-gray-50 transition'; 
+        
         row.innerHTML = `
             <td class="p-3">${player.name}</td>
             <td class="p-3 text-center">${presenceCount || ''}</td>
@@ -2088,15 +2101,18 @@ function renderPlayerStats(matchIdsToRender = null) {
             <td class="p-3 text-center text-red-600">${faultCounts.reception || ''}</td>
             <td class="p-3 text-center text-red-600">${faultCounts.net || ''}</td>
             <td class="p-3 text-center font-bold">${totalFaults || ''}</td>
+            <td class="p-3 text-center font-semibold text-red-800 bg-red-50">${avgFaults}</td>
             <td class="p-3 text-center text-green-600">${pointCounts.service || ''}</td>
             <td class="p-3 text-center text-green-600">${pointCounts.attack || ''}</td>
             <td class="p-3 text-center text-green-600">${pointCounts.block || ''}</td>
             <td class="p-3 text-center text-green-600">${pointCounts.net || ''}</td>
             <td class="p-3 text-center font-bold">${totalPoints || ''}</td>
+            <td class="p-3 text-center font-semibold text-green-800 bg-green-50">${avgPoints}</td>
         `;
         statsBody.appendChild(row);
     });
 }
+
 
 /**
  * Calcule et affiche les statistiques globales de l'équipe pour la saison.
