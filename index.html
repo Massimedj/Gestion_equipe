@@ -22,15 +22,15 @@
         import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, onSnapshot, enableIndexedDbPersistence, CACHE_SIZE_UNLIMITED, initializeFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyDtR_kRAvG8CrGeeeD0weBcS51ghJKan18",
-            authDomain: "assistant-coach-volley.firebaseapp.com",
-            projectId: "assistant-coach-volley",
-            storageBucket: "assistant-coach-volley.appspot.com",
-            messagingSenderId: "196721861277",
-            appId: "1:196721861277:web:85810ab46b7a18f6612a74",
-            measurementId: "G-6LJF2SPSLZ"
-        };
+		const firebaseConfig = {
+		  apiKey: "AIzaSyBFmZGcL8OCu2UkIo9kGY69bED7KCW6nXo",
+		  authDomain: "assistant-coach-volley.firebaseapp.com",
+		  projectId: "assistant-coach-volley",
+		  storageBucket: "assistant-coach-volley.firebasestorage.app",
+		  messagingSenderId: "196721861277",
+		  appId: "1:196721861277:web:85810ab46b7a18f6612a74",
+		  measurementId: "G-6LJF2SPSLZ"
+		};
 
         const app = initializeApp(firebaseConfig);
         const db = initializeFirestore(app, { cacheSizeBytes: CACHE_SIZE_UNLIMITED });
