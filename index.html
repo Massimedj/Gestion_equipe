@@ -38,7 +38,6 @@
 
         enableIndexedDbPersistence(db).catch((err) => { console.warn("Firestore Persistence failed: ", err); });
 
-        // Exposition des fonctions et objets Firebase (Modifié)
         window.db = db;
         window.auth = auth;
         window.doc = doc;
