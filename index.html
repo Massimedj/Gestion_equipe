@@ -305,14 +305,14 @@
                         
                         <div class="flex items-center gap-3 mb-4 border-b pb-2">
                             <div class="flex items-center gap-3">
-                                <h2 class="text-2xl font-bold">Suivi des Points et des Fautes par Joueur</h2>
+                                <h2 class="text-2xl font-bold">Suivi des Évaluations par Joueur</h2>
                                 <button onclick="openInfoLiveModal()" title="Informations" class="flex items-center justify-center h-5 w-8 bg-blue-400 text-white rounded-full hover:bg-blue-600 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
                                     </svg>
                                 </button>
                             </div>
-
+                            <button onclick="openCriteriaModal()" class="ml-auto bg-indigo-500 text-white text-sm font-semibold py-1 px-3 rounded-lg hover:bg-indigo-600 transition flex-shrink-0">Personnaliser</button>
                             </div>
                         <div id="live-match-display" class="hidden my-4 p-3 bg-gray-100 rounded-lg sm:flex items-center justify-between gap-4">
                             <div class="text-sm">
@@ -327,28 +327,6 @@
                         <div id="live-content" class="hidden">
                             <div id="set-selector-live" class="flex justify-center gap-1 mb-4 rounded-lg bg-gray-200 p-1">
                                 </div>
-
-                            <div class="flex flex-row justify-between items-center my-4">
-                            
-                                <div class="flex-shrink-0">
-                                    <span class="isolate inline-flex rounded-md shadow-sm">
-                                      <button type="button" id="track-mode-faults" class="relative inline-flex items-center rounded-l-md px-3 py-2 text-sm font-semibold ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-10">
-                                        Fautes
-                                      </button>
-                                      <button type="button" id="track-mode-points" class="relative -ml-px inline-flex items-center rounded-r-md px-3 py-2 text-sm font-semibold ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-10">
-                                        Points
-                                      </button>
-                                    </span>
-                                </div>
-
-                                <div class="flex items-center gap-2">
-                                    <span id="detail-toggle-label" class="text-sm font-medium text-gray-700">Fautes Détaillées</span>
-                                    <label class="toggle-label">
-                                        <input type="checkbox" id="detail-mode-toggle" class="toggle-input">
-                                        <span class="toggle-slider"></span>
-                                    </label>
-                                </div>
-                            </div>
 
                             <div id="live-court-layout" class="mt-4">
                                 </div>
@@ -420,41 +398,26 @@
                     <div class="bg-white p-6 rounded-2xl shadow-lg">
                         <h3 class="text-2xl font-bold mb-4 border-b pb-2">Statistiques des Joueurs</h3>
 						<div class="mb-4">
-                            <button onclick="openStatsFilterModal()" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition">
-                                Filtrer par match
-                            </button>
+                            <div class="flex flex-wrap gap-2">
+                                <button onclick="openStatsFilterModal()" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition">Filtrer par match</button>
+                                <button onclick="openStatsSetFilterModal()" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition">Filtrer par set</button>
+                                <button onclick="openCriteriaModal()" class="bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-600 transition">Personnaliser</button>
+                                <button onclick="exportStatsToExcel()" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 transition">Exporter Excel</button>
+                            </div>
+                            <p id="statsFilterSummary" class="text-xs text-gray-500 mt-2"></p>
                         </div>
-                        <div class="overflow-x-auto">
+                        <div class="overflow-auto max-h-[70vh] border rounded-lg">
                             <table class="w-full text-left table-auto text-sm border-collapse">
-                                <thead class="bg-gray-100">
-                                    <tr>
-                                        <th class="p-2 font-semibold" rowspan="2">Joueur</th>
-                                        <th class="p-2 font-semibold text-center" rowspan="2">Présences</th>
-                                        <th class="p-2 font-semibold text-center" rowspan="2">Matchs Joués</th>
-                                        <th class="p-2 font-semibold text-center" rowspan="2">Sets Joués</th>
-                                        <th class="p-2 font-semibold text-center" rowspan="2">Sets Gagnés</th>
-                                        <th class="p-2 font-semibold text-center text-red-600 border-b" colspan="6">Fautes Directes</th>
-                                        <th class="p-2 font-semibold text-center text-green-600 border-b" colspan="6">Points Marqués</th>
-                                    </tr>
-                                    <tr class="text-xs">
-                                        <th class="p-2 font-semibold text-center text-red-600">Service</th>
-                                        <th class="p-2 font-semibold text-center text-red-600">Attaque</th>
-                                        <th class="p-2 font-semibold text-center text-red-600">Récep.</th>
-                                        <th class="p-2 font-semibold text-center text-red-600">Autres</th>
-                                        <th class="p-2 font-semibold text-center text-red-600">Total</th>
-                                        <th class="p-2 font-semibold text-center text-red-600 border-r" title="Moyenne de fautes par set joué">Moy/Set</th>
-                                        <th class="p-2 font-semibold text-center text-green-600">Service</th>
-                                        <th class="p-2 font-semibold text-center text-green-600">Attaque</th>
-                                        <th class="p-2 font-semibold text-center text-green-600">Bloc</th>
-                                        <th class="p-2 font-semibold text-center text-green-600">Autres</th>
-                                        <th class="p-2 font-semibold text-center text-green-600">Total</th>
-                                        <th class="p-2 font-semibold text-center text-green-600" title="Moyenne de points par set joué">Moy/Set</th>
-                                    </tr>
-                                </thead>
+                                <thead id="statsTableHead" class="bg-gray-100"></thead>
                                 <tbody id="statsTableBody">
                                 </tbody>
                             </table>
                         </div>
+                        <p class="text-xs text-gray-500 mt-2">Moyenne et note de l'équipe = moyenne pondérée de toutes les notes : ++ = 100 %, + = 75 %, - = 25 %, -- = 0 %. Couleur de la moyenne : vert à partir de 70 %, jaune à partir de 50 %, orange à partir de 30 %, rouge en dessous.</p>
+                        <details class="mt-3">
+                            <summary class="cursor-pointer text-sm font-semibold text-red-600">Barème explicatif</summary>
+                            <div id="evalLegend" class="mt-2 text-sm text-gray-700 space-y-1"></div>
+                        </details>
                     </div>				       				
 	
                 </div>
@@ -714,6 +677,32 @@
         </div>
     </div>
 
+    <div id="criteriaModal" class="modal-backdrop hidden">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md mx-4 sm:mx-0 max-h-[90vh] overflow-y-auto">
+            <h2 class="text-xl font-bold mb-1">Personnaliser le suivi</h2>
+            <p class="text-sm text-gray-500 mb-4">Ces critères sont propres à l'équipe sélectionnée. Un critère supprimé disparaît du suivi et des statistiques (ses données restent enregistrées mais ne sont plus affichées).</p>
+
+            <div id="criteria-list" class="space-y-2 mb-2"></div>
+            <button onclick="addCriterionDraft()" class="text-sm text-blue-600 hover:underline">+ Ajouter un critère</button>
+
+            <div class="flex justify-end gap-4 mt-6">
+                <button onclick="closeModal('criteriaModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-400">Annuler</button>
+                <button onclick="saveCriteria()" class="bg-blue-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-600">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="ratingModal" class="modal-backdrop hidden" onclick="if (event.target === this) closeModal('ratingModal')">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm mx-4 sm:mx-0">
+            <h2 id="ratingModalTitle" class="text-xl font-bold"></h2>
+            <p id="ratingModalSubtitle" class="text-sm text-gray-500 mb-4"></p>
+            <div id="ratingButtons" class="grid grid-cols-2 gap-3"></div>
+            <div class="flex justify-end mt-4">
+                <button onclick="closeModal('ratingModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-400">Annuler</button>
+            </div>
+        </div>
+    </div>
+
     <div id="substitutionModal" class="modal-backdrop hidden">
         <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm mx-4 sm:mx-0">
             <h2 id="substitutionModalTitle" class="text-xl font-bold mb-4">Remplacer un joueur</h2>
@@ -730,8 +719,9 @@
             <h2 class="text-2xl font-bold mb-4">Comment ça marche ?</h2>
             <ul class="space-y-4 list-disc list-inside text-gray-700">
                 <li><span class="font-semibold">Remplacer un joueur :</span> Cliquez sur le nom du joueur.</li>
-                <li><span class="font-semibold">Ajouter une action :</span> Faites un clic simple sur un bouton.</li>
-                <li><span class="font-semibold">Retirer une action :</span> Faites un appui long sur le même bouton.</li>
+                <li><span class="font-semibold">Noter une action :</span> Touchez le critère d'un joueur, puis la note (++, +, -, --). La fenêtre se ferme toute seule.</li>
+                <li><span class="font-semibold">Corriger une erreur :</span> Bouton "Annuler la dernière action".</li>
+                <li><span class="font-semibold">Changer les critères suivis :</span> Bouton "Personnaliser" (en haut à droite) pour ajouter, renommer, réordonner ou supprimer les critères de l'équipe.</li>
             </ul>
             <div class="flex justify-end mt-8">
                 <button onclick="closeModal('infoLiveModal')" class="bg-blue-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-600">Compris</button>
@@ -760,9 +750,38 @@
         </div>
     </div>
 	
+	<div id="statsSetFilterModal" class="modal-backdrop hidden">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm mx-4 sm:mx-0 flex flex-col max-h-[90vh]">
+            <h4 class="text-xl font-bold mb-4">Filtrer les Statistiques par set</h4>
+            <p class="text-sm text-gray-500 mb-3">Les sets cochés sont pris en compte pour tous les matchs sélectionnés.</p>
+
+            <div class="grid grid-cols-1 gap-2 mb-4 p-2 border bg-white rounded-md">
+                <label class="flex items-center gap-2 text-sm text-gray-900"><input type="checkbox" value="set1" checked class="stats-set-filter h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Set 1</label>
+                <label class="flex items-center gap-2 text-sm text-gray-900"><input type="checkbox" value="set2" checked class="stats-set-filter h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Set 2</label>
+                <label class="flex items-center gap-2 text-sm text-gray-900"><input type="checkbox" value="set3" checked class="stats-set-filter h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Set 3</label>
+                <label class="flex items-center gap-2 text-sm text-gray-900"><input type="checkbox" value="set4" checked class="stats-set-filter h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Set 4</label>
+                <label class="flex items-center gap-2 text-sm text-gray-900"><input type="checkbox" value="set5" checked class="stats-set-filter h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Set 5</label>
+            </div>
+
+            <div class="flex flex-wrap gap-2 mb-4">
+                <button onclick="selectAllStatsSets(true)" class="text-xs bg-gray-200 py-1 px-3 rounded-md hover:bg-gray-300">Tout cocher</button>
+                <button onclick="selectAllStatsSets(false)" class="text-xs bg-gray-200 py-1 px-3 rounded-md hover:bg-gray-300">Tout décocher</button>
+            </div>
+
+            <div class="flex justify-end gap-4 border-t pt-4">
+                <button onclick="closeModal('statsSetFilterModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-400">
+                    Annuler
+                </button>
+                <button onclick="applyStatsSetFilter()" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">
+                    Appliquer le filtre
+                </button>
+            </div>
+        </div>
+    </div>
+
 	<div id="statsFilterModal" class="modal-backdrop hidden">
         <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0 flex flex-col max-h-[90vh]">
-            <h4 class="text-xl font-bold mb-4">Filtrer les Statistiques</h4>
+            <h4 class="text-xl font-bold mb-4">Filtrer les Statistiques par match</h4>
             
             <div id="stats-modal-match-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto mb-4 p-2 border bg-white rounded-md">
                 <p class="text-gray-500">Chargement des matchs...</p>

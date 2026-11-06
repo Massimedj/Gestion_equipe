@@ -10,10 +10,6 @@ let currentSet = 'set1';
 // 'currentUser' est défini et géré dans auth.js
 // let firestoreListener = null; // Géré dans auth.js
 
-// États pour le suivi du match
-let currentTrackingMode = 'faults'; // 'faults' or 'points'
-let currentDetailMode = true; // true = detailed, false = simple
-
 // ============================
 // INITIALISATION (Simplifiée)
 // ============================
@@ -66,140 +62,12 @@ function setupEventListeners() {
             if(matchHint) matchHint.classList.toggle('hidden', matchSelected);
             if(selectedMatchContent) selectedMatchContent.classList.toggle('hidden', !matchSelected);
             selectSet('set1'); // Revient au set 1
-            loadDetailModePreference(matchId); // Charge la préférence détail/simple pour ce match
             renderAttendanceForSelectedMatch(); // Affiche la feuille de match, etc.
             renderLiveTrackingView(); // Met à jour l'onglet Suivi Match
         });
     }
 
-    const detailToggle = document.getElementById('detail-mode-toggle');
-     if (detailToggle) {
-        detailToggle.addEventListener('change', async () => {
-            currentDetailMode = detailToggle.checked;
-            console.log("Detail mode toggled:", currentDetailMode);
-             await saveDetailModePreference(); // Sauvegarde la préférence (appelle saveData d'auth.js)
-            renderLiveTrackingView(); // Rafraîchit l'affichage
-        });
-     }
 
-     // Attache les listeners pour les boutons Fautes/Points
-     const faultModeButton = document.getElementById('track-mode-faults');
-     const pointModeButton = document.getElementById('track-mode-points');
-     if (faultModeButton) faultModeButton.addEventListener('click', () => setTrackingMode('faults'));
-     if (pointModeButton) pointModeButton.addEventListener('click', () => setTrackingMode('points'));
-
-}
-
-// ============================
-// GESTION DES MODES DE SUIVI
-// ============================
-function setTrackingMode(mode) {
-    if (mode === 'faults' || mode === 'points') {
-        currentTrackingMode = mode;
-        console.log("Tracking mode set to:", mode);
-
-        const faultBtn = document.getElementById('track-mode-faults');
-        const pointBtn = document.getElementById('track-mode-points');
-
-        if (faultBtn && pointBtn) {
-            
-            // --- DÉBUT DE LA MODIFICATION (Couleurs 400) ---
-
-            // Style INACTIF (Blanc/Gris)
-            const inactiveClasses = ['bg-white', 'text-gray-700', 'hover:bg-gray-50'];
-            
-            // Style ACTIF pour FAUTES (Orange) - VOTRE MODIFICATION
-            const faultActiveClasses = ['bg-orange-400', 'text-white', 'hover:bg-orange-500'];
-            
-            // Style ACTIF pour POINTS (Vert) - VOTRE MODIFICATION
-            const pointActiveClasses = ['bg-green-400', 'text-white', 'hover:bg-green-500'];
-
-            // Liste de TOUTES les classes de style à nettoyer
-            const allClassesToRemove = [
-                ...inactiveClasses, 
-                ...faultActiveClasses, 
-                ...pointActiveClasses,
-                'bg-blue-500', 
-                'hover:bg-blue-600',
-                'bg-orange-500', // Ajout des anciens styles pour un nettoyage complet
-                'hover:bg-orange-600',
-                'bg-green-500',
-                'hover:bg-green-600'
-            ];
-
-            // 1. Nettoyer les deux boutons
-            faultBtn.classList.remove(...allClassesToRemove);
-            pointBtn.classList.remove(...allClassesToRemove);
-
-            // 2. Appliquer les bons styles
-            if (mode === 'faults') {
-                faultBtn.classList.add(...faultActiveClasses); // Actif (Orange)
-                pointBtn.classList.add(...inactiveClasses);    // Inactif (Blanc)
-            } else { // mode === 'points'
-                faultBtn.classList.add(...inactiveClasses);    // Inactif (Blanc)
-                pointBtn.classList.add(...pointActiveClasses); // Actif (Vert)
-            }
-            // --- FIN DE LA MODIFICATION ---
-        }
-
-        // Met à jour le libellé de l'interrupteur (inchangé)
-        const detailLabel = document.getElementById('detail-toggle-label');
-         if (detailLabel) {
-            detailLabel.textContent = currentDetailMode
-                                        ? (mode === 'faults' ? "Fautes Détaillées" : "Points Détaillés")
-                                        : (mode === 'faults' ? "Fautes Simples" : "Points Simples");
-         }
-
-        renderLiveTrackingView(); // Re-render the cards for the new mode
-    }
-}
-
-function loadDetailModePreference(matchId) {
-     const team = getCurrentTeam();
-     if (!team || !team.matches) return; // Sécurité
-     const match = team.matches.find(m => m.id === parseInt(matchId));
-
-     if (match) {
-        // Récupère la valeur sauvegardée ou utilise true (détaillé) par défaut
-        currentDetailMode = typeof match.detailMode === 'boolean' ? match.detailMode : true;
-     } else {
-         currentDetailMode = true; // Défaut si le match n'est pas (encore) trouvé
-     }
-     // Met à jour l'état visuel de l'interrupteur
-     const toggle = document.getElementById('detail-mode-toggle');
-     if (toggle) toggle.checked = currentDetailMode;
-     console.log(`Loaded detail mode preference for match ${matchId}: ${currentDetailMode}`);
-
-     // Met à jour le libellé du bouton Détaillé/Simple
-     const detailLabel = document.getElementById('detail-toggle-label');
-      if (detailLabel) {
-         detailLabel.textContent = currentDetailMode
-                                     ? (currentTrackingMode === 'faults' ? "Fautes Détaillées" : "Points Détaillés")
-                                     : (currentTrackingMode === 'faults' ? "Fautes Simples" : "Points Simples");
-      }
-}
-
-async function saveDetailModePreference() {
-     const matchId = parseInt(document.getElementById('matchSelector').value);
-     const team = getCurrentTeam();
-     if (!team || !team.matches) return; // Sécurité
-     const match = team.matches.find(m => m.id === matchId);
-
-     if (match) {
-         match.detailMode = currentDetailMode; // Met à jour la donnée dans l'objet match
-         await saveData(); // Sauvegarde (local et en ligne si connecté) via auth.js
-         console.log(`Saved detail mode for match ${matchId}:`, currentDetailMode);
-
-          // Met à jour le libellé après sauvegarde
-         const detailLabel = document.getElementById('detail-toggle-label');
-         if (detailLabel) {
-             detailLabel.textContent = currentDetailMode
-                                         ? (currentTrackingMode === 'faults' ? "Fautes Détaillées" : "Points Détaillés")
-                                         : (currentTrackingMode === 'faults' ? "Fautes Simples" : "Points Simples");
-         }
-     } else {
-         console.warn("Could not save detail mode preference: match not found.");
-     }
 }
 
 // ============================
@@ -250,6 +118,8 @@ function showMainTab(tabName) {
     // Rafraîchit les données spécifiques à l'onglet qui vient d'être affiché
     if (tabName === 'stats') {
         // L'onglet Stats n'affiche plus que les stats joueurs       
+		statsMatchIds = null;
+        statsSetNames = null;
 		renderPlayerStats(); 
     }
 	if (tabName === 'trainings') {
@@ -355,8 +225,7 @@ async function selectSet(setName) {
     // Le reste de la fonction est inchangé
     currentSet = setName;
     if (window.appData) { // Ajout d'une vérification de sécurité
-        window.appData.lastFaultAction = null; 
-        window.appData.lastPointAction = null; 
+        window.appData.lastEvalAction = null;
     }
     
     renderSetSelector(); // Met à jour l'apparence des boutons de set
@@ -445,11 +314,6 @@ function renderAllForCurrentTeam() {
         renderMatchSelector(); // Liste déroulante des matchs
         renderSetSelector(); // Boutons Set 1, Set 2...
         
-		// Initialise le mode de suivi (Fautes/Points)
-        // Cet appel est déplacé ici pour s'assurer qu'appData est chargé
-        // avant que setTrackingMode -> renderLiveTrackingView -> getCurrentTeam ne soit appelé.
-        setTrackingMode(currentTrackingMode);
-		
         // Restaure le dernier onglet actif ou va sur 'Effectif' par défaut
         const lastTab = localStorage.getItem('lastActiveTab') || 'roster';
         showMainTab(lastTab); // Affiche le bon onglet
@@ -461,8 +325,6 @@ function renderAllForCurrentTeam() {
         if (savedMatchId && selector && selector.querySelector(`option[value="${savedMatchId}"]`)) {
              console.log(`Restoring selected match: ${savedMatchId}`);
             selector.value = savedMatchId;
-            // Charge la préférence détail/simple pour ce match restauré
-            loadDetailModePreference(savedMatchId);
             // Déclenche l'événement 'change' pour que l'UI se mette à jour complètement
             // Utilise setTimeout pour s'assurer que tous les listeners sont prêts
             setTimeout(() => {
@@ -891,6 +753,14 @@ async function deletePlayer(playerId) {
                         }
                     });
                 }
+                // Supprime des évaluations
+                if (match.evals) {
+                    SETS.forEach(setKey => {
+                        if (match.evals[setKey]?.[playerId]) {
+                            delete match.evals[setKey][playerId];
+                        }
+                    });
+                }
                 recalculatePlayedStatus(match.id);
             });
         }
@@ -916,6 +786,7 @@ async function deleteAllPlayers() {
                 match.substitutions = {};
                 match.faults = {};
                 match.points = {};
+                match.evals = {};
             });
         }
         currentTeam.courtPositions = {};
@@ -1978,35 +1849,133 @@ function renderStats() {
     renderTeamStats();
 }
 
+// Moyenne pondérée (++ = 100 %, + = 75 %, - = 25 %, -- = 0 %) sur toutes les notes des critères affichés ; null s'il n'y a aucune note
+function weightedValue(counts, columns) {
+    let points = 0; let total = 0;
+    columns.forEach(c => EVAL_LEVELS.forEach(l => {
+        const n = counts[`${c.id}_${l.id}`] || 0;
+        total += n;
+        points += n * l.weight;
+    }));
+    return total ? Math.round(points / total) : null;
+}
+
+// Pastille colorée pour une moyenne : vert >= 70 %, jaune >= 50 %, orange >= 30 %, rouge en dessous
+function averageBadge(value) {
+    if (value === null) return '<span class="text-gray-300">–</span>';
+    const color = value >= 70 ? 'bg-green-100 text-green-800' : value >= 50 ? 'bg-yellow-100 text-yellow-800' : value >= 30 ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800';
+    return `<span class="inline-block min-w-[3.5rem] px-2 py-1 rounded-full text-sm font-bold ${color}">${value} %</span>`;
+}
+
+// Couleurs des notes : en-têtes et cases du tableau
+const LEVEL_HEAD_STYLES = { pp: 'text-green-700', p: 'text-green-600', m: 'text-orange-600', mm: 'text-red-600' };
+const LEVEL_CELL_STYLES = { pp: 'bg-green-100 text-green-800 font-bold', p: 'bg-green-50 text-green-700 font-semibold', m: 'bg-orange-50 text-orange-700 font-semibold', mm: 'bg-red-100 text-red-700 font-bold' };
+const GROUP_BACKGROUNDS = ['bg-indigo-50', 'bg-sky-50']; // un fond différent un critère sur deux
+
+// Construit l'en-tête du tableau des statistiques joueurs : 4 colonnes (++ + - --) par critère, en-tête et colonne Joueur figés au défilement
+function renderStatsHeader(columns) {
+    const head = document.getElementById('statsTableHead');
+    if (!head) return;
+    const fixed = (label) => `<th class="sticky top-0 z-20 bg-gray-100 p-2 text-center text-xs font-semibold text-gray-600" rowspan="2">${label}</th>`;
+    head.innerHTML = `
+        <tr style="height: 2.5rem;">
+            <th class="sticky top-0 left-0 z-30 bg-gray-100 p-2 text-left font-semibold" rowspan="2">Joueur</th>
+            ${fixed('Présences')}${fixed('Matchs Joués')}${fixed('Sets Joués')}
+            ${columns.map((c, i) => `<th colspan="4" class="sticky top-0 z-20 ${GROUP_BACKGROUNDS[i % 2]} p-2 text-center font-bold border-l-2 border-gray-800">${escapeHtml(c.label)}</th>`).join('')}
+            <th class="sticky top-0 z-20 bg-gray-100 p-2 text-center font-semibold border-l-2 border-gray-800" rowspan="2" title="Moyenne pondérée : ++ = 100 %, + = 75 %, - = 25 %, -- = 0 %">Moyenne</th>
+        </tr>
+        <tr>
+            ${columns.map((c, i) => EVAL_LEVELS.map((l, j) => `<th style="top: 2.5rem;" class="sticky z-20 ${GROUP_BACKGROUNDS[i % 2]} p-1 min-w-[2.25rem] whitespace-nowrap text-center text-sm font-bold ${LEVEL_HEAD_STYLES[l.id]} ${j === 0 ? 'border-l-2 border-gray-800' : ''}">${l.label}</th>`).join('')).join('')}
+        </tr>`;
+}
+
+// Dernières statistiques affichées (utilisées par l'export Excel)
+let statsExportData = null;
+
+// Exporte en Excel le tableau tel qu'il est affiché (filtres par match et par set compris)
+function exportStatsToExcel() {
+    const team = getCurrentTeam();
+    if (!statsExportData || !team) {
+        alert("Aucune statistique à exporter.");
+        return;
+    }
+    const { columns, players, teamCounts } = statsExportData;
+    const toPercent = (value) => value === null ? '' : value / 100;
+    const filterText = (document.getElementById('statsFilterSummary') || {}).textContent || '';
+    const title = `${team.name}${team.season ? ' — ' + team.season : ''} — ${filterText}`;
+    const width = 4 + columns.length * 4 + 1;
+
+    const headRow1 = ['Joueur', 'Présences', 'Matchs Joués', 'Sets Joués', ...columns.flatMap(c => [c.label, '', '', '']), 'Moyenne'];
+    const headRow2 = ['', '', '', '', ...columns.flatMap(() => EVAL_LEVELS.map(l => l.label)), ''];
+    const playerRows = players.map(p => [p.name, p.presence, p.played, p.sets,
+        ...columns.flatMap(c => EVAL_LEVELS.map(l => p.counts[`${c.id}_${l.id}`] || 0)), toPercent(p.average)]);
+    const teamRow = ['Équipe', '', '', '', ...columns.flatMap(c => [toPercent(weightedValue(teamCounts, [c])), '', '', '']),
+        toPercent(weightedValue(teamCounts, columns))];
+
+    const worksheet = XLSX.utils.aoa_to_sheet([[title], headRow1, headRow2, ...playerRows, teamRow]);
+
+    // Cellules fusionnées : titre, colonnes fixes sur 2 lignes, un critère sur 4 colonnes, note d'équipe par critère
+    const merges = [{ s: { r: 0, c: 0 }, e: { r: 0, c: width - 1 } }];
+    [0, 1, 2, 3, width - 1].forEach(c => merges.push({ s: { r: 1, c }, e: { r: 2, c } }));
+    const teamRowIndex = 3 + players.length;
+    columns.forEach((c, i) => {
+        merges.push({ s: { r: 1, c: 4 + i * 4 }, e: { r: 1, c: 7 + i * 4 } });
+        merges.push({ s: { r: teamRowIndex, c: 4 + i * 4 }, e: { r: teamRowIndex, c: 7 + i * 4 } });
+    });
+    worksheet['!merges'] = merges;
+    worksheet['!cols'] = [{ wch: 24 }, { wch: 11 }, { wch: 13 }, { wch: 11 }, ...columns.flatMap(() => EVAL_LEVELS.map(() => ({ wch: 6 }))), { wch: 10 }];
+
+    // Moyennes affichées en pourcentage
+    for (let r = 3; r <= teamRowIndex; r++) {
+        for (let c = 4; c < width; c++) {
+            const cell = worksheet[XLSX.utils.encode_cell({ r, c })];
+            if (cell && cell.t === 'n' && (c === width - 1 || r === teamRowIndex)) cell.z = '0%';
+        }
+    }
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Statistiques');
+    const safeName = String(team.name).replace(/[\\/:*?"<>|]/g, '').trim() || 'equipe';
+    XLSX.writeFile(workbook, `Statistiques_${safeName}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
 /**
  * Affiche les statistiques des joueurs, potentiellement filtrées par match.
- * @param {number[] | null} [matchIdsToRender=null] - Liste d'ID de matchs à inclure. Si null, inclut tous les matchs.
+ * Les filtres actifs sont `statsMatchIds` (matchs à inclure) et `statsSetNames` (sets à inclure) ; null = tout.
  */
-function renderPlayerStats(matchIdsToRender = null) { 
+function renderPlayerStats() { 
     const currentTeam = getCurrentTeam();
     const statsBody = document.getElementById('statsTableBody');
     if (!statsBody) return;
     statsBody.innerHTML = ''; 
     
+    const criteriaColumns = getStatColumns(currentTeam);
+    renderStatsHeader(criteriaColumns);
+    updateStatsFilterSummary();
+    const legend = document.getElementById('evalLegend');
+    if (legend) legend.innerHTML = EVAL_LEGEND.map(line => `<p>${escapeHtml(line)}</p>`).join('');
+
     if (!currentTeam || !currentTeam.players || currentTeam.players.length === 0) {
-        // Le colspan passe à 17 pour correspondre aux 2 nouvelles colonnes de moyennes
-        statsBody.innerHTML = '<tr><td colspan="17" class="p-4 text-center text-gray-500">Aucun joueur dans l\'effectif.</td></tr>';
+        statsExportData = null;
+        statsBody.innerHTML = `<tr><td colspan="${5 + criteriaColumns.length * 4}" class="p-4 text-center text-gray-500">Aucun joueur dans l'effectif.</td></tr>`;
         return;
     }
 
     const sortedPlayers = [...currentTeam.players].sort((a, b) => a.name.localeCompare(b.name));
 
+    const teamCounts = {};
+    const exportPlayers = [];
     sortedPlayers.forEach(player => {
-        let presenceCount = 0; let playedCount = 0; let setCount = 0; let setsWonCount = 0;
-        let faultCounts = { service: 0, attack: 0, reception: 0, net: 0 };
-        let pointCounts = { service: 0, attack: 0, block: 0, net: 0 };
+        let presenceCount = 0; let playedCount = 0; let setCount = 0;
+        const evalCounts = {};
+        const addCounts = (target, source) => { for (const key in source) target[key] = (target[key] || 0) + (source[key] || 0); };
 
         // --- DÉBUT DE LA LOGIQUE DE FILTRE ---
         let matchesToProcess = currentTeam.matches;
 
         // Si un filtre est fourni, filtre la liste des matchs
-        if (Array.isArray(matchIdsToRender) && currentTeam.matches) {
-            matchesToProcess = currentTeam.matches.filter(m => matchIdsToRender.includes(m.id));
+        if (Array.isArray(statsMatchIds) && currentTeam.matches) {
+            matchesToProcess = currentTeam.matches.filter(m => statsMatchIds.includes(m.id));
         }
         // --- FIN DE LA LOGIQUE DE FILTRE ---
 
@@ -2014,12 +1983,14 @@ function renderPlayerStats(matchIdsToRender = null) {
         if (matchesToProcess) { // S'assure qu'il y a des matchs à traiter
             matchesToProcess.forEach(match => { 
                 if (!match) return; 
+                const matchSets = statsSetNames || SETS;
 
                 // Note: La présence et le "joué" sont calculés sur les matchs filtrés
                 if (match.present?.includes(player.id)) presenceCount++;
                 if (match.played?.includes(player.id)) playedCount++;
 
                  SETS.forEach((setName, index) => {
+                    if (!matchSets.includes(setName)) return;
                     const setScore = match.score?.sets?.[index];
                     const wasSetPlayed = setScore && setScore.myTeam !== '' && setScore.opponent !== '';
 
@@ -2039,78 +2010,48 @@ function renderPlayerStats(matchIdsToRender = null) {
                      
                      if (playedInSet) {
                          setCount++;
-                         if (parseInt(setScore.myTeam) > parseInt(setScore.opponent)) {
-                             setsWonCount++;
-                         }
                      }
                  });
 
 
-                // Agrège les fautes (sur les matchs filtrés)
-                if (match.faults) {
-                    SETS.forEach(setName => {
-                        if (match.faults[setName]?.[player.id]) {
-                            const playerFaultsInSet = match.faults[setName][player.id];
-                            faultCounts.service += playerFaultsInSet.service || 0;
-                            faultCounts.attack += playerFaultsInSet.attack || 0;
-                            faultCounts.reception += playerFaultsInSet.reception || 0;
-                            faultCounts.net += playerFaultsInSet.net || 0;
-                        }
-                    });
-                 }
-                 // Agrège les points (sur les matchs filtrés)
-                 if (match.points) {
-                    SETS.forEach(setName => {
-                        if (match.points[setName]?.[player.id]) {
-                            const p = match.points[setName][player.id];
-                            pointCounts.service += p.service || 0;
-                            pointCounts.attack += p.attack || 0;
-                            pointCounts.block += p.block || 0; 
-                            pointCounts.net += p.net || 0;     
-                        }
-                    });
-                 }
+                // Agrège les notes (sur les matchs filtrés)
+                addCounts(evalCounts, collectEvalCounts(match, matchSets).byPlayer[player.id]);
             });
         }
 
-        const totalFaults = Object.values(faultCounts).reduce((a, b) => a + b, 0);
-        const totalPoints = Object.values(pointCounts).reduce((a, b) => a + b, 0); 
-
-        // --- NOUVEAU CALCUL ALGORITHMIQUE DES MOYENNES ---
-        let avgFaults = '';
-        let avgPoints = '';
-        
-        // On s'assure de ne pas diviser par zéro si le joueur n'a joué aucun set
-        if (setCount > 0) {
-            avgFaults = (totalFaults / setCount).toFixed(1); // Arrondi à 1 décimale (ex: 1.2)
-            avgPoints = (totalPoints / setCount).toFixed(1);
-        }
-        // ------------------------------------------------
-
         const row = document.createElement('tr');
-        row.className = 'border-b hover:bg-gray-50 transition'; 
-        
+        row.className = 'group border-b hover:bg-gray-50 transition';
+
+        const baseCell = (value) => `<td class="p-2 text-center text-sm text-gray-600">${value || ''}</td>`;
+        const levelCells = criteriaColumns.map(c => EVAL_LEVELS.map((l, j) => {
+            const value = evalCounts[`${c.id}_${l.id}`] || 0;
+            const border = j === 0 ? 'border-l-2 border-gray-800' : '';
+            return value
+                ? `<td class="p-2 min-w-[2.25rem] text-center ${LEVEL_CELL_STYLES[l.id]} ${border}">${value}</td>`
+                : `<td class="p-2 min-w-[2.25rem] text-center text-gray-300 ${border}">·</td>`;
+        }).join('')).join('');
         row.innerHTML = `
-            <td class="p-3">${player.name}</td>
-            <td class="p-3 text-center">${presenceCount || ''}</td>
-            <td class="p-3 text-center">${playedCount || ''}</td>
-            <td class="p-3 text-center">${setCount || ''}</td>
-            <td class="p-3 text-center">${setsWonCount || ''}</td>
-            <td class="p-3 text-center text-red-600">${faultCounts.service || ''}</td>
-            <td class="p-3 text-center text-red-600">${faultCounts.attack || ''}</td>
-            <td class="p-3 text-center text-red-600">${faultCounts.reception || ''}</td>
-            <td class="p-3 text-center text-red-600">${faultCounts.net || ''}</td>
-            <td class="p-3 text-center font-bold">${totalFaults || ''}</td>
-            <td class="p-3 text-center font-semibold text-red-800 bg-red-50">${avgFaults}</td>
-            <td class="p-3 text-center text-green-600">${pointCounts.service || ''}</td>
-            <td class="p-3 text-center text-green-600">${pointCounts.attack || ''}</td>
-            <td class="p-3 text-center text-green-600">${pointCounts.block || ''}</td>
-            <td class="p-3 text-center text-green-600">${pointCounts.net || ''}</td>
-            <td class="p-3 text-center font-bold">${totalPoints || ''}</td>
-            <td class="p-3 text-center font-semibold text-green-800 bg-green-50">${avgPoints}</td>
+            <td class="sticky left-0 z-10 bg-white group-hover:bg-gray-50 p-2 font-medium whitespace-nowrap border-r">${escapeHtml(player.name)}</td>
+            ${baseCell(presenceCount)}${baseCell(playedCount)}${baseCell(setCount)}
+            ${levelCells}
+            <td class="p-2 text-center border-l-2 border-gray-800">${averageBadge(weightedValue(evalCounts, criteriaColumns))}</td>
         `;
         statsBody.appendChild(row);
+        exportPlayers.push({ name: player.name, presence: presenceCount, played: playedCount, sets: setCount, counts: evalCounts, average: weightedValue(evalCounts, criteriaColumns) });
+        for (const key in evalCounts) teamCounts[key] = (teamCounts[key] || 0) + evalCounts[key];
     });
+
+    // Ligne Équipe : note de chaque critère et moyenne générale
+    const teamRow = document.createElement('tr');
+    teamRow.className = 'border-t-2 border-gray-800 bg-gray-100';
+    teamRow.innerHTML = `
+        <td class="sticky left-0 z-10 bg-gray-100 p-2 font-bold border-r">Équipe</td>
+        <td class="p-2" colspan="3"></td>
+        ${criteriaColumns.map(c => `<td colspan="4" class="p-2 text-center border-l-2 border-gray-800">${averageBadge(weightedValue(teamCounts, [c]))}</td>`).join('')}
+        <td class="p-2 text-center border-l-2 border-gray-800">${averageBadge(weightedValue(teamCounts, criteriaColumns))}</td>
+    `;
+    statsBody.appendChild(teamRow);
+    statsExportData = { columns: criteriaColumns, players: exportPlayers, teamCounts };
 }
 
 
@@ -2230,6 +2171,19 @@ function renderTeamStats() {
     }
 }
 
+// Filtres des statistiques : null = tout afficher
+let statsMatchIds = null; // ID des matchs à inclure
+let statsSetNames = null; // noms des sets à inclure ('set1'...'set5'), pour tous les matchs
+
+// Phrase qui rappelle les filtres actifs
+function updateStatsFilterSummary() {
+    const summary = document.getElementById('statsFilterSummary');
+    if (!summary) return;
+    const matchText = statsMatchIds ? `${statsMatchIds.length} match(s)` : 'tous les matchs';
+    const setText = statsSetNames ? statsSetNames.map(name => name.replace('set', '')).join(', ') : 'tous';
+    summary.textContent = `Filtre : ${matchText} — sets : ${setText}`;
+}
+
 /**
  * Remplit la liste des matchs (cases à cocher) DANS LA MODALE de filtre.
  */
@@ -2250,14 +2204,15 @@ function renderStatsFilter() {
     sortedMatches.forEach(match => {
         const matchLabel = formatMatchTitle(match); // Réutilise la fonction de formatage
         const matchId = match.id;
+        const isChecked = !statsMatchIds || statsMatchIds.includes(matchId);
 
         const itemDiv = document.createElement('div');
         itemDiv.className = 'flex items-center';
-        
+
         itemDiv.innerHTML = `
-            <input id="match-filter-${matchId}" type="checkbox" value="${matchId}" checked class="stats-match-filter h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-            <label for="match-filter-${matchId}" class="ml-2 block text-sm text-gray-900 truncate" title="${matchLabel}">
-                ${matchLabel}
+            <input id="match-filter-${matchId}" type="checkbox" value="${matchId}" ${isChecked ? 'checked' : ''} class="stats-match-filter h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+            <label for="match-filter-${matchId}" class="ml-2 block text-sm text-gray-900 truncate" title="${escapeHtml(matchLabel)}">
+                ${escapeHtml(matchLabel)}
             </label>
         `;
         listDiv.appendChild(itemDiv);
@@ -2278,20 +2233,17 @@ function selectAllStatsMatches(isChecked) {
  * Récupère les matchs sélectionnés DANS LA MODALE et relance le rendu des statistiques.
  */
 function applyStatsFilter() {
-    const selectedMatchIds = [];
-    // Cible les checkboxes DANS LA MODALE
-    document.querySelectorAll('#statsFilterModal .stats-match-filter:checked').forEach(checkbox => {
-        selectedMatchIds.push(parseInt(checkbox.value));
-    });
+    const boxes = [...document.querySelectorAll('#statsFilterModal .stats-match-filter')];
+    const selectedMatchIds = boxes.filter(checkbox => checkbox.checked).map(checkbox => parseInt(checkbox.value));
 
     if (selectedMatchIds.length === 0) {
         alert("Veuillez sélectionner au moins un match pour afficher les statistiques.");
         return;
     }
 
-    // Appelle renderPlayerStats en lui passant la liste des ID sélectionnés
-    renderPlayerStats(selectedMatchIds);
-    
+    statsMatchIds = selectedMatchIds.length === boxes.length ? null : selectedMatchIds;
+    renderPlayerStats();
+
     closeModal('statsFilterModal'); // Ferme la modale après application
 }
 
@@ -2303,705 +2255,376 @@ function openStatsFilterModal() {
     document.getElementById('statsFilterModal').classList.remove('hidden'); // Ouvre la modale
 }
 
-// ============================
-// SUIVI MATCH (LIVE - FAUTES ET POINTS)
-// ============================
-/**
- * Attache les écouteurs d'événements (clic simple, clic long) aux boutons de faute ou de point.
- * @param {HTMLElement} button - Le bouton HTML.
- * @param {number} matchId - L'ID du match.
- * @param {number} playerId - L'ID du joueur.
- * @param {string} type - Le type de faute/point ('service', 'attack', 'block', 'reception', 'net').
- * @param {string} mode - 'faults' ou 'points'.
- */
-function addLiveButtonListeners(button, matchId, playerId, type, mode) {
-    let pressTimer; // Timer pour détecter l'appui long
-    let longPressOccurred = false; // Flag pour savoir si l'appui long a eu lieu
-    let isScrolling = false; // Flag pour ignorer si l'utilisateur fait défiler la page
-    let startX, startY; // Coordonnées de départ de l'appui
-
-    // Fonction déclenchée au début de l'appui (souris ou doigt)
-    const startPress = (e) => {
-        isScrolling = false;
-        longPressOccurred = false;
-        startX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
-        startY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-
-        // Ajoute une classe visuelle pour indiquer que le bouton est pressé
-        button.classList.add(mode === 'faults' ? 'fault-btn-active' : 'point-btn-active');
-
-        // Démarre le timer pour l'appui long (500ms)
-        pressTimer = setTimeout(() => {
-            if (isScrolling) return; // Ne rien faire si l'utilisateur défile
-            if (e.cancelable) e.preventDefault(); // Empêche le comportement par défaut (ex: sélection de texte)
-            longPressOccurred = true;
-            // Appelle la fonction de mise à jour pour décrémenter
-            if (mode === 'faults') updateFault(matchId, playerId, type, -1);
-            else updatePoint(matchId, playerId, type, -1);
-        }, 500);
-     };
-
-    // Fonction déclenchée pendant le déplacement (souris ou doigt)
-    const movePress = (e) => {
-        if (longPressOccurred || isScrolling) return; // Ne rien faire si l'appui long a déjà eu lieu ou si on défile
-
-        const moveX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
-        const moveY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
-        const diffX = Math.abs(startX - moveX);
-        const diffY = Math.abs(startY - moveY);
-
-        // Si le doigt a bougé de plus de 10px, on considère que c'est un défilement
-        if (diffX > 10 || diffY > 10) {
-            isScrolling = true;
-            clearTimeout(pressTimer); // Annule le timer de l'appui long
-            button.classList.remove(mode === 'faults' ? 'fault-btn-active' : 'point-btn-active'); // Retire l'effet visuel
-        }
-     };
-
-    // Fonction déclenchée à la fin de l'appui (relâchement souris ou doigt)
-    const endPress = (e) => {
-        clearTimeout(pressTimer); // Annule le timer (au cas où il n'ait pas fini)
-        // Si l'appui long n'a PAS eu lieu ET qu'on ne défilait PAS
-        if (!longPressOccurred && !isScrolling) {
-            if (e.cancelable) e.preventDefault(); // Empêche le comportement par défaut (ex: zoom)
-            // C'est un clic simple : on appelle la fonction de mise à jour pour incrémenter
-            if (mode === 'faults') updateFault(matchId, playerId, type, 1);
-            else updatePoint(matchId, playerId, type, 1);
-        }
-        // Retire l'effet visuel après un court délai (pour l'effet 'flash')
-        setTimeout(() => button.classList.remove(mode === 'faults' ? 'fault-btn-active' : 'point-btn-active'), 50);
-     };
-
-    // --- Gestion des écouteurs d'événements ---
-    // Technique simple pour supprimer les anciens écouteurs avant d'en ajouter de nouveaux
-    // Cela évite que les actions ne soient déclenchées plusieurs fois si la carte est redessinée
-    const newButton = button.cloneNode(true);
-    button.parentNode.replaceChild(newButton, button);
-    const buttonRef = document.getElementById(newButton.id); // Récupère la référence au nouveau bouton
-
-    // Attache les écouteurs pour la souris
-    buttonRef.addEventListener('mousedown', startPress);
-    buttonRef.addEventListener('mouseup', endPress);
-    buttonRef.addEventListener('mousemove', movePress);
-    buttonRef.addEventListener('mouseleave', () => { // Si la souris quitte le bouton pendant l'appui
-        clearTimeout(pressTimer);
-        isScrolling = true; // On considère que l'action est annulée
-        buttonRef.classList.remove(mode === 'faults' ? 'fault-btn-active' : 'point-btn-active');
+// --- Filtre des sets (s'applique à tous les matchs sélectionnés) ---
+function openStatsSetFilterModal() {
+    document.querySelectorAll('.stats-set-filter').forEach(checkbox => {
+        checkbox.checked = !statsSetNames || statsSetNames.includes(checkbox.value);
     });
+    document.getElementById('statsSetFilterModal').classList.remove('hidden');
+}
 
-    // Attache les écouteurs pour le tactile (sans l'option passive pour pouvoir utiliser preventDefault)
-    buttonRef.addEventListener('touchstart', startPress);
-    buttonRef.addEventListener('touchend', endPress);
-    buttonRef.addEventListener('touchmove', movePress);
-    buttonRef.addEventListener('touchcancel', () => { // Si le système annule l'événement tactile
-        clearTimeout(pressTimer);
-        isScrolling = true;
-        buttonRef.classList.remove(mode === 'faults' ? 'fault-btn-active' : 'point-btn-active');
+function selectAllStatsSets(isChecked) {
+    document.querySelectorAll('.stats-set-filter').forEach(checkbox => {
+        checkbox.checked = isChecked;
     });
 }
 
+function applyStatsSetFilter() {
+    const boxes = [...document.querySelectorAll('#statsSetFilterModal .stats-set-filter')];
+    const selected = boxes.filter(checkbox => checkbox.checked).map(checkbox => checkbox.value);
+
+    if (selected.length === 0) {
+        alert("Veuillez sélectionner au moins un set pour afficher les statistiques.");
+        return;
+    }
+
+    statsSetNames = selected.length === boxes.length ? null : selected;
+    renderPlayerStats();
+    closeModal('statsSetFilterModal');
+}
+
+// ============================
+// SUIVI MATCH (LIVE) — un bouton par critère et par joueur ; on touche le critère puis la note ++ / + / - / --
+// ============================
+const EVAL_LEVELS = [
+    { id: 'pp', label: '++', weight: 100, style: 'bg-green-600 hover:bg-green-700' },
+    { id: 'p', label: '+', weight: 75, style: 'bg-green-400 hover:bg-green-500' },
+    { id: 'm', label: '-', weight: 25, style: 'bg-orange-400 hover:bg-orange-500' },
+    { id: 'mm', label: '--', weight: 0, style: 'bg-red-500 hover:bg-red-600' }
+];
+// Barème explicatif (repris de la feuille du coach ; les parties coupées sur la capture sont marquées « … »)
+const EVAL_LEGEND = [
+    '++ = Parfait / Attaque fait Point / Récep : 4 choix de passes / Service : Ace',
+    '+ = Ok / Attaque mise en difficulté / Récep : 2 choix de passes / Service : pas de fixe possible en face',
+    '- = Mauvais / Attaque défendu, adversaire à 2 choix ou plus / Récep : 1 choix de passe / Service : …',
+    '-- = Raté / Attaque faute ou bloc sans soutien possible / Récep : Ace ou 0 choix de passe / Service : Faute',
+    'Bloc : ++ = kill bloc / + = bloc de leur côté ou balle bien ralentie / - = erreur de bloc / -- = faute de bloc',
+    '* Les deux participants sur les blocs, s\'ils sont en place, sont comptabilisés'
+];
+// Critères proposés par défaut à chaque équipe (identifiants d'origine conservés pour ne perdre aucun historique)
+const DEFAULT_CRITERIA = [
+    { id: 'service', label: 'Service' },
+    { id: 'attack', label: 'Attaque' },
+    { id: 'reception', label: 'Récep' },
+    { id: 'block', label: 'Bloc' },
+    { id: 'net', label: 'Autres' }
+];
+// Un libéro ne sert pas, n'attaque pas et ne bloque pas : ces critères ne lui sont pas proposés
+const LIBERO_HIDDEN_CRITERIA = ['service', 'attack', 'block'];
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// Liste des critères de l'équipe. Les critères supprimés mais déjà utilisés sont "archivés" (masqués, gardés dans les stats).
+// Ancien format { faults: [...], points: [...] } : les deux listes sont fusionnées.
+function getCriteria(team, includeArchived = false) {
+    let list = team && team.trackingCriteria;
+    if (!Array.isArray(list)) {
+        if (list && (list.faults || list.points)) {
+            const merged = new Map();
+            [...(list.faults || []), ...(list.points || [])].forEach(c => {
+                const existing = merged.get(c.id);
+                if (!existing || (existing.archived && !c.archived)) merged.set(c.id, { ...c });
+            });
+            list = [...merged.values()];
+        } else {
+            list = DEFAULT_CRITERIA;
+        }
+    }
+    return includeArchived ? list : list.filter(c => !c.archived);
+}
+
+function criterionHasData(team, criterionId) {
+    return (team.matches || []).some(match => {
+        const inLegacy = ['faults', 'points'].some(mode => Object.values(match[mode] || {}).some(setData =>
+            Object.values(setData || {}).some(playerData => playerData && playerData[criterionId] > 0)));
+        const inEvals = Object.values(match.evals || {}).some(setData =>
+            Object.values(setData || {}).some(playerData => playerData && EVAL_LEVELS.some(l => playerData[`${criterionId}_${l.id}`] > 0)));
+        return inLegacy || inEvals;
+    });
+}
+
+// Colonnes des statistiques : les critères actuels de l'équipe (un critère supprimé n'y figure plus)
+function getStatColumns(team) {
+    return getCriteria(team).map(c => ({ id: c.id, label: c.label }));
+}
+
+// Additionne les notes d'un match pour les sets demandés : { byPlayer: {id: {critère_niveau: n}}, total: {critère_niveau: n} }
+// Les anciennes fautes comptent comme "--" et les anciens points comme "++" du même critère.
+function collectEvalCounts(match, setNames) {
+    const byPlayer = {};
+    const total = {};
+    const add = (playerId, key, n) => {
+        if (!n) return;
+        byPlayer[playerId] = byPlayer[playerId] || {};
+        byPlayer[playerId][key] = (byPlayer[playerId][key] || 0) + n;
+        total[key] = (total[key] || 0) + n;
+    };
+    setNames.forEach(setName => {
+        const evals = (match.evals && match.evals[setName]) || {};
+        Object.keys(evals).forEach(playerId => { for (const key in evals[playerId]) add(playerId, key, evals[playerId][key]); });
+        const faults = (match.faults && match.faults[setName]) || {};
+        Object.keys(faults).forEach(playerId => { for (const id in faults[playerId]) add(playerId, `${id}_mm`, faults[playerId][id]); });
+        const points = (match.points && match.points[setName]) || {};
+        Object.keys(points).forEach(playerId => { for (const id in points[playerId]) add(playerId, `${id}_pp`, points[playerId][id]); });
+    });
+    return { byPlayer, total };
+}
+
+function createPlayerCardLive(match, player, isLibero) {
+    const counts = collectEvalCounts(match, [currentSet]).byPlayer[player.id] || {};
+    let criteria = getCriteria(getCurrentTeam());
+    if (isLibero) {
+        const forLibero = criteria.filter(c => !LIBERO_HIDDEN_CRITERIA.includes(c.id));
+        if (forLibero.length > 0) criteria = forLibero;
+    }
+    const card = document.createElement('div');
+    const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
+    card.className = `live-player-card ${genderClass} flex flex-col`;
+    const buttons = criteria.map(c => {
+        const total = EVAL_LEVELS.reduce((acc, l) => acc + (counts[`${c.id}_${l.id}`] || 0), 0);
+        const detail = EVAL_LEVELS.filter(l => counts[`${c.id}_${l.id}`]).map(l => `${l.label}${counts[`${c.id}_${l.id}`]}`).join(' ');
+        return `
+            <button id="crit-btn-${player.id}-${c.id}" onclick="openRatingModal(${player.id}, '${c.id}')" class="flex flex-col items-center justify-center p-1 min-h-[72px] rounded-md text-sm font-medium w-full select-none bg-indigo-500 hover:bg-indigo-600 border-indigo-500 text-white">
+                <span>${escapeHtml(c.label)}</span>
+                <span class="font-bold text-lg leading-tight">${total}</span>
+                <span class="text-xs opacity-90 leading-tight">${detail}</span>
+            </button>`;
+    }).join('');
+    card.innerHTML = `
+        <div class="font-bold cursor-pointer hover:text-blue-600 player-name-display" onclick="openSubstitutionModal(${player.id})">
+            #${escapeHtml(player.jerseyNumber) || '-'} ${escapeHtml(player.name)}
+        </div>
+        <div class="grid grid-cols-2 gap-2 mt-3 flex-grow">${buttons}</div>
+    `;
+    return card;
+}
+
+// --- Fenêtre de notation : s'ouvre au clic sur un critère, se ferme dès que la note est choisie ---
+let pendingRating = null; // { playerId, criterionId }
+
+function openRatingModal(playerId, criterionId) {
+    const team = getCurrentTeam();
+    const matchId = parseInt(document.getElementById('matchSelector').value);
+    const match = team && team.matches.find(m => m.id === matchId);
+    const player = team && team.players.find(p => p.id === playerId);
+    const criterion = getCriteria(team, true).find(c => c.id === criterionId);
+    if (!match || !player || !criterion) return;
+    pendingRating = { playerId, criterionId };
+    const counts = collectEvalCounts(match, [currentSet]).byPlayer[playerId] || {};
+    document.getElementById('ratingModalTitle').textContent = criterion.label;
+    document.getElementById('ratingModalSubtitle').textContent = `#${player.jerseyNumber || '-'} ${player.name} — Set ${currentSet.replace('set', '')}`;
+    document.getElementById('ratingButtons').innerHTML = EVAL_LEVELS.map(l => `
+        <button onclick="rateCriterion('${l.id}')" class="${l.style} text-white rounded-xl py-6 text-3xl font-bold select-none">
+            ${l.label}<span class="block text-xs font-medium opacity-90">${counts[`${criterionId}_${l.id}`] || 0}</span>
+        </button>`).join('');
+    document.getElementById('ratingModal').classList.remove('hidden');
+}
+
+async function rateCriterion(levelId) {
+    if (!pendingRating) return;
+    const { playerId, criterionId } = pendingRating;
+    pendingRating = null;
+    closeModal('ratingModal');
+    await updateEval(parseInt(document.getElementById('matchSelector').value), playerId, `${criterionId}_${levelId}`, 1);
+}
+
+async function updateEval(matchId, playerId, key, change) {
+    const currentTeam = getCurrentTeam(); if (!currentTeam) return;
+    const match = currentTeam.matches.find(m => m.id === matchId); if (!match) return;
+
+    if (!match.evals) match.evals = {};
+    if (!match.evals[currentSet]) match.evals[currentSet] = {};
+    if (!match.evals[currentSet][playerId]) match.evals[currentSet][playerId] = {};
+
+    const playerEvals = match.evals[currentSet][playerId];
+    let count = playerEvals[key] || 0;
+    if (change < 0 && count === 0) return;
+    if (change < 0 && navigator.vibrate) navigator.vibrate(100);
+    if (change > 0) {
+        appData.lastEvalAction = JSON.parse(JSON.stringify({ matchId, playerId, evalKey: key, set: currentSet }));
+    }
+
+    playerEvals[key] = count + change;
+    await saveData();
+    renderLiveTrackingView();
+}
+
+// Annule la dernière note saisie
+async function undoLastAction() {
+    const action = appData.lastEvalAction ? JSON.parse(JSON.stringify(appData.lastEvalAction)) : null;
+    if (!action) {
+        alert("Il n'y a pas de dernière action à annuler.");
+        return;
+    }
+    if (action.set !== currentSet) {
+        alert(`La dernière action a été enregistrée sur le set ${action.set.replace('set','')}. Veuillez sélectionner ce set pour l'annuler.`);
+        return;
+    }
+    appData.lastEvalAction = null;
+    await saveData();
+    await updateEval(action.matchId, action.playerId, action.evalKey, -1);
+}
+
+// Résumé sous la saisie : total équipe par critère pour le set en cours
+function renderSummary() {
+    const summaryDiv = document.getElementById('set-faults-summary');
+    const currentTeam = getCurrentTeam();
+    const matchSelector = document.getElementById('matchSelector');
+    if (!summaryDiv || !currentTeam || !matchSelector || !matchSelector.value) {
+        if (summaryDiv) summaryDiv.innerHTML = '';
+        return;
+    }
+    const match = currentTeam.matches.find(m => m.id === parseInt(matchSelector.value));
+    if (!match) { summaryDiv.innerHTML = ''; return; }
+    const { total } = collectEvalCounts(match, [currentSet]);
+    const rows = getStatColumns(currentTeam).map(c => `
+        <tr class="border-b">
+            <td class="p-2 font-medium">${escapeHtml(c.label)}</td>
+            ${EVAL_LEVELS.map(l => `<td class="p-2 text-center">${total[`${c.id}_${l.id}`] || 0}</td>`).join('')}
+        </tr>`).join('');
+    summaryDiv.innerHTML = `<h4 class="text-lg font-semibold mb-2 text-center">Total équipe — Set ${currentSet.replace('set', '')}</h4>
+        <table class="w-full text-sm max-w-md mx-auto">
+            <thead class="bg-gray-100"><tr><th class="p-2 text-left">Critère</th>${EVAL_LEVELS.map(l => `<th class="p-2 text-center">${l.label}</th>`).join('')}</tr></thead>
+            <tbody>${rows}</tbody>
+        </table>`;
+}
 
 /**
- * Affiche l'interface de suivi en direct (fautes ou points) pour le match et le set sélectionnés.
+ * Affiche l'interface de suivi en direct pour le match et le set sélectionnés.
  */
-
 function renderLiveTrackingView() {
     const currentTeam = getCurrentTeam();
     const liveContent = document.getElementById('live-content');
     const liveHint = document.getElementById('live-match-hint');
     const courtLayout = document.getElementById('live-court-layout');
-    const detailToggle = document.getElementById('detail-mode-toggle');
     const liveMatchDisplay = document.getElementById('live-match-display');
     const liveMatchName = document.getElementById('live-match-name');
-    const undoButton = document.getElementById('undo-last-fault'); 
-    const matchSelector = document.getElementById('matchSelector'); 
+    const undoButton = document.getElementById('undo-last-fault');
+    const matchSelector = document.getElementById('matchSelector');
 
     // --- VÉRIFICATION (inchangée) ---
-    if (!matchSelector || !matchSelector.value || !currentTeam || !liveContent || !liveHint || !courtLayout || !detailToggle || !liveMatchDisplay || !liveMatchName) {
+    if (!matchSelector || !matchSelector.value || !currentTeam || !liveContent || !liveHint || !courtLayout || !liveMatchDisplay || !liveMatchName) {
         if(liveContent) liveContent.classList.add('hidden');
         if(liveMatchDisplay) liveMatchDisplay.classList.add('hidden');
-        if(liveHint) liveHint.classList.remove('hidden'); 
+        if(liveHint) liveHint.classList.remove('hidden');
         const summaryDiv = document.getElementById('set-faults-summary');
         if (summaryDiv) summaryDiv.innerHTML = '';
-        return; 
+        return;
     }
     // --- FIN DE LA VÉRIFICATION ---
 
     const matchId = parseInt(matchSelector.value);
-    liveHint.classList.add('hidden'); 
-    liveMatchDisplay.classList.remove('hidden'); 
-    liveContent.classList.remove('hidden'); 
+    liveHint.classList.add('hidden');
+    liveMatchDisplay.classList.remove('hidden');
+    liveContent.classList.remove('hidden');
 
-    if (undoButton) undoButton.onclick = undoLastAction; 
+    if (undoButton) undoButton.onclick = undoLastAction;
 
     const match = currentTeam.matches.find(m => m.id === matchId);
     if (!match) {
          liveContent.classList.add('hidden'); liveHint.textContent = "Erreur: Match introuvable."; liveHint.classList.remove('hidden'); return;
      }
 
-    liveMatchName.textContent = formatMatchTitle(match); 
+    liveMatchName.textContent = formatMatchTitle(match);
 
-    if (typeof match.detailMode === 'undefined') match.detailMode = true; 
-    detailToggle.checked = currentDetailMode; 
+    renderSetSelector();
 
-    // --- (Logique des boutons Fautes/Points inchangée) ---
-    const faultBtn = document.getElementById('track-mode-faults');
-    const pointBtn = document.getElementById('track-mode-points');
-    
-    if (faultBtn && pointBtn) {
-        const inactiveClasses = ['bg-white', 'text-gray-700', 'hover:bg-gray-50'];
-        const faultActiveClasses = ['bg-orange-400', 'text-white', 'hover:bg-orange-500'];
-        const pointActiveClasses = ['bg-green-400', 'text-white', 'hover:bg-green-500'];
-        const allClassesToRemove = [
-            ...inactiveClasses, ...faultActiveClasses, ...pointActiveClasses,
-            'bg-blue-500', 'hover:bg-blue-600', 'bg-orange-500', 
-            'hover:bg-orange-600', 'bg-green-500', 'hover:bg-green-600'
-        ];
-        faultBtn.classList.remove(...allClassesToRemove);
-        pointBtn.classList.remove(...allClassesToRemove);
-        if (currentTrackingMode === 'faults') {
-            faultBtn.classList.add(...faultActiveClasses);
-            pointBtn.classList.add(...inactiveClasses);
-        } else {
-            faultBtn.classList.add(...inactiveClasses);
-            pointBtn.classList.add(...pointActiveClasses);
-        }
-    }
-    // --- (Fin de la logique des boutons) ---
-
-    const detailLabel = document.getElementById('detail-toggle-label');
-    if (detailLabel) detailLabel.textContent = currentDetailMode ? (currentTrackingMode === 'faults' ? "Fautes Détaillées" : "Points Détaillés") : (currentTrackingMode === 'faults' ? "Fautes Simples" : "Points Simples");
-
-    renderSetSelector(); 
-
-    courtLayout.innerHTML = ''; 
+    courtLayout.innerHTML = '';
     const setPositions = (currentTeam.courtPositions && currentTeam.courtPositions[matchId] && currentTeam.courtPositions[matchId][currentSet]) || {};
 
     const onCourtPlayerIds = Object.keys(setPositions)
         .filter(pos => pos.startsWith('pos-'))
-        .map(pos => setPositions[pos]).filter(Boolean); 
-    
-    // --- DÉBUT DE LA MODIFICATION ---
-    // On récupère l'ID du libéro DÉSIGNÉ pour ce set
-    const liberoId = setPositions.libero; 
-    // --- FIN DE LA MODIFICATION ---
+        .map(pos => setPositions[pos]).filter(Boolean);
+
+    // ID du libéro DÉSIGNÉ pour ce set
+    const liberoId = setPositions.libero;
 
     const participatingPlayerIds = new Set([...onCourtPlayerIds, liberoId].filter(Boolean));
 
     if (participatingPlayerIds.size === 0) {
         courtLayout.innerHTML = `<p class="text-gray-500 col-span-2 text-center">Définissez la composition dans l'onglet "Matchs" pour commencer le suivi.</p>`;
-        renderSummary(); 
+        renderSummary();
         return;
     }
 
-    // Fonction interne pour créer et ajouter une carte joueur
-    const createAndAppendCard = (playerId) => {
+    const addCard = (playerId) => {
         const player = currentTeam.players.find(p => p.id === playerId);
-        if (!player) return null; 
-
-        let card; 
-        // Note : 'isLibero' ici vérifie le RÔLE, mais n'est plus utilisé pour le 'if'
-        const isLibero = player.mainPosition === 'Libéro' || player.secondaryPosition === 'Libéro';
-
-        if (currentTrackingMode === 'faults') {
-            if (currentDetailMode) {
-                // --- MODIFICATION ---
-                // On passe l'ID du libéro désigné à la fonction
-                card = createPlayerCardLiveDetailed_Faults(match, player, liberoId);
-                // --- FIN MODIFICATION ---
-                courtLayout.appendChild(card);
-                ['service', 'attack', 'reception', 'net'].forEach(type => {
-                    const button = card.querySelector(`#fault-btn-${player.id}-${type}`);
-                    if (button) addLiveButtonListeners(button, match.id, player.id, type, 'faults');
-                });
-            } else { 
-                card = createPlayerCardLiveSimple_Faults(match, player);
-                courtLayout.appendChild(card);
-                const button = card.querySelector(`#fault-btn-${player.id}-simple`);
-                if (button) addLiveButtonListeners(button, match.id, player.id, 'net', 'faults'); 
-            }
-        } else { // Mode Points
-            if (currentDetailMode) {
-                // --- MODIFICATION ---
-                // On passe l'ID du libéro désigné à la fonction
-                card = createPlayerCardLiveDetailed_Points(match, player, liberoId);
-                // --- FIN MODIFICATION ---
-                courtLayout.appendChild(card);
-                ['service', 'attack', 'block', 'net'].forEach(type => {
-                    const button = card.querySelector(`#point-btn-${player.id}-${type}`);
-                    if (button) addLiveButtonListeners(button, match.id, player.id, type, 'points');
-                });
-            } else { 
-                card = createPlayerCardLiveSimple_Points(match, player);
-                courtLayout.appendChild(card);
-                const button = card.querySelector(`#point-btn-${player.id}-simple`);
-                if (button) addLiveButtonListeners(button, match.id, player.id, 'net', 'points'); 
-            }
-        }
-
-        // Style du libéro (inchangé, border-t-4)
-        if (playerId === liberoId && card) {
-            card.classList.add('border-t-4', 'border-yellow-500', 'mt-2');
-        }
-        return card;
+        if (!player) return;
+        const card = createPlayerCardLive(match, player, playerId === liberoId);
+        if (playerId === liberoId) card.classList.add('border-t-4', 'border-yellow-500', 'mt-2');
+        courtLayout.appendChild(card);
     };
+    onCourtPlayerIds.forEach(addCard);
+    if (liberoId) addCard(liberoId);
 
-    onCourtPlayerIds.forEach(createAndAppendCard);
-    if (liberoId) createAndAppendCard(liberoId);
-
-    renderSummary(); 
-}
-
-function createPlayerCardLiveDetailed_Faults(match, player, designatedLiberoId) {
-    const card = document.createElement('div');
-    const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
-    // S'assure que la carte est flex-col
-    card.className = `live-player-card ${genderClass} flex flex-col`; 
-
-    const faults = (match.faults && match.faults[currentSet] && match.faults[currentSet][player.id])
-                 || { service: 0, attack: 0, reception: 0, net: 0 };
-
-    // --- DÉBUT DE LA MODIFICATION ---
-    // La logique vérifie maintenant si ce joueur EST le libéro DÉSIGNÉ pour ce set
-    const isDesignatedLibero = player.id === designatedLiberoId;
-    // --- FIN DE LA MODIFICATION ---
-
-    let buttonsHtml = '';
-
-    // Classe pour les boutons en GRILLE (carrés)
-    const gridLayoutClass = "aspect-square flex flex-col items-center justify-center p-1 rounded-md text-sm font-medium w-full select-none";
-    
-    // CLASSE CORRIGÉE pour le LIBÉRO (Rectangulaire + 'flex-grow')
-    const liberoLayoutClass = "flex flex-col items-center justify-center rounded-md text-sm font-medium w-full p-1 flex-grow select-none"; 
-
-    // Classes de COULEUR (Orange)
-    const colorClass = "bg-orange-400 hover:bg-orange-500 border-orange-400 text-white";
-
-    // --- MODIFICATION ---
-    if (isDesignatedLibero) { // Utilise la nouvelle variable
-    // --- FIN MODIFICATION ---
-        // Libero : 2 boutons rectangulaires
-        buttonsHtml = `
-            <div class="flex flex-col gap-2 mt-3 flex-grow">
-                 <button id="fault-btn-${player.id}-reception" class="${liberoLayoutClass} ${colorClass}">
-                     <span>Réception</span>
-                     <span class="fault-count" id="fault-count-${player.id}-reception">${faults.reception}</span>
-                 </button>
-                 <button id="fault-btn-${player.id}-net" class="${liberoLayoutClass} ${colorClass}">
-                     <span>Autres</span>
-                     <span class="fault-count" id="fault-count-${player.id}-net">${faults.net}</span>
-                 </button>
-            </div>`;
-    } else {
-        // Autres joueurs (ou libéro sur le terrain) : grille de 4 boutons carrés
-        const faultGridClass = "grid grid-cols-2 gap-2 mt-3 flex-grow"; 
-        
-        buttonsHtml = `
-            <div class="${faultGridClass}">
-                <button id="fault-btn-${player.id}-service" class="${gridLayoutClass} ${colorClass}">
-                    <span>Service</span>
-                    <span class="fault-count" id="fault-count-${player.id}-service">${faults.service}</span>
-                </button>
-                <button id="fault-btn-${player.id}-attack" class="${gridLayoutClass} ${colorClass}">
-                    <span>Attaque</span>
-                    <span class="fault-count" id="fault-count-${player.id}-attack">${faults.attack}</span>
-                </button>
-                <button id="fault-btn-${player.id}-reception" class="${gridLayoutClass} ${colorClass}">
-                    <span>Récep</span>
-                    <span class="fault-count" id="fault-count-${player.id}-reception">${faults.reception}</span>
-                </button>
-                <button id="fault-btn-${player.id}-net" class="${gridLayoutClass} ${colorClass}">
-                    <span>Autres</span>
-                    <span class="fault-count" id="fault-count-${player.id}-net">${faults.net}</span>
-                </button>
-            </div>`;
-    }
-
-    card.innerHTML = `
-        <div class="font-bold cursor-pointer hover:text-blue-600 player-name-display" onclick="openSubstitutionModal(${player.id})">
-            #${player.jerseyNumber || '-'} ${player.name}
-        </div>
-        ${buttonsHtml}
-    `;
-    return card;
-}
-
-
-function createPlayerCardLiveSimple_Faults(match, player) {
-    const card = document.createElement('div');
-    const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
-    card.className = `live-player-card ${genderClass}`; // Base class
-
-    const faults = (match.faults && match.faults[currentSet] && match.faults[currentSet][player.id])
-                 || { service: 0, attack: 0, reception: 0, net: 0 };
-    const totalFaults = Object.values(faults).reduce((a, b) => a + b, 0);
-
-    card.innerHTML = `
-        <div class="font-bold cursor-pointer hover:text-blue-600 player-name-display" onclick="openSubstitutionModal(${player.id})">
-            #${player.jerseyNumber || '-'} ${player.name}
-        </div>
-        <button id="fault-btn-${player.id}-simple" class="simple-fault-btn">
-            <span id="fault-count-${player.id}-simple">${totalFaults}</span>
-        </button>
-    `;
-    return card;
-}
-
-/**
- * Crée la carte détaillée pour le suivi des POINTS d'un joueur.
- * @param {object} match - L'objet match actuel.
- * @param {object} player - L'objet joueur.
- * @param {number} designatedLiberoId - L'ID du joueur désigné comme Libéro pour ce set.
- * @returns {HTMLElement} L'élément div représentant la carte.
- */
-function createPlayerCardLiveDetailed_Points(match, player, designatedLiberoId) {
-    const card = document.createElement('div');
-    const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
-    // S'assure que la carte est flex-col
-    card.className = `live-player-card ${genderClass} flex flex-col`;
-
-    const points = (match.points && match.points[currentSet] && match.points[currentSet][player.id])
-                 || { service: 0, attack: 0, block: 0, net: 0 }; 
-
-    // --- DÉBUT DE LA MODIFICATION ---
-    // La logique vérifie maintenant si ce joueur EST le libéro DÉSIGNÉ pour ce set
-    const isDesignatedLibero = player.id === designatedLiberoId;
-    // --- FIN DE LA MODIFICATION ---
-
-    let buttonsHtml = '';
-
-    // Classe pour les boutons en GRILLE (carrés)
-    const gridLayoutClass = "aspect-square flex flex-col items-center justify-center p-1 rounded-md text-sm font-medium w-full select-none";
-    
-    // CLASSE CORRIGÉE pour le LIBÉRO (Rectangulaire + 'flex-grow')
-    const liberoLayoutClass = "flex flex-col items-center justify-center rounded-md text-sm font-medium w-full p-1 flex-grow select-none"; 
-
-    // Classes de COULEUR (Vert)
-    const colorClass = "bg-green-500 hover:bg-green-600 border-green-500 text-white";
-
-    // --- MODIFICATION ---
-    if (isDesignatedLibero) { // Utilise la nouvelle variable
-    // --- FIN MODIFICATION ---
-        // Libero : un seul bouton, rectangulaire, qui s'étire
-        buttonsHtml = `
-            <div class="flex flex-col gap-2 mt-3 flex-grow">
-                 <button id="point-btn-${player.id}-net" class="${liberoLayoutClass} ${colorClass}">
-                     <span>Autres</span>
-                     <span class="point-count" id="point-count-${player.id}-net">${points.net}</span>
-                 </button>
-            </div>`;
-    } else {
-        // Autres joueurs (ou libéro sur le terrain) : grille de 4 boutons carrés
-        const pointGridClass = "grid grid-cols-2 gap-2 mt-3 flex-grow"; 
-        
-        buttonsHtml = `
-            <div class="${pointGridClass}">
-                <button id="point-btn-${player.id}-service" class="${gridLayoutClass} ${colorClass}">
-                    <span>Service</span>
-                    <span class="point-count" id="point-count-${player.id}-service">${points.service}</span>
-                </button>
-                <button id="point-btn-${player.id}-attack" class="${gridLayoutClass} ${colorClass}">
-                    <span>Attaque</span>
-                    <span class="point-count" id="point-count-${player.id}-attack">${points.attack}</span>
-                </button>
-                <button id="point-btn-${player.id}-block" class="${gridLayoutClass} ${colorClass}">
-                    <span>Bloc</span>
-                    <span class="point-count" id="point-count-${player.id}-block">${points.block}</span>
-                </button>
-                <button id="point-btn-${player.id}-net" class="${gridLayoutClass} ${colorClass}">
-                    <span>Autres</span>
-                    <span class="point-count" id="point-count-${player.id}-net">${points.net}</span>
-                </button>
-            </div>`;
-    }
-
-    card.innerHTML = `
-        <div class="font-bold cursor-pointer hover:text-blue-600 player-name-display" onclick="openSubstitutionModal(${player.id})">
-            #${player.jerseyNumber || '-'} ${player.name}
-        </div>
-        ${buttonsHtml}
-    `;
-    return card;
-}
-
-
-/**
- * Crée la carte simple pour le suivi des POINTS d'un joueur.
- * @param {object} match - L'objet match actuel.
- * @param {object} player - L'objet joueur.
- * @returns {HTMLElement} L'élément div représentant la carte.
- */
-function createPlayerCardLiveSimple_Points(match, player) {
-    const card = document.createElement('div');
-    const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
-    card.className = `live-player-card ${genderClass}`;
-
-    // Récupère les points ou initialise
-    const points = (match.points && match.points[currentSet] && match.points[currentSet][player.id])
-                 || { service: 0, attack: 0, block: 0, net: 0 };
-    // Calcule le total des points
-    const totalPoints = Object.values(points).reduce((a, b) => a + b, 0);
-
-    // Classes CSS pour le bouton simple (vert)
-   const simplePointBtnClass = "simple-point-btn flex-grow mt-3 text-4xl font-bold leading-none flex items-center justify-center aspect-square bg-green-500 hover:bg-green-600 border-green-500 text-white rounded-lg select-none";
-
-    // Construction du HTML de la carte
-    card.innerHTML = `
-        <div class="font-bold cursor-pointer hover:text-blue-600 player-name-display" onclick="openSubstitutionModal(${player.id})">
-            #${player.jerseyNumber || '-'} ${player.name}
-        </div>
-        <button id="point-btn-${player.id}-simple" class="${simplePointBtnClass}">
-            <span id="point-count-${player.id}-simple">${totalPoints}</span>
-        </button>
-    `;
-    return card;
-}
-
-/**
- * Met à jour le compteur de FAUTES pour un joueur donné.
- * @param {number} matchId - L'ID du match.
- * @param {number} playerId - L'ID du joueur.
- * @param {string} faultType - Le type de faute ('service', 'attack', 'reception', 'net').
- * @param {number} change - +1 pour incrémenter, -1 pour décrémenter.
- */
-async function updateFault(matchId, playerId, faultType, change) {
-    const currentTeam = getCurrentTeam(); if (!currentTeam) return;
-    const match = currentTeam.matches.find(m => m.id === matchId); if (!match) return;
-
-    // Initialise les objets si nécessaire
-    if (!match.faults) match.faults = {};
-    if (!match.faults[currentSet]) match.faults[currentSet] = {};
-    if (!match.faults[currentSet][playerId]) match.faults[currentSet][playerId] = { service: 0, attack: 0, reception: 0, net: 0 };
-
-    const currentFaults = match.faults[currentSet][playerId];
-    let currentCount = currentFaults[faultType] || 0;
-
-    // Ne pas passer en négatif
-    if (change < 0 && currentCount === 0) return;
-
-    // Faire vibrer si on décrémente
-    if (change < 0 && navigator.vibrate) navigator.vibrate(100);
-
-    // Enregistrer l'action pour l'annulation UNIQUEMENT si c'est un ajout
-    if (change > 0) {
-        // Sauvegarde une copie profonde pour éviter les modifications par référence
-        appData.lastFaultAction = JSON.parse(JSON.stringify({ matchId, playerId, faultType, set: currentSet }));
-    }
-
-    // Met à jour le compteur
-    currentCount += change;
-    currentFaults[faultType] = currentCount;
-
-    // Sauvegarde les données (localStorage et Firestore)
-    await saveData();
-
-    // Met à jour l'affichage directement dans l'interface utilisateur
-    const detailedCountSpan = document.getElementById(`fault-count-${playerId}-${faultType}`);
-    if (detailedCountSpan) detailedCountSpan.textContent = currentCount;
-
-    const simpleCountSpan = document.getElementById(`fault-count-${playerId}-simple`);
-    if (simpleCountSpan) {
-        const totalFaults = Object.values(currentFaults).reduce((a, b) => a + b, 0);
-        simpleCountSpan.textContent = totalFaults;
-    }
-
-    // Met à jour le résumé des fautes/points
     renderSummary();
 }
 
-/**
- * Met à jour le compteur de POINTS pour un joueur donné.
- * @param {number} matchId - L'ID du match.
- * @param {number} playerId - L'ID du joueur.
- * @param {string} pointType - Le type de point ('service', 'attack', 'block', 'net').
- * @param {number} change - +1 pour incrémenter, -1 pour décrémenter.
- */
-async function updatePoint(matchId, playerId, pointType, change) {
-    const currentTeam = getCurrentTeam(); if (!currentTeam) return;
-    const match = currentTeam.matches.find(m => m.id === matchId); if (!match) return;
+// --- Fenêtre « Personnaliser les critères » (une seule liste) ---
+let criteriaDraft = null; // copie de travail [{id, label}], enregistrée seulement avec le bouton "Enregistrer"
 
-    // Initialise les objets si nécessaire
-    if (!match.points) match.points = {};
-    if (!match.points[currentSet]) match.points[currentSet] = {};
-    if (!match.points[currentSet][playerId]) match.points[currentSet][playerId] = { service: 0, attack: 0, block: 0, net: 0 };
+function openCriteriaModal() {
+    const team = getCurrentTeam();
+    if (!team) return;
+    criteriaDraft = getCriteria(team).map(c => ({ ...c }));
+    renderCriteriaModal();
+    document.getElementById('criteriaModal').classList.remove('hidden');
+}
 
-    const currentPoints = match.points[currentSet][playerId];
-    let currentCount = currentPoints[pointType] || 0;
+function renderCriteriaModal() {
+    const container = document.getElementById('criteria-list');
+    container.innerHTML = '';
+    criteriaDraft.forEach((c, index) => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2';
+        row.innerHTML = `
+            <input type="text" maxlength="20" value="${escapeHtml(c.label)}" class="flex-grow min-w-0 p-2 border border-gray-300 rounded-lg" oninput="criteriaDraft[${index}].label = this.value">
+            <button onclick="moveCriterion(${index}, -1)" ${index === 0 ? 'disabled' : ''} class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-40" title="Monter">▲</button>
+            <button onclick="moveCriterion(${index}, 1)" ${index === criteriaDraft.length - 1 ? 'disabled' : ''} class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-40" title="Descendre">▼</button>
+            <button onclick="removeCriterionDraft(${index})" class="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600" title="Supprimer">X</button>`;
+        container.appendChild(row);
+    });
+}
 
-    // Ne pas passer en négatif
-    if (change < 0 && currentCount === 0) return;
+function addCriterionDraft() {
+    criteriaDraft.push({ id: `c_${Date.now()}`, label: '' });
+    renderCriteriaModal();
+    const inputs = document.querySelectorAll('#criteria-list input');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+}
 
-    // Faire vibrer si on décrémente
-    if (change < 0) {
-        if (navigator.vibrate) navigator.vibrate(100);
-    }
+function moveCriterion(index, direction) {
+    const target = index + direction;
+    if (target < 0 || target >= criteriaDraft.length) return;
+    [criteriaDraft[index], criteriaDraft[target]] = [criteriaDraft[target], criteriaDraft[index]];
+    renderCriteriaModal();
+}
 
-    // Enregistrer l'action pour l'annulation UNIQUEMENT si c'est un ajout
-    if (change > 0) {
-        // Sauvegarde une copie profonde
-        appData.lastPointAction = JSON.parse(JSON.stringify({ matchId, playerId, pointType, set: currentSet }));
-    }
+function removeCriterionDraft(index) {
+    if (criteriaDraft.length <= 1) return alert('Il faut garder au moins un critère.');
+    criteriaDraft.splice(index, 1);
+    renderCriteriaModal();
+}
 
-    // Met à jour le compteur
-    currentCount += change;
-    currentPoints[pointType] = currentCount;
+async function saveCriteria() {
+    const team = getCurrentTeam();
+    if (!team || !criteriaDraft) return;
+    const cleaned = criteriaDraft.map(c => ({ id: c.id, label: c.label.trim() }));
+    if (cleaned.some(c => !c.label)) return alert('Chaque critère doit avoir un nom.');
+    const names = cleaned.map(c => c.label.toLowerCase());
+    if (new Set(names).size !== names.length) return alert('Deux critères ont le même nom.');
 
-    // Sauvegarde les données
+    // Critères retirés : archivés s'ils ont de l'historique, supprimés sinon
+    const keptIds = cleaned.map(c => c.id);
+    const removed = getCriteria(team, true).filter(c => !keptIds.includes(c.id));
+    const toKeepArchived = removed.filter(c => criterionHasData(team, c.id)).map(c => ({ ...c, archived: true }));
+    team.trackingCriteria = [...cleaned, ...toKeepArchived];
     await saveData();
-
-    // Met à jour l'affichage directement dans l'interface utilisateur
-    const detailedCountSpan = document.getElementById(`point-count-${playerId}-${pointType}`);
-    if (detailedCountSpan) detailedCountSpan.textContent = currentCount;
-
-    const simpleCountSpan = document.getElementById(`point-count-${playerId}-simple`);
-    if (simpleCountSpan) {
-        const totalPoints = Object.values(currentPoints).reduce((a, b) => a + b, 0);
-        simpleCountSpan.textContent = totalPoints;
-    }
-
-    // Met à jour le résumé des fautes/points
-    renderSummary();
-}
-
-/**
- * Annule la dernière action enregistrée (faute ou point) en fonction du mode de suivi actuel.
- */
-async function undoLastAction() {
-    let actionToUndo = null; // Contiendra l'objet action { matchId, playerId, type, set }
-    let isFault = false;     // Pour savoir quelle fonction update appeler
-
-    // Détermine quelle action annuler en fonction du mode affiché
-    if (currentTrackingMode === 'faults' && appData.lastFaultAction) {
-        actionToUndo = JSON.parse(JSON.stringify(appData.lastFaultAction)); // Copie profonde
-        isFault = true;
-    } else if (currentTrackingMode === 'points' && appData.lastPointAction) {
-        actionToUndo = JSON.parse(JSON.stringify(appData.lastPointAction)); // Copie profonde
-        isFault = false;
-    }
-
-    // S'il n'y a rien à annuler pour ce mode
-    if (!actionToUndo) {
-        alert("Il n'y a pas de dernière action à annuler pour ce mode.");
-        return;
-    }
-
-    // Extrait les informations de l'action
-    const { matchId, playerId, set } = actionToUndo;
-    // Récupère la bonne clé ('faultType' ou 'pointType')
-    const type = isFault ? actionToUndo.faultType : actionToUndo.pointType;
-
-    // Vérifie si on est sur le bon set
-    if (set !== currentSet) {
-        alert(`La dernière action (${isFault ? 'faute' : 'point'}) a été enregistrée sur le set ${set.replace('set','')}. Veuillez sélectionner ce set pour l'annuler.`);
-        return;
-    }
-
-    // Efface l'action d'annulation AVANT de décrémenter
-    // pour éviter qu'on puisse annuler plusieurs fois la même action
-    if (isFault) {
-        appData.lastFaultAction = null;
-    } else {
-        appData.lastPointAction = null;
-    }
-    await saveData(); // Sauvegarde l'état sans l'action d'annulation
-
-    // Appelle la fonction de mise à jour appropriée pour décrémenter (-1)
-    if (isFault) {
-        await updateFault(matchId, playerId, type, -1);
-    } else {
-        await updatePoint(matchId, playerId, type, -1);
-    }
-    // Les fonctions updateFault/updatePoint appellent déjà saveData() et renderSummary()
-}
-
-/**
- * Affiche le résumé approprié (fautes ou points) en bas de l'onglet Suivi Match.
- */
-function renderSummary() {
-    if (currentTrackingMode === 'faults') {
-        renderSetFaultsSummary();
-    } else {
-        renderSetPointsSummary();
-    }
- }
-
-/**
- * Calcule et affiche le résumé des FAUTES par set et pour le match entier.
- */
-function renderSetFaultsSummary() {
-    const summaryDiv = document.getElementById('set-faults-summary');
-    const currentTeam = getCurrentTeam();
-    const matchSelector = document.getElementById('matchSelector'); // Récupère l'élément select
-
-    // --- AJOUT DE LA VÉRIFICATION ---
-    // Si le sélecteur n'existe pas, ou si aucune valeur n'est sélectionnée, ou si pas d'équipe, on vide et on sort.
-    if (!summaryDiv || !currentTeam || !matchSelector || !matchSelector.value) {
-        if (summaryDiv) summaryDiv.innerHTML = '';
-        return;
-    }
-    // --- FIN DE LA VÉRIFICATION ---
-
-    const matchId = parseInt(matchSelector.value); // Maintenant, on sait que .value existe
-    const match = currentTeam.matches.find(m => m.id === matchId);
-
-    // Le reste de la fonction est inchangé...
-    if (!match || !match.faults) { summaryDiv.innerHTML = ''; return; }
-
-    let totalMatchFaults = 0;
-    let summaryHtml = '<h4 class="text-lg font-semibold mb-2 text-center">Total Fautes Directes par Set</h4><div class="space-y-1">';
-
-    SETS.forEach((setName, index) => {
-        let setTotal = 0;
-        if (match.faults[setName]) {
-            Object.values(match.faults[setName]).forEach(playerFaults => {
-                setTotal += Object.values(playerFaults).reduce((a, b) => a + b, 0);
-            });
-        }
-        summaryHtml += `<p class="text-sm text-gray-700 text-center">Set ${index + 1}: <span class="font-bold text-lg text-red-600">${setTotal}</span></p>`;
-        totalMatchFaults += setTotal;
-    });
-
-    summaryHtml += `</div><p class="text-md font-bold mt-3 border-t pt-2 text-center">Total Match: <span class="text-red-600">${totalMatchFaults}</span></p>`;
-    summaryDiv.innerHTML = summaryHtml;
-}
-
-/**
- * Calcule et affiche le résumé des POINTS par set et pour le match entier.
- */
-function renderSetPointsSummary() {
-    const summaryDiv = document.getElementById('set-faults-summary'); // Réutilise le même div
-    const currentTeam = getCurrentTeam();
-    const matchSelector = document.getElementById('matchSelector'); // Récupère l'élément select
-
-    // --- AJOUT DE LA VÉRIFICATION ---
-    if (!summaryDiv || !currentTeam || !matchSelector || !matchSelector.value) {
-        if (summaryDiv) summaryDiv.innerHTML = '';
-        return;
-    }
-    // --- FIN DE LA VÉRIFICATION ---
-
-    const matchId = parseInt(matchSelector.value); // Maintenant, on sait que .value existe
-    const match = currentTeam.matches.find(m => m.id === matchId);
-
-    // Le reste de la fonction est inchangé...
-    if (!match || !match.points) { summaryDiv.innerHTML = ''; return; }
-
-    let totalMatchPoints = 0;
-    let summaryHtml = '<h4 class="text-lg font-semibold mb-2 text-center">Total Points Marqués par Set</h4><div class="space-y-1">';
-
-    SETS.forEach((setName, index) => {
-        let setTotal = 0;
-        if (match.points[setName]) {
-            Object.values(match.points[setName]).forEach(playerPoints => {
-                setTotal += Object.values(playerPoints).reduce((a, b) => a + b, 0);
-            });
-        }
-        summaryHtml += `<p class="text-sm text-gray-700 text-center">Set ${index + 1}: <span class="font-bold text-lg text-green-600">${setTotal}</span></p>`;
-        totalMatchPoints += setTotal;
-    });
-
-    summaryHtml += `</div><p class="text-md font-bold mt-3 border-t pt-2 text-center">Total Match: <span class="text-green-600">${totalMatchPoints}</span></p>`;
-    summaryDiv.innerHTML = summaryHtml;
+    closeModal('criteriaModal');
+    renderLiveTrackingView();
+    renderPlayerStats();
 }
 
 // ============================
