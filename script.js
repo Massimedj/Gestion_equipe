@@ -486,8 +486,9 @@ async function saveTeamChanges() {
     currentTeam.rankingUrl = newRankingUrl; 
 
     await saveData(); 
-    renderTeamSelector(); 
-    closeModal('editTeamModal'); 
+    renderTeamSelector();
+    renderPlayerList();
+    closeModal('editTeamModal');
 }
 
 /** Supprime l'équipe actuellement sélectionnée après confirmation. */
@@ -807,6 +808,8 @@ function renderPlayerList() {
     if (!currentTeam || !playerListDiv) return;
 	
 	if (countBadge) countBadge.textContent = currentTeam.players.length;
+	const rosterTitle = document.getElementById('roster-title');
+	if (rosterTitle) rosterTitle.textContent = `Effectif de l'équipe ${currentTeam.name || ''}`.trim();
 
     deleteAllBtn.classList.toggle('hidden', currentTeam.players.length === 0);
     playerListDiv.innerHTML = currentTeam.players.length ? '' : '<p class="text-gray-500">Aucun joueur dans l\'effectif.</p>';
@@ -931,6 +934,131 @@ async function deleteSelectedMatch() {
         currentTeam.matches = currentTeam.matches.filter(m => m.id !== matchId); if (currentTeam.courtPositions && currentTeam.courtPositions[matchId]) delete currentTeam.courtPositions[matchId]; localStorage.removeItem(`lastSelectedMatch_${appData.currentTeamId}`); await saveData(); renderMatchSelector();
         document.getElementById('matchSelector').value = ''; document.getElementById('matchActions').classList.add('hidden'); document.getElementById('match-hint').classList.remove('hidden'); document.getElementById('selectedMatchContent').classList.add('hidden'); renderLiveTrackingView();
     }
+}
+
+// ============================
+// IMPORT DES RENCONTRES DEPUIS LA FFVB
+// ============================
+let ffvbCalendar = []; // [{ code, date (AAAA-MM-JJ), time, home, away }]
+// Le site FFVB refuse la lecture directe par le navigateur : on passe par notre fonction Firebase (dossier functions/).
+const FFVB_RELAYS = [
+    u => 'https://europe-west1-assistant-coach-volley.cloudfunctions.net/ffvbCalendar?url=' + encodeURIComponent(u)
+];
+
+function openImportFfvbModal() {
+    const currentTeam = getCurrentTeam(); if (!currentTeam) return;
+    closeModal('addMatchModal');
+    document.getElementById('ffvbUrl').value = currentTeam.rankingUrl || '';
+    document.getElementById('ffvbStatus').textContent = '';
+    document.getElementById('ffvbStep2').classList.add('hidden');
+    document.getElementById('ffvbFileInput').value = '';
+    ffvbCalendar = [];
+    document.getElementById('importFfvbModal').classList.remove('hidden');
+}
+
+function setFfvbStatus(text, isError) {
+    const el = document.getElementById('ffvbStatus');
+    el.textContent = text; el.className = 'text-sm mt-2 ' + (isError ? 'text-red-600' : 'text-gray-600');
+}
+
+// Lit la page HTML du calendrier FFVB (une ligne = un match)
+function parseFfvbHtml(html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const byCode = new Map();
+    doc.querySelectorAll('tr').forEach(tr => {
+        const c = [...tr.children].filter(e => e.tagName === 'TD').map(td => td.textContent.trim());
+        const d = /^(\d\d)\/(\d\d)\/(\d\d)$/.exec(c[1] || '');
+        if (c.length < 6 || !d || !/^[A-Z0-9]+$/.test(c[0]) || !c[3] || !c[5]) return;
+        byCode.set(c[0], { code: c[0], date: `20${d[3]}-${d[2]}-${d[1]}`, time: c[2], home: c[3], away: c[5] });
+    });
+    return [...byCode.values()];
+}
+
+// Lit le fichier CSV d'export du calendrier FFVB
+function parseFfvbCsv(text) {
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    const h = (lines.shift() || '').split(';').map(s => s.trim());
+    const i = n => h.indexOf(n);
+    if ([i('Match'), i('Date'), i('EQA_nom'), i('EQB_nom')].some(x => x < 0)) return [];
+    return lines.map(l => l.split(';')).filter(c => /^\d{4}-\d\d-\d\d$/.test(c[i('Date')] || ''))
+        .map(c => ({ code: c[i('Match')], date: c[i('Date')], time: c[i('Heure')] || '', home: c[i('EQA_nom')].trim(), away: c[i('EQB_nom')].trim() }));
+}
+
+async function fetchFfvbCalendar() {
+    let url = document.getElementById('ffvbUrl').value.trim();
+    if (!/^https?:\/\//.test(url)) url = 'https://' + url;
+    if (!/^https:\/\/(www\.)?ffvbbeach\.org\//.test(url)) { setFfvbStatus("L'adresse doit être un calendrier du site ffvbbeach.org.", true); return; }
+    setFfvbStatus('Récupération du calendrier…', false);
+    for (const relay of FFVB_RELAYS) {
+        try {
+            const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 15000);
+            const res = await fetch(relay(url), { signal: ctrl.signal }); clearTimeout(timer);
+            if (!res.ok) continue;
+            const list = parseFfvbHtml(new TextDecoder('windows-1252').decode(await res.arrayBuffer()));
+            if (list.length) { showFfvbTeamStep(list); return; }
+        } catch (e) { /* on essaie le relais suivant */ }
+    }
+    setFfvbStatus("Impossible de récupérer le calendrier automatiquement (service relais indisponible ou aucun match trouvé). Réessayez plus tard, ou importez le fichier CSV d'export de la FFVB (bouton ci-dessous).", true);
+}
+
+async function loadFfvbCsvFile(input) {
+    const file = input.files[0]; if (!file) return;
+    const list = parseFfvbCsv(new TextDecoder('windows-1252').decode(await file.arrayBuffer()));
+    if (!list.length) { setFfvbStatus("Fichier non reconnu : utilisez le fichier CSV exporté depuis le calendrier FFVB (icône Excel).", true); return; }
+    showFfvbTeamStep(list);
+}
+
+// Étape 2 : l'utilisateur choisit son équipe parmi celles du calendrier
+function showFfvbTeamStep(list) {
+    const currentTeam = getCurrentTeam();
+    ffvbCalendar = list;
+    const teams = [...new Set(list.flatMap(m => [m.home, m.away]))].sort((a, b) => a.localeCompare(b, 'fr'));
+    const select = document.getElementById('ffvbTeamSelect');
+    select.innerHTML = '<option value="">— Choisissez votre équipe —</option>' + teams.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+    const norm = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const guess = teams.find(t => t === currentTeam.ffvbTeamName) || teams.find(t => norm(currentTeam.name) && norm(t) === norm(currentTeam.name));
+    if (guess) select.value = guess;
+    setFfvbStatus(`${list.length} rencontres trouvées dans le calendrier.`, false);
+    document.getElementById('ffvbStep2').classList.remove('hidden');
+    renderFfvbMatchList();
+}
+
+function ffvbOpponentMatches(m, team) { return m.home === team ? { opponent: m.away, location: 'domicile' } : { opponent: m.home, location: 'exterieur' }; }
+
+function renderFfvbMatchList() {
+    const currentTeam = getCurrentTeam(); const team = document.getElementById('ffvbTeamSelect').value;
+    const box = document.getElementById('ffvbMatchList'); const btn = document.getElementById('ffvbImportButton');
+    if (!team) { box.innerHTML = ''; btn.disabled = true; return; }
+    const existing = currentTeam.matches || [];
+    const mine = ffvbCalendar.filter(m => m.home === team || m.away === team).sort((a, b) => a.date.localeCompare(b.date));
+    box.innerHTML = mine.map(m => {
+        const o = ffvbOpponentMatches(m, team);
+        const already = existing.some(e => e.ffvbCode === m.code || (e.date === m.date && (e.opponent || '').toLowerCase() === o.opponent.toLowerCase()));
+        const label = `${new Date(m.date.replace(/-/g, '/')).toLocaleDateString('fr-FR')}${m.time ? ' ' + m.time : ''} — vs ${o.opponent} (${o.location === 'domicile' ? 'Dom.' : 'Ext.'})`;
+        return `<label class="flex items-center gap-2 p-2 rounded ${already ? 'text-gray-400' : 'hover:bg-gray-50'}"><input type="checkbox" value="${escapeHtml(m.code)}" ${already ? 'disabled' : 'checked'} onchange="updateFfvbImportButton()"><span>${escapeHtml(label)}${already ? ' (déjà ajoutée)' : ''}</span></label>`;
+    }).join('') || '<p class="text-sm text-gray-500 p-2">Aucune rencontre pour cette équipe.</p>';
+    updateFfvbImportButton();
+}
+
+function updateFfvbImportButton() {
+    document.getElementById('ffvbImportButton').disabled = !document.querySelectorAll('#ffvbMatchList input:checked').length;
+}
+
+async function importFfvbMatches() {
+    const currentTeam = getCurrentTeam(); if (!currentTeam) return;
+    const team = document.getElementById('ffvbTeamSelect').value; if (!team) return;
+    const codes = new Set([...document.querySelectorAll('#ffvbMatchList input:checked')].map(i => i.value));
+    const allPlayerIds = currentTeam.players ? currentTeam.players.map(p => p.id) : [];
+    if (!currentTeam.matches) currentTeam.matches = [];
+    let n = 0;
+    ffvbCalendar.filter(m => codes.has(m.code)).forEach((m, idx) => {
+        const o = ffvbOpponentMatches(m, team);
+        currentTeam.matches.push({ id: Date.now() + idx, ffvbCode: m.code, date: m.date, opponent: o.opponent, location: o.location, present: [...allPlayerIds], played: [], captainId: null, score: { myTeam: '', opponent: '', sets: Array(5).fill(null).map(() => ({ myTeam: '', opponent: '' })) }, substitutions: {}, faults: {}, points: {}, detailMode: true, forfeitStatus: 'none' });
+        n++;
+    });
+    currentTeam.ffvbTeamName = team;
+    await saveData(); renderMatchSelector(); closeModal('importFfvbModal');
+    alert(`${n} rencontre(s) ajoutée(s).`);
 }
 
 function formatMatchTitle(match) {
@@ -2303,14 +2431,40 @@ const EVAL_LEGEND = [
 ];
 // Critères proposés par défaut à chaque équipe (identifiants d'origine conservés pour ne perdre aucun historique)
 const DEFAULT_CRITERIA = [
-    { id: 'service', label: 'Service' },
-    { id: 'attack', label: 'Attaque' },
-    { id: 'reception', label: 'Récep' },
-    { id: 'block', label: 'Bloc' },
-    { id: 'net', label: 'Autres' }
+    { id: 'service', label: 'Service', color: '#2563eb' },
+    { id: 'attack', label: 'Attaque', color: '#ea580c' },
+    { id: 'reception', label: 'Récep', color: '#0d9488' },
+    { id: 'block', label: 'Bloc', color: '#9333ea' },
+    { id: 'net', label: 'Autres', color: '#475569' }
 ];
+// Couleurs proposées aux nouveaux critères (la première non utilisée est choisie) ; l'utilisateur peut ensuite en choisir une autre
+const CRITERIA_PALETTE = ['#2563eb', '#ea580c', '#0d9488', '#9333ea', '#475569', '#16a34a', '#db2777', '#ca8a04', '#0891b2', '#dc2626', '#4f46e5', '#92400e'];
 // Un libéro ne sert pas, n'attaque pas et ne bloque pas : ces critères ne lui sont pas proposés
 const LIBERO_HIDDEN_CRITERIA = ['service', 'attack', 'block'];
+
+// Première couleur de la palette qui n'est pas encore utilisée (sinon on recommence la palette)
+function nextFreeColor(usedColors) {
+    return CRITERIA_PALETTE.find(color => !usedColors.includes(color)) || CRITERIA_PALETTE[usedColors.length % CRITERIA_PALETTE.length];
+}
+
+// Texte noir ou blanc selon la luminosité de la couleur du bouton
+function readableTextColor(hex) {
+    const value = parseInt(hex.slice(1), 16);
+    const luminance = (0.299 * (value >> 16) + 0.587 * ((value >> 8) & 255) + 0.114 * (value & 255)) / 255;
+    return luminance > 0.62 ? '#111827' : '#ffffff';
+}
+
+// Donne une couleur aux critères qui n'en ont pas encore (listes enregistrées avant l'ajout des couleurs)
+function ensureCriteriaColors(list) {
+    const used = list.map(c => c.color).filter(Boolean);
+    return list.map(c => {
+        if (c.color) return c;
+        const preset = DEFAULT_CRITERIA.find(d => d.id === c.id);
+        const color = preset && !used.includes(preset.color) ? preset.color : nextFreeColor(used);
+        used.push(color);
+        return { ...c, color };
+    });
+}
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -2332,6 +2486,7 @@ function getCriteria(team, includeArchived = false) {
             list = DEFAULT_CRITERIA;
         }
     }
+    list = ensureCriteriaColors(list);
     return includeArchived ? list : list.filter(c => !c.archived);
 }
 
@@ -2379,6 +2534,8 @@ function createPlayerCardLive(match, player, isLibero) {
         const forLibero = criteria.filter(c => !LIBERO_HIDDEN_CRITERIA.includes(c.id));
         if (forLibero.length > 0) criteria = forLibero;
     }
+    // Critères limités à certains postes : on se base sur le poste principal du joueur (sans poste renseigné : tous les critères)
+    if (player.mainPosition) criteria = criteria.filter(c => !(c.positions && c.positions.length) || c.positions.includes(player.mainPosition));
     const card = document.createElement('div');
     const genderClass = player.gender === 'F' ? 'bg-pink-100' : 'bg-blue-100';
     card.className = `live-player-card ${genderClass} flex flex-col`;
@@ -2386,7 +2543,7 @@ function createPlayerCardLive(match, player, isLibero) {
         const total = EVAL_LEVELS.reduce((acc, l) => acc + (counts[`${c.id}_${l.id}`] || 0), 0);
         const detail = EVAL_LEVELS.filter(l => counts[`${c.id}_${l.id}`]).map(l => `${l.label}${counts[`${c.id}_${l.id}`]}`).join(' ');
         return `
-            <button id="crit-btn-${player.id}-${c.id}" onclick="openRatingModal(${player.id}, '${c.id}')" class="flex flex-col items-center justify-center p-1 min-h-[72px] rounded-md text-sm font-medium w-full select-none bg-indigo-500 hover:bg-indigo-600 border-indigo-500 text-white">
+            <button id="crit-btn-${player.id}-${c.id}" onclick="openRatingModal(${player.id}, '${c.id}')" class="flex flex-col items-center justify-center p-1 min-h-[72px] rounded-md text-sm font-medium w-full select-none hover:brightness-90 transition" style="background-color: ${c.color}; color: ${readableTextColor(c.color)};">
                 <span>${escapeHtml(c.label)}</span>
                 <span class="font-bold text-lg leading-tight">${total}</span>
                 <span class="text-xs opacity-90 leading-tight">${detail}</span>
@@ -2577,19 +2734,36 @@ function renderCriteriaModal() {
     const container = document.getElementById('criteria-list');
     container.innerHTML = '';
     criteriaDraft.forEach((c, index) => {
+        const block = document.createElement('div');
+        block.className = 'pb-2 border-b border-gray-100';
         const row = document.createElement('div');
         row.className = 'flex items-center gap-2';
         row.innerHTML = `
             <input type="text" maxlength="20" value="${escapeHtml(c.label)}" class="flex-grow min-w-0 p-2 border border-gray-300 rounded-lg" oninput="criteriaDraft[${index}].label = this.value">
+            <input type="color" value="${c.color}" title="Couleur du bouton" class="w-10 h-9 p-0 border border-gray-300 rounded cursor-pointer flex-shrink-0" oninput="criteriaDraft[${index}].color = this.value">
             <button onclick="moveCriterion(${index}, -1)" ${index === 0 ? 'disabled' : ''} class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-40" title="Monter">▲</button>
             <button onclick="moveCriterion(${index}, 1)" ${index === criteriaDraft.length - 1 ? 'disabled' : ''} class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-40" title="Descendre">▼</button>
             <button onclick="removeCriterionDraft(${index})" class="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600" title="Supprimer">X</button>`;
-        container.appendChild(row);
+        const positionsRow = document.createElement('div');
+        positionsRow.className = 'flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-gray-600';
+        positionsRow.innerHTML = '<span class="font-semibold">Suivi pour :</span>' + POSITIONS.map((pos, pi) =>
+            `<label class="flex items-center gap-1"><input type="checkbox" ${(c.positions || []).includes(pos) ? 'checked' : ''} onchange="toggleCriterionPosition(${index}, ${pi}, this.checked)">${escapeHtml(pos)}</label>`).join('');
+        block.appendChild(row);
+        block.appendChild(positionsRow);
+        container.appendChild(block);
     });
 }
 
+// Coche / décoche un poste pour le critère (aucun poste coché = critère suivi pour tous les postes)
+function toggleCriterionPosition(index, positionIndex, checked) {
+    const pos = POSITIONS[positionIndex];
+    const set = new Set(criteriaDraft[index].positions || []);
+    if (checked) set.add(pos); else set.delete(pos);
+    criteriaDraft[index].positions = POSITIONS.filter(p => set.has(p));
+}
+
 function addCriterionDraft() {
-    criteriaDraft.push({ id: `c_${Date.now()}`, label: '' });
+    criteriaDraft.push({ id: `c_${Date.now()}`, label: '', color: nextFreeColor(criteriaDraft.map(c => c.color)) });
     renderCriteriaModal();
     const inputs = document.querySelectorAll('#criteria-list input');
     if (inputs.length) inputs[inputs.length - 1].focus();
@@ -2611,7 +2785,7 @@ function removeCriterionDraft(index) {
 async function saveCriteria() {
     const team = getCurrentTeam();
     if (!team || !criteriaDraft) return;
-    const cleaned = criteriaDraft.map(c => ({ id: c.id, label: c.label.trim() }));
+    const cleaned = criteriaDraft.map(c => ({ id: c.id, label: c.label.trim(), color: c.color, positions: c.positions || [] }));
     if (cleaned.some(c => !c.label)) return alert('Chaque critère doit avoir un nom.');
     const names = cleaned.map(c => c.label.toLowerCase());
     if (new Set(names).size !== names.length) return alert('Deux critères ont le même nom.');

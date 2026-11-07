@@ -150,7 +150,7 @@
                 <div id="main-view-roster">
                     <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
                         <h2 class="text-2xl font-bold mb-4 border-b pb-2 flex items-center gap-2">
-						Effectif de l'équipe
+						<span id="roster-title">Effectif de l'équipe</span>
 						<span id="roster-count-badge" class="text-sm font-normal bg-gray-200 text-gray-700 px-2 py-1 rounded-full">0</span>
 					</h2>
                         <div class="flex flex-col sm:flex-row gap-2 mb-6">
@@ -185,7 +185,7 @@
                 <div id="main-view-matches" class="hidden">
                     <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
                         <h2 class="text-2xl font-bold mb-4 border-b pb-2">Gestion des Matchs</h2>
-                        <button onclick="openAddMatchModal()" class="w-full bg-green-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-green-600 transition duration-300 shadow mb-6">Ajouter une rencontre</button>
+                        <button onclick="openAddMatchModal()" class="w-full bg-green-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-green-600 transition duration-300 shadow mb-6">Ajouter les rencontres</button>
 
                         <h3 class="text-xl font-semibold mb-3 border-t pt-6">Sélectionner un match</h3>
                         
@@ -535,7 +535,8 @@
     </div>
     <div id="addMatchModal" class="modal-backdrop hidden">
         <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0">
-            <h2 class="text-2xl font-bold mb-4">Ajouter une rencontre</h2>
+            <h2 class="text-2xl font-bold mb-4">Ajouter les rencontres</h2>
+            <button onclick="openImportFfvbModal()" class="w-full bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-600 mb-4">Importer toutes les rencontres depuis la FFVB</button>
             <div class="space-y-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="flex flex-col">
@@ -559,6 +560,28 @@
             <div class="flex justify-end gap-4 mt-6">
                 <button onclick="closeModal('addMatchModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-400">Annuler</button>
                 <button onclick="createMatch()" class="bg-green-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-green-600">Créer</button>
+            </div>
+        </div>
+    </div>
+    <div id="importFfvbModal" class="modal-backdrop hidden">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0 max-h-[90vh] overflow-y-auto">
+            <h2 class="text-2xl font-bold mb-4">Importer depuis la FFVB</h2>
+            <label for="ffvbUrl" class="font-semibold mb-1 block">Lien de la page du calendrier FFVB</label>
+            <input type="text" id="ffvbUrl" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="https://www.ffvbbeach.org/...">
+            <button onclick="fetchFfvbCalendar()" class="w-full mt-3 bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-600">Récupérer le calendrier</button>
+            <div class="mt-3 text-sm text-gray-600">
+                <label class="block mb-1">Ou importer le fichier CSV exporté depuis la FFVB :</label>
+                <input type="file" id="ffvbFileInput" accept=".csv,.txt" onchange="loadFfvbCsvFile(this)">
+            </div>
+            <p id="ffvbStatus" class="text-sm mt-2"></p>
+            <div id="ffvbStep2" class="hidden mt-4 border-t pt-4">
+                <label for="ffvbTeamSelect" class="font-semibold mb-1 block">Votre équipe</label>
+                <select id="ffvbTeamSelect" onchange="renderFfvbMatchList()" class="w-full p-3 border border-gray-300 rounded-lg"></select>
+                <div id="ffvbMatchList" class="mt-3 max-h-64 overflow-y-auto text-sm"></div>
+            </div>
+            <div class="flex justify-end gap-4 mt-6">
+                <button onclick="closeModal('importFfvbModal')" class="bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-400">Annuler</button>
+                <button id="ffvbImportButton" onclick="importFfvbMatches()" disabled class="bg-green-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-green-600 disabled:opacity-50">Ajouter</button>
             </div>
         </div>
     </div>
@@ -679,8 +702,11 @@
 
     <div id="criteriaModal" class="modal-backdrop hidden">
         <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md mx-4 sm:mx-0 max-h-[90vh] overflow-y-auto">
-            <h2 class="text-xl font-bold mb-1">Personnaliser le suivi</h2>
-            <p class="text-sm text-gray-500 mb-4">Ces critères sont propres à l'équipe sélectionnée. Un critère supprimé disparaît du suivi et des statistiques (ses données restent enregistrées mais ne sont plus affichées).</p>
+            <div class="flex items-center gap-3 mb-3">
+                <h2 class="text-xl font-bold">Personnaliser le suivi</h2>
+                <button type="button" onclick="document.getElementById('criteria-info').classList.toggle('hidden')" title="Afficher / masquer l'aide" class="text-xs font-semibold px-3 py-0.5 bg-blue-400 text-white rounded-full hover:bg-blue-600 transition">Info</button>
+            </div>
+            <p id="criteria-info" class="hidden text-sm text-gray-500 mb-4">Ces critères sont propres à l'équipe sélectionnée. La pastille de couleur règle la couleur du bouton. Les cases « Suivi pour » limitent le critère à certains postes (aucune case cochée = tous les postes ; le poste pris en compte est le poste principal du joueur). Un critère supprimé disparaît du suivi et des statistiques (ses données restent enregistrées mais ne sont plus affichées).</p>
 
             <div id="criteria-list" class="space-y-2 mb-2"></div>
             <button onclick="addCriterionDraft()" class="text-sm text-blue-600 hover:underline">+ Ajouter un critère</button>
