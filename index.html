@@ -55,94 +55,76 @@
 </head>
 <body class="text-gray-800">
 
-    <div class="container mx-auto p-0 sm:p-4 md:p-8 max-w-7xl">
-        <!-- ... (header reste inchangé) ... -->
-         <header class="text-center mb-8">
-            <img src="Images/Logo_EsayPlay.png" alt="Logo EasyPlay" class="mx-auto h-20 w-auto mb-4">
-            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">Assistant du Coach de Volley-Ball</h1>
-            <p class="text-lg text-gray-600 mt-2">Votre outil tout-en-un pour le coaching</p>
-        </header>
+    <!-- Bandeau fixe tout en haut : logo, titre + équipe choisie, connexion -->
+    <div id="app-banner" class="sticky top-0 z-40 bg-white shadow-md">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 py-2 flex items-center gap-3">
+            <img src="Images/Logo_EsayPlay.png" alt="Logo EasyPlay" class="h-12 w-12 shrink-0">
 
-        <main>
-            <!-- Section Auth (inchangée) -->
-            <div id="auth-section" class="bg-white p-4 rounded-2xl shadow-lg mb-8">
-                <div id="auth-logged-out" class="flex flex-wrap items-center justify-center gap-4">
-                    <p class="text-gray-600">Sauvegardez et sécurisez vos données en ligne et accédez-y de partout.</p>
-                    <button onclick="openAuthModal()" class="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-600 transition">
-                        Connexion / Inscription
+            <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1 sm:gap-1.5">
+                    <!-- Sur téléphone, 13 px au lieu de 14 px : le titre et le bouton « i » tiennent sur une ligne -->
+                    <h1 class="text-[13px] sm:text-lg md:text-xl font-bold text-gray-900 leading-tight">Assistant du Coach de Volley-Ball</h1>
+                    <!-- Ouvre la présentation de l'application (src/coach/shared/presentation.js) -->
+                    <button onclick="openPresentation()" title="Présentation de l'application" aria-label="Présentation de l'application" class="shrink-0 w-4 h-4 sm:w-6 sm:h-6 flex items-center justify-center rounded-full border-[1.5px] sm:border-2 border-blue-500 text-blue-600 text-[10px] sm:text-xs font-bold leading-none hover:bg-blue-500 hover:text-white transition">i</button>
+                </div>
+
+                <select id="teamSelector" class="hidden"></select>
+                <button id="teamSelectButton" onclick="toggleTeamMenu()" title="Changer, modifier ou ajouter une équipe" aria-haspopup="true" aria-expanded="false" class="team-select-btn mt-0.5 block max-w-full truncate text-left text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-full px-3 py-0.5 transition">Mes équipes</button>
+            </div>
+
+            <div class="shrink-0">
+                <div id="auth-logged-out">
+                    <button onclick="openAuthModal()" title="Se connecter" aria-label="Se connecter" class="flex items-center justify-center w-10 h-10 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6" aria-hidden="true"><path d="M15 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3"/><path d="M10 17l5-5-5-5M15 12H3"/></svg>
                     </button>
                 </div>
-                <div id="auth-logged-in" class="hidden flex flex-wrap items-center justify-between gap-4">
-					<div class="flex items-center gap-4"> 
-						<div>
-							<p id="auth-greeting-label" class="text-gray-600">Connecté en tant que :</p>
-							<p id="user-email-display" class="font-semibold text-gray-800"></p>
-						</div>
-						
-						<a id="admin-link-button" href="admin.html" class="hidden bg-purple-600 text-white text-sm font-semibold py-1 px-3 rounded-lg hover:bg-purple-700 transition">
-						Administration
-						</a>
-						
-					</div>
-						<button onclick="handleLogOut()" class="bg-red-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-600 transition">
-						Déconnexion
-						</button>
-				</div>
-            </div>
-			
-			<div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-indigo-100 p-4 rounded-2xl shadow-sm mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div class="flex items-center gap-3">
-                    <div class="p-3 bg-white rounded-full shadow-sm text-2xl">🏆</div>
-                    <div>
-                        <h3 class="font-bold text-indigo-900">Vous organisez des tournois ?</h3>
-                        <p class="text-sm text-indigo-700">Cette application va révolutionner la gestion de vos tournois:</p>
+                <div id="auth-logged-in" class="hidden flex items-center gap-2 sm:gap-3">
+                    <div class="hidden md:block text-right leading-tight">
+                        <p id="auth-greeting-label" class="text-xs text-gray-600">Connecté en tant que :</p>
+                        <p id="user-email-display" class="font-semibold text-sm text-gray-800 truncate max-w-[14rem]"></p>
                     </div>
-                </div>
-                <a href="https://easyplayapp.netlify.app" target="_blank" class="whitespace-nowrap bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition shadow text-sm">
-                    Découvrir l'application
-                </a>
-            </div>
-
-			<div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
-                <h2 class="text-2xl font-bold mb-4 border-b pb-2">Gestion des Équipes</h2>
-                
-                <div class="flex flex-col lg:flex-row items-center gap-4">
-                    
-                    <select id="teamSelector" class="hidden"></select> 
-                    
-                    <button id="teamSelectButton" onclick="openTeamSelectModal()" class="py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none w-full lg:w-auto lg:flex-grow text-m text-left truncate">
-                        </button>
-                    
-                    <div class="flex gap-2 w-full lg:w-auto">
-                        <button onclick="openAddTeamModal()" class="flex-1 bg-indigo-500 text-white font-semibold py-2 px-3 rounded-lg hover:bg-indigo-600 transition">Nouvelle</button>
-                        <div id="teamActions" class="flex-1 flex gap-2 hidden">
-                            <button onclick="openEditTeamModal()" class="w-full bg-yellow-500 text-white font-semibold py-2 px-3 rounded-lg hover:bg-yellow-600 transition">Modifier</button>
-                            <button onclick="deleteCurrentTeam()" class="w-full bg-red-600 text-white font-semibold py-2 px-3 rounded-lg hover:bg-red-700 transition">Supprimer</button>
-                        </div>
-                    </div>
+                    <a id="admin-link-button" href="admin.html" class="hidden bg-purple-600 text-white text-sm font-semibold py-1 px-3 rounded-lg hover:bg-purple-700 transition">
+                        <span class="sm:hidden">Admin</span><span class="hidden sm:inline">Administration</span>
+                    </a>
+                    <button onclick="handleLogOut()" title="Se déconnecter" aria-label="Se déconnecter" class="flex items-center justify-center w-10 h-10 bg-red-500 text-white rounded-lg hover:bg-red-600 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6" aria-hidden="true"><path d="M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>
+                    </button>
                 </div>
             </div>
+        </div>
 
+        <!-- Menu de l'équipe (rempli par toggleTeamMenu, code : src/coach/shared/selection.js) -->
+        <div id="team-menu" class="hidden absolute top-full left-2 right-2 sm:left-16 sm:right-auto sm:w-80 mt-1 bg-white rounded-2xl shadow-2xl border border-gray-200 p-2 max-h-[70vh] overflow-y-auto"></div>
+    </div>
+
+    <div class="container mx-auto p-0 sm:p-4 md:p-8 max-w-7xl">
+        <main>
+            <!-- Affiché seulement quand aucune équipe n'est sélectionnée -->
+            <div id="no-team-hint" class="hidden bg-white p-6 rounded-2xl shadow-lg mb-8 text-center">
+                <p class="text-gray-600 mb-4">Aucune équipe pour le moment. Créez votre première équipe pour commencer.</p>
+                <button onclick="openAddTeamModal()" class="bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-600 transition">Créer une équipe</button>
+            </div>
             <div id="team-content" class="hidden">
-                 <div class="mb-8 sticky top-0 z-10 bg-white">
-					<nav class="-mb-px flex space-x-2 sm:space-x-6 overflow-x-auto border-b border-gray-200 px-4 sm:px-0" aria-label="Tabs">
-                        <button id="main-tab-roster" onclick="showMainTab('roster')" class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-lg">
-                            Effectif
+                 <!-- Barre de navigation fixée en bas de l'écran (icônes ; le nom de l'onglet est dans title / aria-label) -->
+                 <div id="bottom-nav" class="fixed bottom-0 inset-x-0 z-40 bg-blue-600 shadow-[0_-2px_8px_rgba(0,0,0,0.15)]">
+					<nav class="flex justify-around items-center max-w-3xl mx-auto px-2" aria-label="Onglets">
+                        <button id="main-tab-roster" onclick="showMainTab('roster')" title="Effectif" aria-label="Effectif" class="bottom-nav-btn rounded-xl transition text-blue-100 hover:bg-blue-500 hover:text-white">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.25"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9.5" r="2.5"/><path d="M16 14.6A5 5 0 0 1 21 19.5"/></svg>
                         </button>
-                        <button id="main-tab-matches" onclick="showMainTab('matches')" class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-lg">
-                            Matchs
+                        <button id="main-tab-matches" onclick="showMainTab('matches')" title="Matchs" aria-label="Matchs" class="bottom-nav-btn rounded-xl transition text-blue-100 hover:bg-blue-500 hover:text-white">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
                         </button>
-                        <button id="main-tab-live" onclick="showMainTab('live')" class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-lg">
-                            Suivi
+                        <button id="main-tab-live" onclick="showMainTab('live')" title="Suivi" aria-label="Suivi" class="bottom-nav-btn rounded-xl transition text-blue-100 hover:bg-blue-500 hover:text-white">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12h4l3-7.5 5 15 3-7.5h4"/></svg>
                         </button>
-                         <button id="main-tab-results" onclick="showMainTab('results')" class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-lg">
-                            Résultats
+                        <button id="main-tab-stats" onclick="showMainTab('stats')" title="Statistiques" aria-label="Statistiques" class="bottom-nav-btn rounded-xl transition text-blue-100 hover:bg-blue-500 hover:text-white">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20.5h18"/><rect x="5" y="11" width="3.5" height="7" rx="0.5"/><rect x="10.25" y="5" width="3.5" height="13" rx="0.5"/><rect x="15.5" y="13" width="3.5" height="5" rx="0.5"/></svg>
                         </button>
-                        <button id="main-tab-stats" onclick="showMainTab('stats')" class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-lg">
-                            Statistiques
+                         <button id="main-tab-results" onclick="showMainTab('results')" title="Résultats" aria-label="Résultats" class="bottom-nav-btn rounded-xl transition text-blue-100 hover:bg-blue-500 hover:text-white">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 4h9v5a4.5 4.5 0 0 1-9 0V4Z"/><path d="M7.5 6H4.5a3 3 0 0 0 3.2 4M16.5 6h3a3 3 0 0 1-3.2 4"/><path d="M12 13.5V17M8 21h8M9.5 21v-4h5v4"/></svg>
                         </button>
-						<button id="main-tab-trainings" onclick="showMainTab('trainings')" class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-lg">
-							Entraînements
+						<button id="main-tab-trainings" onclick="showMainTab('trainings')" title="Entraînements" aria-label="Entraînements" class="bottom-nav-btn rounded-xl transition text-blue-100 hover:bg-blue-500 hover:text-white">
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 2.5M10 2.5h4M12 2.5V6M18.5 6.5l1.5-1.5"/></svg>
 						</button>
                     </nav>
                 </div>
@@ -240,7 +222,7 @@
 							</div>
 							
                             <div class="court-container relative">
-                               <div class="court grid grid-cols-3 grid-rows-2">
+                               <div class="court grid grid-cols-3">
                                    <div class="net"></div>
                                    <div id="pos-4" class="position"><span class="position-label">P4</span></div>
                                    <div id="pos-3" class="position"><span class="position-label">P3</span></div>
@@ -303,7 +285,7 @@
 				<div id="main-view-live" class="hidden">
                      <div class="bg-white p-4 md:p-6 rounded-2xl shadow-lg">
                         
-                        <div class="flex items-center gap-3 mb-4 border-b pb-2">
+                        <div class="flex flex-wrap items-center gap-3 mb-4 border-b pb-2">
                             <div class="flex items-center gap-3">
                                 <h2 class="text-2xl font-bold">Suivi des Évaluations par Joueur</h2>
                                 <button onclick="openInfoLiveModal()" title="Informations" class="flex items-center justify-center h-5 w-8 bg-blue-400 text-white rounded-full hover:bg-blue-600 transition">
@@ -351,20 +333,23 @@
                         <div class="overflow-x-auto mb-8"> <table class="w-full text-left table-auto text-sm">
                                 <thead class="bg-gray-100">
                                     <tr>
-                                        <th class="p-2 font-semibold text-center">Pts</th>
-                                        <th class="p-2 font-semibold text-center">Joués</th>
-                                        <th class="p-2 font-semibold text-center text-green-600">Gagnés</th>
-                                        <th class="p-2 font-semibold text-center text-red-600">Perdus</th>
+                                        <th class="p-2 font-semibold text-center whitespace-nowrap">Points</th>
+                                        <th class="p-2 font-semibold text-center whitespace-nowrap">Jou.</th>
+                                        <th class="p-2 font-semibold text-center text-green-600 whitespace-nowrap">Gag.</th>
+                                        <th class="p-2 font-semibold text-center text-red-600 whitespace-nowrap">Per.</th>
+                                        <th class="p-2 font-semibold text-center text-red-600 whitespace-nowrap">F.</th>
                                         <th class="p-2 font-semibold text-center text-green-600 whitespace-nowrap">3-0</th>
                                         <th class="p-2 font-semibold text-center text-green-600 whitespace-nowrap">3-1</th>
                                         <th class="p-2 font-semibold text-center text-green-600 whitespace-nowrap">3-2</th>
                                         <th class="p-2 font-semibold text-center text-red-600 whitespace-nowrap">2-3</th>
                                         <th class="p-2 font-semibold text-center text-red-600 whitespace-nowrap">1-3</th>
                                         <th class="p-2 font-semibold text-center text-red-600 whitespace-nowrap">0-3</th>
-                                        <th class="p-2 font-semibold text-center text-green-600 whitespace-nowrap">Set P.</th>
-                                        <th class="p-2 font-semibold text-center text-red-600 whitespace-nowrap">Set C.</th>
-                                        <th class="p-2 font-semibold text-center text-green-600 whitespace-nowrap">Pts P.</th>
-                                        <th class="p-2 font-semibold text-center text-red-600 whitespace-nowrap">Pts C.</th>
+                                        <th class="p-2 font-semibold text-center text-green-600 whitespace-nowrap">Set.P</th>
+                                        <th class="p-2 font-semibold text-center text-red-600 whitespace-nowrap">Set.C</th>
+                                        <th class="p-2 font-semibold text-center whitespace-nowrap">Coeff.S</th>
+                                        <th class="p-2 font-semibold text-center text-green-600 whitespace-nowrap">Pts.P</th>
+                                        <th class="p-2 font-semibold text-center text-red-600 whitespace-nowrap">Pts.C</th>
+                                        <th class="p-2 font-semibold text-center whitespace-nowrap">Coeff.P</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -445,7 +430,20 @@
         </main>
        
          <footer class="text-center text-gray-500 text-sm py-8">
-            <p>© 2025 EasyPlay. Tous droits réservés. Fait par Massi ⵣ. Pour toute question, contactez-moi à contact.easyplayapp@gmail.com.</p>
+			<div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-indigo-100 p-4 rounded-2xl shadow-sm mb-6 text-left flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="p-3 bg-white rounded-full shadow-sm text-2xl">🏆</div>
+                    <div>
+                        <h3 class="font-bold text-indigo-900">Vous organisez des tournois ?</h3>
+                        <p class="text-sm text-indigo-700">Cette application va révolutionner la gestion de vos tournois:</p>
+                    </div>
+                </div>
+                <a href="https://easyplayapp.netlify.app" target="_blank" class="whitespace-nowrap bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition shadow text-sm">
+                    Découvrir l'application
+                </a>
+            </div>
+            <p>© 2026 EasyPlay. Tous droits réservés. Fait par Massi ⵣ. Pour toute question, contactez-moi à contact.easyplayapp@gmail.com.</p>
+            <p class="mt-1 text-xs text-gray-400">Version <span id="app-version"></span></p>
         </footer>
     </div>
 
@@ -597,7 +595,7 @@
     
                 <div>
     <label for="newTeamSeason" class="font-semibold mb-1 block">Saison</label>
-    <input type="text" id="newTeamSeason" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Ex: 2025/2026">
+    <input type="text" id="newTeamSeason" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Ex: 2026/2027">
     </div>
                 
                 <div>
@@ -809,7 +807,7 @@
         <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg mx-4 sm:mx-0 flex flex-col max-h-[90vh]">
             <h4 class="text-xl font-bold mb-4">Filtrer les Statistiques par match</h4>
             
-            <div id="stats-modal-match-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto mb-4 p-2 border bg-white rounded-md">
+            <div id="stats-modal-match-list" class="grid grid-cols-1 gap-2 max-h-[60vh] overflow-y-auto mb-4 p-2 border bg-white rounded-md">
                 <p class="text-gray-500">Chargement des matchs...</p>
             </div>
             
@@ -902,9 +900,187 @@
         </div>
     </div>
 
-	
-    <script src="auth.js"></script>
-    <script src="script.js"></script>
+	<!-- Présentation de l'application (bouton « i » du bandeau ; ouverte d'office à la 1re visite).
+	     Code : src/coach/shared/presentation.js ; styles « pres- » : style.css -->
+	<div id="presentationModal" class="modal-backdrop hidden" onclick="if (event.target === this) closePresentation()" role="dialog" aria-modal="true" aria-labelledby="pres-title">
+		<div class="pres-box relative bg-white rounded-3xl shadow-2xl w-full max-w-6xl mx-2 sm:mx-6">
+			<!-- Bouton fermer, toujours visible pendant le défilement -->
+			<div class="sticky top-0 z-10 h-0 flex justify-end">
+				<button onclick="closePresentation()" title="Fermer" aria-label="Fermer la présentation" class="mt-3 mr-3 w-10 h-10 flex items-center justify-center rounded-full bg-white/90 text-gray-700 shadow-md hover:bg-gray-100 transition">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" stroke-linecap="round" class="w-5 h-5" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+				</button>
+			</div>
+
+			<!-- ===== Accroche : texte à gauche, terrain + téléphone à droite ===== -->
+			<section class="px-5 sm:px-10 pt-10 sm:pt-12 pb-10">
+				<p class="pres-item flex items-center justify-center gap-2 text-sm font-semibold text-blue-700">
+					<img src="Images/Logo_EsayPlay.png" alt="" class="h-7 w-7"> Assistant du Coach de Volley-Ball
+				</p>
+				<h2 id="pres-title" class="pres-item pres-d1 mt-3 text-center text-3xl sm:text-5xl font-bold tracking-tight text-gray-900 leading-tight">
+					Votre carnet de coach, <span class="whitespace-nowrap text-blue-600 underline decoration-amber-400 decoration-[.08em] underline-offset-[.14em]">dans la poche</span>.
+				</h2>
+				<div class="mt-8 grid lg:grid-cols-12 gap-8 lg:gap-10 items-center">
+					<div class="lg:col-span-5">
+						<p class="pres-item pres-d2 text-lg text-gray-700">
+							Effectif, compositions, stats de match et entraînements&nbsp;: <b class="text-gray-900">tout ce que vous notiez sur papier, l'Assistant le range et le calcule pour vous.</b> Vous, vous coachez.
+						</p>
+						<ul class="pres-item pres-d3 mt-6 space-y-3 font-semibold text-gray-800">
+							<li class="flex items-center gap-3"><span class="pres-pastille">⚡</span>Les stats de chaque joueur, notées d'un doigt pendant le match</li>
+							<li class="flex items-center gap-3"><span class="pres-pastille">📱</span>Sur téléphone, tablette et ordinateur</li>
+							<li class="flex items-center gap-3"><span class="pres-pastille">🔓</span>Utilisable tout de suite, même sans compte</li>
+						</ul>
+						<button onclick="closePresentation()" class="pres-item pres-d4 mt-8 inline-flex items-center gap-2 bg-blue-600 text-white text-lg font-semibold py-3 px-7 rounded-full shadow-lg hover:bg-blue-700 hover:-translate-y-0.5 transition">
+							C'est parti&nbsp;! <span aria-hidden="true">→</span>
+						</button>
+					</div>
+
+					<!-- Scène : un terrain de volley vu du dessus (zone libre sable, terrain bleu, filet au milieu) ; dessus, le Suivi du match -->
+					<div class="pres-item pres-d2 lg:col-span-7 relative rounded-[28px] overflow-hidden bg-amber-300 aspect-[4/3.3] sm:aspect-[16/11]" aria-hidden="true">
+						<svg class="absolute inset-0 w-full h-full" viewBox="0 0 1000 680" preserveAspectRatio="none" fill="none" stroke="rgba(255,255,255,.85)">
+							<rect x="50" y="70" width="900" height="540" fill="#2563eb" stroke-width="4" vector-effect="non-scaling-stroke"/>
+							<line x1="500" y1="40" x2="500" y2="640" stroke-width="7" vector-effect="non-scaling-stroke"/>
+							<line x1="350" y1="70" x2="350" y2="610" stroke-width="4" vector-effect="non-scaling-stroke"/>
+							<line x1="650" y1="70" x2="650" y2="610" stroke-width="4" vector-effect="non-scaling-stroke"/>
+						</svg>
+
+						<!-- Fenêtre « Statistiques » -->
+						<div class="absolute left-[5%] top-[9%] w-[50%] sm:w-[58%] bg-white rounded-2xl shadow-2xl overflow-hidden text-[10px] sm:text-xs">
+							<div class="bg-gray-100 px-3 py-1.5 font-semibold text-gray-500 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-400"></span><span class="w-2 h-2 rounded-full bg-amber-400"></span><span class="w-2 h-2 rounded-full bg-green-400"></span><span class="ml-1">Statistiques des joueurs</span></div>
+							<table class="w-full">
+								<thead class="text-gray-500"><tr><th class="text-left px-3 py-1.5">Joueur</th><th class="px-1">Serv.</th><th class="px-1 hidden sm:table-cell">Récep</th><th class="px-1 hidden sm:table-cell">Att.</th><th class="px-2">Moy.</th></tr></thead>
+								<tbody class="text-gray-800 text-center">
+									<tr class="border-t"><td class="text-left px-3 py-1.5 font-semibold">#7 Léa</td><td>82</td><td class="hidden sm:table-cell">75</td><td class="hidden sm:table-cell">90</td><td><span class="pres-badge bg-green-600">82</span></td></tr>
+									<tr class="border-t"><td class="text-left px-3 py-1.5 font-semibold">#12 Hugo</td><td>70</td><td class="hidden sm:table-cell">64</td><td class="hidden sm:table-cell">78</td><td><span class="pres-badge bg-green-400">71</span></td></tr>
+									<tr class="border-t"><td class="text-left px-3 py-1.5 font-semibold">#4 Inès</td><td>55</td><td class="hidden sm:table-cell">81</td><td class="hidden sm:table-cell">47</td><td><span class="pres-badge bg-orange-400">61</span></td></tr>
+									<tr class="border-t hidden sm:table-row"><td class="text-left px-3 py-1.5 font-semibold">#9 Malik</td><td>88</td><td class="hidden sm:table-cell">52</td><td class="hidden sm:table-cell">73</td><td><span class="pres-badge bg-green-400">71</span></td></tr>
+								</tbody>
+							</table>
+						</div>
+
+						<!-- Téléphone : le Suivi du match -->
+						<div class="pres-flotte absolute right-[4%] bottom-[6%] w-[44%] sm:w-[31%]" style="--rot: 3deg">
+							<div class="bg-gray-900 rounded-[22px] sm:rounded-[28px] p-1.5 shadow-2xl">
+								<div class="bg-white rounded-[17px] sm:rounded-[22px] overflow-hidden text-[8px] sm:text-[10px]">
+									<div class="bg-blue-600 text-white font-semibold px-2.5 py-1.5 flex justify-between"><span>Suivi · Set 2</span><span>18 – 15</span></div>
+									<div class="p-1.5 space-y-1.5">
+										<div>
+											<p class="font-semibold text-gray-700 mb-0.5">#7 Léa</p>
+											<div class="grid grid-cols-3 gap-1 text-white font-medium text-center">
+												<span class="rounded py-1.5" style="background:#2563eb">Service</span><span class="rounded py-1.5" style="background:#ea580c">Attaque</span><span class="rounded py-1.5" style="background:#0d9488">Récep</span>
+											</div>
+										</div>
+										<div>
+											<p class="font-semibold text-gray-700 mb-0.5">#12 Hugo</p>
+											<div class="grid grid-cols-3 gap-1 text-white font-medium text-center">
+												<span class="rounded py-1.5" style="background:#2563eb">Service</span><span class="rounded py-1.5" style="background:#ea580c">Attaque</span><span class="rounded py-1.5" style="background:#9333ea">Bloc</span>
+											</div>
+										</div>
+										<div class="grid grid-cols-4 gap-1 text-white font-bold text-center pt-1 border-t">
+											<span class="rounded py-1 bg-green-600">++</span><span class="rounded py-1 bg-green-400">+</span><span class="rounded py-1 bg-orange-400">-</span><span class="rounded py-1 bg-red-500">--</span>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<p class="pres-flotte-lent hidden sm:flex absolute left-[4%] bottom-[8%] items-center gap-2 bg-white rounded-full shadow-lg pl-3 pr-4 py-2 text-sm font-semibold text-gray-800">
+							<span class="pres-pulse w-2.5 h-2.5 rounded-full bg-green-500"></span> Attaque ++ · stats à jour
+						</p>
+					</div>
+				</div>
+			</section>
+
+			<!-- ===== Avant / après ===== -->
+			<section class="bg-amber-50 px-5 sm:px-10 py-10">
+				<div class="grid lg:grid-cols-12 gap-4 lg:gap-10 items-end">
+					<h3 class="lg:col-span-7 text-2xl sm:text-4xl font-bold tracking-tight text-gray-900">Fini la feuille de stats qui s'envole</h3>
+					<p class="lg:col-span-5 text-gray-700">Un crayon qui casse au 2<sup>e</sup> set, des croix illisibles, un tableur à recopier le soir… <b class="text-gray-900">L'Assistant range tout ça en trois étapes.</b></p>
+				</div>
+				<div class="mt-8 grid lg:grid-cols-2 gap-8 items-center">
+					<ul class="space-y-2.5 max-w-md mx-auto lg:mx-0 w-full" aria-label="Avant l'Assistant">
+						<li class="pres-note" style="--r: -2deg; --b: 300ms"><span class="pres-barre">📝 Feuille de stats pleine de croix illisibles</span></li>
+						<li class="pres-note lg:ml-10" style="--r: 1.5deg; --b: 480ms"><span class="pres-barre">✏️ Crayon perdu en plein 2<sup>e</sup> set</span></li>
+						<li class="pres-note lg:ml-4" style="--r: -1deg; --b: 660ms"><span class="pres-barre">📊 Tableur recopié à la main le soir</span></li>
+						<li class="pres-note lg:ml-14" style="--r: 2deg; --b: 840ms"><span class="pres-barre">❓ «&nbsp;Qui était là jeudi à l'entraînement&nbsp;?&nbsp;»</span></li>
+					</ul>
+					<div class="bg-white rounded-3xl p-6 sm:p-7 shadow-sm">
+						<h4 class="text-xl sm:text-2xl font-bold text-gray-900">Avec l'Assistant, prêt en 3 étapes</h4>
+						<ol class="mt-5 space-y-4 text-gray-700">
+							<li class="flex gap-5"><span class="text-4xl font-bold text-blue-600 leading-none w-7 shrink-0" aria-hidden="true">1</span><p><b class="text-gray-900 text-lg">Créez votre équipe.</b><br>Ajoutez vos joueurs à la main ou importez-les depuis un fichier Excel.</p></li>
+							<li class="flex gap-5"><span class="text-4xl font-bold text-blue-600 leading-none w-7 shrink-0" aria-hidden="true">2</span><p><b class="text-gray-900 text-lg">Ajoutez vos matchs.</b><br>Saisissez-les ou importez directement votre calendrier FFVB.</p></li>
+							<li class="flex gap-5"><span class="text-4xl font-bold text-blue-600 leading-none w-7 shrink-0" aria-hidden="true">3</span><p><b class="text-gray-900 text-lg">Coachez&nbsp;!</b><br>Composez vos sets, notez les actions en direct : le bilan se calcule tout seul.</p></li>
+						</ol>
+					</div>
+				</div>
+			</section>
+
+			<!-- ===== Les 6 onglets de l'application (mêmes icônes que la barre du bas) ===== -->
+			<section class="px-5 sm:px-10 py-10">
+				<h3 class="text-2xl sm:text-4xl font-bold tracking-tight text-gray-900">Tout ce dont un coach a besoin</h3>
+				<p class="mt-2 text-gray-600">Six onglets, toujours à portée de pouce dans la barre du bas.</p>
+				<div class="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+					<div class="pres-carte">
+						<span class="pres-icone"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.25"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9.5" r="2.5"/><path d="M16 14.6A5 5 0 0 1 21 19.5"/></svg></span>
+						<h4 class="font-bold text-lg text-gray-900">Effectif</h4>
+						<p class="text-gray-600">Vos joueurs, leurs numéros et leurs postes. Plusieurs équipes ? Passez de l'une à l'autre en un clic.</p>
+					</div>
+					<div class="pres-carte">
+						<span class="pres-icone"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>
+						<h4 class="font-bold text-lg text-gray-900">Matchs</h4>
+						<p class="text-gray-600">Joueurs présents, composition sur le terrain set par set et score du match.</p>
+					</div>
+					<div class="pres-carte">
+						<span class="pres-icone"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12h4l3-7.5 5 15 3-7.5h4"/></svg></span>
+						<h4 class="font-bold text-lg text-gray-900">Suivi en direct</h4>
+						<p class="text-gray-600">Un bouton par joueur et par critère, une note ++ / + / - / --. Remplacements et critères personnalisables.</p>
+					</div>
+					<div class="pres-carte">
+						<span class="pres-icone"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20.5h18"/><rect x="5" y="11" width="3.5" height="7" rx="0.5"/><rect x="10.25" y="5" width="3.5" height="13" rx="0.5"/><rect x="15.5" y="13" width="3.5" height="5" rx="0.5"/></svg></span>
+						<h4 class="font-bold text-lg text-gray-900">Statistiques</h4>
+						<p class="text-gray-600">La moyenne de chaque joueur et de l'équipe, filtrée par match ou par set, exportable en Excel.</p>
+					</div>
+					<div class="pres-carte">
+						<span class="pres-icone"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 4h9v5a4.5 4.5 0 0 1-9 0V4Z"/><path d="M7.5 6H4.5a3 3 0 0 0 3.2 4M16.5 6h3a3 3 0 0 1-3.2 4"/><path d="M12 13.5V17M8 21h8M9.5 21v-4h5v4"/></svg></span>
+						<h4 class="font-bold text-lg text-gray-900">Résultats</h4>
+						<p class="text-gray-600">Le bilan de votre saison et le calendrier des matchs, en un coup d'œil.</p>
+					</div>
+					<div class="pres-carte">
+						<span class="pres-icone"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 2.5M10 2.5h4M12 2.5V6M18.5 6.5l1.5-1.5"/></svg></span>
+						<h4 class="font-bold text-lg text-gray-900">Entraînements</h4>
+						<p class="text-gray-600">Planifiez vos séances (thème, plan), notez les présents et dupliquez une séance réussie.</p>
+					</div>
+				</div>
+			</section>
+
+			<!-- ===== Bon à savoir (bandeau bleu, couleur de la barre du bas) ===== -->
+			<section class="bg-blue-600 text-white px-5 sm:px-10 py-10">
+				<h3 class="text-2xl sm:text-3xl font-bold tracking-tight">Bon à savoir</h3>
+				<div class="mt-6 grid md:grid-cols-3 gap-6 text-blue-50">
+					<p><b class="block text-white text-lg mb-1">Sans compte</b>Vos données restent sur cet appareil, dans ce navigateur.</p>
+					<p><b class="block text-white text-lg mb-1">Avec un compte</b>Vos données sont sauvegardées en ligne&nbsp;: retrouvez-les sur tous vos appareils.</p>
+					<p><b class="block text-white text-lg mb-1">Pendant le match</b>L'écran reste allumé pendant le suivi, et les boutons + / − agrandissent l'affichage.</p>
+				</div>
+			</section>
+
+			<!-- ===== Conclusion ===== -->
+			<section class="px-5 sm:px-10 py-10 text-center">
+				<h3 class="text-2xl sm:text-4xl font-bold tracking-tight text-gray-900">Prêt pour le prochain match&nbsp;?</h3>
+				<button onclick="closePresentation()" class="mt-6 inline-flex items-center gap-2 bg-blue-600 text-white text-lg font-semibold py-3 px-7 rounded-full shadow-lg hover:bg-blue-700 hover:-translate-y-0.5 transition">
+					Commencer <span aria-hidden="true">→</span>
+				</button>
+				<p class="mt-4 text-sm text-gray-500">Retrouvez cette présentation à tout moment avec le bouton <b>i</b> à côté du titre, en haut de l'écran.</p>
+			</section>
+		</div>
+	</div>
+
+	<!-- Boutons de zoom flottants, en bas à droite, au-dessus de la barre de navigation (code : src/coach/shared/zoom.js) -->
+	<div id="zoom-controls" class="zoom-controls">
+		<button id="zoom-in-btn" onclick="zoomIn()" title="Agrandir l'affichage" aria-label="Agrandir l'affichage">+</button>
+		<button id="zoom-out-btn" onclick="zoomOut()" title="Réduire l'affichage" aria-label="Réduire l'affichage">−</button>
+	</div>
+
+    <!-- Code de l'application, rangé en modules dans src/coach/ (ce fichier charge tous les autres) -->
+    <script type="module" src="src/coach/script.js"></script>
 </body>
 </html>
 

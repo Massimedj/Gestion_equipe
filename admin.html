@@ -7,8 +7,11 @@
     <link rel="icon" type="image/png" href="Images/Favicone.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css"> 
-    
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Doit rester AVANT le bloc Firebase ci-dessous : les modules s'exécutent dans l'ordre de la page,
+         et admin.js doit écouter le signal 'firebaseReady' avant que ce bloc ne l'envoie. -->
+    <script type="module" src="src/admin/admin.js"></script>
     <script type="module">
         // --- CORRECTION : Utilisation des URL complètes ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -118,6 +121,5 @@
         <p>Chargement...</p>
     </div>
 
-    <script src="admin.js"></script>
 </body>
 </html>

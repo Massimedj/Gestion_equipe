@@ -3,52 +3,63 @@
             font-family: 'Inter', sans-serif;
             background-color: #f0f4f8; /* Fond gris très clair */
         }
-        .court-container::before, .court-container::after {
-            content: '';
-            position: absolute;
-            width: 8px; /* Poteaux épais */
-            height: 12px;
-            background-color: #374151;
-            top: 10px; /* Aligné avec le haut du terrain */
-            transform: translateY(-50%); /* Centré sur la ligne du filet */
-            z-index: 10;
-        }
-        .court-container::before {
-            left: -4px;
-        }
-        .court-container::after {
-            right: -4px;
+        .court-container {
+            container-type: inline-size; /* Permet au terrain de connaître la largeur disponible (100cqw) */
         }
         .court {
-            width: 100%;
-            max-width: 400px;
-            aspect-ratio: 1 / 1;
-            height: auto;
-            background-color: #fde68a; /* Couleur sable */
-            border: 2px solid #374151;
+            /* Vraie moitié de terrain de volley : 9 m de large x 9 m de profondeur (carré).
+               Zone avant (attaque) = 3 m = 1/3 ; zone arrière = 6 m = 2/3. */
+            width: min(100cqw, 70vh); /* Toujours carré : pleine largeur, mais limité à 70% de la hauteur de l'écran */
+            height: min(100cqw, 70vh);
+            background-color: #fde68a; /* Zone arrière : sable */
+            border: 3px solid #ffffff; /* Lignes de touche et de fond */
+            outline: 1px solid #374151;
             position: relative;
             margin: 0 auto;
             margin-top: 10px; /* Espace pour le filet */
             display: grid;
             grid-template-columns: 1fr 1fr 1fr; /* 3 joueurs en ligne */
-            grid-template-rows: 1fr 1fr; /* 2 lignes */
+            grid-template-rows: minmax(0, 1fr) minmax(0, 2fr); /* 1/3 zone avant, 2/3 zone arrière, jamais modifiés par le contenu */
+        }
+        #pos-4, #pos-3, #pos-2 {
+            background-color: #fdba74; /* Zone des 3 mètres : couleur différente */
+            border-bottom: 3px solid #ffffff; /* Ligne des 3 mètres */
         }
         .net {
             position: absolute;
             top: 0; /* Positionné en haut du terrain */
-            left: 0;
-            width: 100%;
-            height: 4px; /* Filet plus visible */
-            background-color: #1f2937;
+            left: -8px; /* Le filet dépasse un peu de chaque côté (poteaux) */
+            width: calc(100% + 16px);
+            height: 10px;
+            background-color: #ffffff;
+            background-image:
+                repeating-linear-gradient(90deg, #1f2937 0 1px, transparent 1px 8px),
+                repeating-linear-gradient(0deg, #1f2937 0 1px, transparent 1px 4px);
+            border-top: 3px solid #ffffff; /* Bande blanche du haut du filet */
+            border-bottom: 2px solid #1f2937;
             transform: translateY(-50%); /* Centré sur la bordure supérieure */
+            z-index: 5;
+            pointer-events: none;
         }
+        .net::before, .net::after { /* Poteaux aux deux extrémités du filet */
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 6px;
+            height: 24px;
+            background-color: #374151;
+            transform: translateY(-50%);
+        }
+        .net::before { left: -3px; }
+        .net::after { right: -3px; }
         .position {
             border: 1px dashed #6b7280;
             display: flex;
             justify-content: center;
             align-items: center;
             flex-direction: column;
-            padding: 8px;
+            padding: 4px;
+            min-height: 0;
             text-align: center;
         }
         .position-label {
@@ -139,6 +150,11 @@
             /*grid-template-columns: 1fr 1fr; /* Grille 2x3 */
             grid-template-columns: repeat(2, minmax(0, 1fr)); /* Grille 2x3 robuste */
             gap: 0.75rem;
+        }
+        @media (min-width: 1024px) {
+            #live-court-layout {
+                grid-template-columns: repeat(3, minmax(0, 1fr)); /* Grand écran : 3 colonnes */
+            }
         }
         .live-player-card {
             border: 1px solid #e5e7eb;
@@ -246,4 +262,91 @@
         }
         input[type=number] {
             -moz-appearance: textfield; /* Firefox */
+        }
+
+        /* Barre de navigation fixée en bas + boutons de zoom.
+           Tailles en px : elles ne changent pas quand on zoome, pour que la barre
+           et les boutons de zoom restent à la même place. */
+        body {
+            padding-bottom: 150px; /* place pour la barre (56px) et les boutons de zoom : le bas de la page reste visible */
+        }
+        .bottom-nav-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 44px;
+            margin: 6px 0;
+        }
+        .bottom-nav-btn svg {
+            width: 26px;
+            height: 26px;
+        }
+        /* Fenêtres : si l'écran est trop petit (surtout avec le zoom), la fenêtre défile au lieu d'être coupée */
+        .modal-backdrop > div {
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .zoom-controls {
+            position: fixed;
+            right: 10px;
+            bottom: 68px; /* juste au-dessus de la barre de navigation (56px) */
+            z-index: 40; /* sous les fenêtres modales (z-index 50) */
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .zoom-controls button {
+            width: 36px;
+            height: 36px;
+            border-radius: 9999px;
+            background-color: rgba(255, 255, 255, 0.85);
+            color: #2563eb;
+            border: 1px solid #93c5fd;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+            font-size: 22px;
+            font-weight: 600;
+            line-height: 1;
+            opacity: 0.75;
+            transition: opacity 0.2s;
+        }
+        .zoom-controls button:hover:not(:disabled) {
+            opacity: 1;
+        }
+        .zoom-controls button:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        /* Présentation de l'application (fenêtre ouverte par le bouton « i » du bandeau) */
+        #presentationModal .pres-box { max-height: 94vh; }
+        .pres-pastille { width: 2.25rem; height: 2.25rem; flex-shrink: 0; border-radius: 9999px; background: #fbbf24; display: flex; align-items: center; justify-content: center; }
+        .pres-badge { display: inline-block; min-width: 2em; padding: .1em .4em; border-radius: 9999px; color: #fff; font-weight: 700; }
+        .pres-carte { background: #f0f4f8; border-radius: 1.25rem; padding: 1.25rem; transition: transform .3s, box-shadow .3s; }
+        .pres-carte:hover { transform: translateY(-4px); box-shadow: 0 14px 30px -14px rgba(37, 99, 235, .35); }
+        .pres-icone { display: flex; align-items: center; justify-content: center; width: 2.75rem; height: 2.75rem; border-radius: .9rem; background: #2563eb; color: #fff; margin-bottom: .75rem; }
+        .pres-icone svg { width: 1.5rem; height: 1.5rem; }
+        /* Avant / après : petites notes de papier, barrées une à une à l'ouverture */
+        .pres-note { background: #fff; border-radius: 6px; padding: .7rem 1rem; box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 10px 24px -12px rgba(120, 80, 20, .35); transform: rotate(var(--r, 0deg)); }
+        .pres-barre { text-decoration: line-through 3px transparent; }
+        #presentationModal:not(.hidden) .pres-barre { animation: presBarre .5s ease var(--b, 0ms) forwards; } /* --b : délai donné sur chaque note */
+        @keyframes presBarre { to { text-decoration-color: rgba(234, 88, 12, .5); } }
+        /* Apparition en cascade de l'accroche, à chaque ouverture */
+        @keyframes presFadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+        #presentationModal:not(.hidden) .pres-item { opacity: 0; animation: presFadeUp .7s cubic-bezier(.22,.61,.36,1) forwards; }
+        .pres-d1 { animation-delay: .08s !important; } .pres-d2 { animation-delay: .18s !important; }
+        .pres-d3 { animation-delay: .28s !important; } .pres-d4 { animation-delay: .38s !important; }
+        @keyframes presFlotte { 0%, 100% { transform: translateY(0) rotate(var(--rot, 0deg)); } 50% { transform: translateY(-8px) rotate(var(--rot, 0deg)); } }
+        .pres-flotte { animation: presFlotte 6s ease-in-out infinite; }
+        .pres-flotte-lent { animation: presFlotte 7s ease-in-out 1.2s infinite; }
+        @keyframes presPulse { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, .6); } 70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
+        .pres-pulse { animation: presPulse 2s infinite; }
+        @media (prefers-reduced-motion: reduce) {
+            #presentationModal *, #presentationModal:not(.hidden) .pres-item { animation: none !important; opacity: 1 !important; }
+            #presentationModal .pres-barre { text-decoration-color: rgba(234, 88, 12, .5); }
+        }
+
+        /* Bandeau du haut : petite flèche sur le bouton de l'équipe, pour montrer qu'on peut cliquer */
+        .team-select-btn::after {
+            content: ' ▾';
         }
